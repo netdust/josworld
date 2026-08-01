@@ -15,7 +15,6 @@
     "stackedWP",
     "composer",
     "make",
-    "vite.js",
     "wordpress",
     "wp",
     "config"
@@ -37,9 +36,15 @@
   "prefer-stable": true,
   "extra": {
     "installer-paths": {
-      "content/mu-plugins/{$name}/": ["type:wordpress-muplugin"],
-      "content/plugins/{$name}/": ["type:wordpress-plugin"],
-      "content/themes/{$name}/": ["type:wordpress-theme"]
+      "content/mu-plugins/{$name}/": [
+        "type:wordpress-muplugin"
+      ],
+      "content/plugins/{$name}/": [
+        "type:wordpress-plugin"
+      ],
+      "content/themes/{$name}/": [
+        "type:wordpress-theme"
+      ]
     }
   }
 }

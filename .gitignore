@@ -57,6 +57,7 @@ Thumbs.db
 !composer.lock
 !wp-cli.yml
 !Makefile
+!phpstan-baseline.neon
 
 # Track favicon files, if they exist
 !android-chrome-*.png

@@ -1,0 +1,6 @@
+# Intentionally empty in the template. Regenerated per project by new-site.sh
+# (vendor/bin/phpstan analyse --generate-baseline) AFTER the wp-starter scaffold
+# lands ntdst-core + the theme, so pre-existing findings in the vendored
+# snapshot are frozen and only new code must be clean.
+parameters:
+    ignoreErrors: []

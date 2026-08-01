@@ -15,31 +15,52 @@
     "stackedWP",
     "composer",
     "make",
-    "vite.js",
     "wordpress",
     "wp",
     "config"
   ],
   "require": {
-    "php": ">=8.1",
-    "composer/installers": "^2.2",
-    "vlucas/phpdotenv": "^5.5"
+    "php": ">=8.1"
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest",
+    "laravel/pint": "^1.18",
+    "brain/monkey": "^2.7",
+    "phpunit/phpunit": "^9.6",
+    "phpstan/phpstan": "^2.2",
+    "szepeviktor/phpstan-wordpress": "^2.0",
+    "wp-coding-standards/wpcs": "^3.4",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+    "wp-phpunit/wp-phpunit": "~6.8.0",
+    "yoast/phpunit-polyfills": "^4.0"
   },
   "config": {
     "optimize-autoloader": true,
+    "process-timeout": 0,
     "preferred-install": "dist",
-    "vendor-dir": "app/vendor/",
     "allow-plugins": {
-      "composer/installers": true
+      "dealerdirect/phpcodesniffer-composer-installer": true
     }
   },
   "minimum-stability": "dev",
   "prefer-stable": true,
-  "extra": {
-    "installer-paths": {
-      "app/content/mu-plugins/{$name}/": ["type:wordpress-muplugin"],
-      "app/content/plugins/{$name}/": ["type:wordpress-plugin"],
-      "app/content/themes/{$name}/": ["type:wordpress-theme"]
-    }
+  "scripts": {
+    "lint": "phpcs",
+    "format": "pint --test",
+    "format:fix": "pint",
+    "test:unit": "vendor/bin/phpunit -c phpunit.unit.xml",
+    "test:int": "vendor/bin/phpunit -c phpunit.integration.xml",
+    "analyse": "phpstan analyse --no-progress",
+    "audit:deps": [
+      "@composer audit",
+      "@audit:js"
+    ],
+    "audit:js": "sh bin/js-gate.sh audit:js 'audit --audit-level=high'",
+    "lint:js": "sh bin/js-gate.sh lint:js 'run lint' 'run lint:css'",
+    "test:js": "sh bin/js-gate.sh test:js 'run test'",
+    "test:e2e": "sh bin/e2e.sh",
+    "build:check": "sh bin/js-gate.sh build:check 'run build'",
+    "gate": "sh bin/gate.sh"
   }
 }
