@@ -71,6 +71,38 @@ Thumbs.db
 !site.webmanifest
 
 # -------------------------
+# Gate layer (born-gated parity with bedrock site repos — review I4)
+# -------------------------
+
+# The wp-starter gate payload lands at the project root; pin it so scaffolded
+# sites track their test/analysis stack the way bedrock sites do.
+!tests/
+!tests/**
+!bin/
+!bin/**
+!phpstan.neon
+!phpcs.xml
+!phpunit.unit.xml
+!phpunit.integration.xml
+!playwright.config.ts
+!tsconfig.json
+!package.json
+!package-lock.json
+!README-testing.md
+
+# DDEV config: track it like bedrock does — DDEV's own generated nested
+# .ddev/.gitignore keeps the ephemeral pieces (builds, snapshots, certs) out.
+!.ddev/
+!.ddev/**
+
+# phpstan cache dir: only its self-ignore keeper is trackable — contents stay
+# ignored here AND via the payload's own .phpstan-cache/.gitignore
+# ('*' + '!.gitignore'), so cache files never track even if one layer is absent.
+!.phpstan-cache/
+.phpstan-cache/*
+!.phpstan-cache/.gitignore
+
+# -------------------------
 # App directory rules
 # -------------------------
 
