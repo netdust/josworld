@@ -1,5 +1,12 @@
 <?php
 // wp-config-ddev.php not needed
+// ^ LOAD-BEARING marker, do not remove: DDEV (project-type wordpress) greps
+// this file for the string "wp-config-ddev.php" and, when absent, prints a
+// long "existing user-managed wp-config.php detected" warning on every
+// config/start telling you to include its drop-in. DB credentials come from
+// the .env chain below instead, and this exact line is DDEV's documented
+// way to say so. (Verified against ddev config --project-type=wordpress:
+// it never edits a user-managed wp-config.php, it only warns.)
 
 /**
  * Fix HTTPS behind load balancers.
@@ -20,9 +27,8 @@ if (file_exists( $autoload = __DIR__ . '/vendor/autoload.php' ) )
 
 /**
  * Environment loading. Later loads override earlier ones (createMutable):
- *   1. app/.env          — deployed servers, where app/ contents ARE the site root
- *   2. <root>/.env       — the canonical local file (cp .env.example .env)
- *   3. <root>/.env.local — optional, never-committed local override
+ *   1. app/.env    — deployed servers, where app/ contents ARE the site root
+ *   2. <root>/.env — the canonical local file (cp .env.example .env)
  * The project-root .env is sufficient on its own for local development.
  */
 $dotenv = Dotenv\Dotenv::createMutable(__DIR__);
@@ -33,11 +39,6 @@ if (file_exists($rootDir . '/.env')) {
     Dotenv\Dotenv::createMutable($rootDir)->safeLoad();
 }
 
-// Load .env.local if present and override
-if (file_exists($rootDir . '/.env.local')) {
-    Dotenv\Dotenv::createMutable($rootDir, '.env.local')->safeLoad();
-}
-
 /**
  * Configuration constants.
  *
@@ -46,8 +47,6 @@ if (file_exists($rootDir . '/.env.local')) {
  * - DB_NAME
  * - DB_USER
  * - DB_PASSWORD
- *
- * @var array $env All the variables stored in environment variables
  */
 
 foreach ($_ENV as $name => $value) {
@@ -119,8 +118,10 @@ switch ($environment) {
  * Set WordPress paths and urls if not set via environment variables.
  */
 if (! defined('WP_HOME')) {
+    // HTTPS is a flag ('on'/'1'), not a URL — it is read raw and only ever
+    // strictly compared below (FILTER_SANITIZE_STRING was deprecated in PHP 8.1).
     $server = filter_input_array(INPUT_SERVER, array(
-        'HTTPS'       => FILTER_SANITIZE_STRING,
+        'HTTPS'       => FILTER_UNSAFE_RAW,
         'SERVER_PORT' => FILTER_SANITIZE_NUMBER_INT,
         'SERVER_NAME' => FILTER_SANITIZE_URL,
     ));
@@ -138,7 +139,7 @@ defined('WP_CONTENT_URL') or define('WP_CONTENT_URL', rtrim(WP_HOME, '/').'/cont
 /**
  * Clean up.
  */
-unset($env, $environment, $server, $secure, $scheme, $name, $autoload, $rootDir);
+unset($environment, $server, $secure, $scheme, $name, $autoload, $rootDir);
 
 
 /**

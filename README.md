@@ -9,7 +9,7 @@ stackedWP is a WordPress boilerplate for projects managed with Git and Composer 
 
 ## Getting Started
 
-Copy `.env.example` to `.env` and adjust it, then run `make setup`. An optional `.env.local` (never committed) can override `.env` for local-only tweaks.
+Copy `.env.example` to `.env` and adjust it, then run `make setup`. The root `.env` is the canonical local env file; on deployed servers the same file lives next to `wp-config.php` (the `app/.env` leg of the load chain).
 
 `make setup` configures DDEV (docroot `app/`), starts it, runs Composer, downloads WordPress core into `app/wp/` if missing, installs the theme's npm dependencies if the theme ships a `package.json`, and initializes the `staging` branch.
 
