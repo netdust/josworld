@@ -48,7 +48,9 @@ VITE_PATH := $(THEMES_LOCAL)/$(VITE_THEME)
 # ═══════════════════════════════════════════════════════════════════════════
 
 LOCAL_URL := https://$(PROJECT_NAME).ddev.site
-ENV_FILE := $(APP_DIR)/.env
+# Root .env is the canonical local env file (see README + the wp-config
+# load chain: app/.env first, root .env second and winning locally).
+ENV_FILE := .env
 ENV_EXAMPLE := .env.example
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -75,9 +77,14 @@ export PATH := $(PATH):/usr/bin:/bin
 
 # === HELP ===
 .PHONY: help setup setup-staging setup-production dev save deploy ship \
-        feature finish db-clean db-backup sync-to-local sync-to-staging \
-        template-save template-load template-list status backup rollback ssh \
-        s d p
+        feature finish db-clean sync-to-local sync-to-staging \
+        template-save template-load template-list status backup rollback ssh
+.PHONY: _create-bundle _deploy-bundle _check-requirements _check-ddev \
+        _check-staging-config _check-production-config _verify-ssh-access \
+        _git-setup _ensure-safe-branch _ensure-clean-git _confirm \
+        _init-remote-git _backup-production
+# Help is auto-generated from the `## ` comments on public targets:
+# every `target: ## description` line below shows up in `make help`.
 help: ## Show this help
 	@echo "$(BLUE)╔════════════════════════════════════════════════════╗$(RESET)"
 	@echo "$(BLUE)║  $(PROJECT_NAME) - Custom App Structure$(RESET)"
@@ -86,27 +93,13 @@ help: ## Show this help
 	@echo "$(GREEN)Branch:$(RESET) $$(git branch --show-current 2>/dev/null || echo 'none')"
 	@echo "$(GREEN)DDEV:$(RESET) $$(if ddev describe >/dev/null 2>&1; then echo 'running'; else echo 'not installed'; fi)"
 	@echo ""
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "setup" "Local + DDEV"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "setup-staging" "Init staging"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "dev" "Start dev"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "save" "Commit"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "deploy" "To staging"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "ship" "To production"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "feature" "make feature name=xyz"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "finish" "Merge → staging"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "sync-to-local" "Pull staging"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "sync-to-staging" "Push staging"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "template-save" "Export as template"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "template-load" "Import template"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "template-list" "List templates"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "status" "Full status"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "backup" "Local backup"
-	@printf "  $(GREEN)%-20s$(RESET) %s\n" "rollback" "Emergency rollback"
+	@grep -hE '^[a-zA-Z][a-zA-Z0-9_-]*:.*## ' $(MAKEFILE_LIST) | \
+	   awk 'BEGIN {FS = ":.*## "} {sub(/\r$$/, "", $$2); printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(BLUE)Quickstart:$(RESET) make setup && make dev"
 
 # === SETUP ===
-setup: ## Local setup
+setup: ## Local setup: DDEV + Composer + WP core + theme npm
 	@echo "$(BLUE)Setting up...$(RESET)"
 	@$(MAKE) --no-print-directory _check-requirements
 	@if [ ! -f $(ENV_FILE) ]; then cp $(ENV_EXAMPLE) $(ENV_FILE) && echo "$(YELLOW)Created $(ENV_FILE)$(RESET)"; fi
@@ -118,7 +111,7 @@ setup: ## Local setup
 	@$(MAKE) --no-print-directory _git-setup
 	@echo "$(GREEN)Setup complete$(RESET)"
 
-setup-staging: ## Setup staging
+setup-staging: ## Init staging remote: git, first bundle, DB, uploads
 	@echo "$(BLUE)Setting up staging...$(RESET)"
 	@$(MAKE) --no-print-directory _check-staging-config
 	@$(MAKE) --no-print-directory _ensure-clean-git
@@ -138,7 +131,7 @@ setup-staging: ## Setup staging
 	   echo "$(YELLOW)Git ready. Run from DDEV to push DB$(RESET)"; \
 	fi
 
-setup-production: ## Setup production
+setup-production: ## Init production remote (confirmed)
 	@$(MAKE) --no-print-directory _check-production-config
 	@echo "$(RED)SETUP PRODUCTION?$(RESET)"
 	@$(MAKE) --no-print-directory _confirm message="Continue?"
@@ -147,19 +140,19 @@ setup-production: ## Setup production
 	@echo "$(GREEN)Production initialized$(RESET)"
 
 # === WORKFLOW ===
-dev: ## Start dev
+dev: ## Start DDEV on a safe (non-main) branch
 	@$(MAKE) --no-print-directory _check-ddev
 	@ddev start
 	@$(MAKE) --no-print-directory _ensure-safe-branch
 	@echo "$(GREEN)Branch: $$(git branch --show-current) | $(LOCAL_URL)$(RESET)"
 
-save: ## Commit
+save: ## Stage everything + commit (prompted message)
 	@$(MAKE) --no-print-directory _ensure-safe-branch
 	@if [ -z "$$(git status --porcelain)" ]; then echo "$(YELLOW)No changes$(RESET)"; else \
 	   git add -A; git status --short; read -p "Message: " m; [ -n "$$m" ] && git commit -m "$$m" && echo "$(GREEN)Saved$(RESET)" || echo "$(RED)Cancelled$(RESET)"; \
 	fi
 
-deploy: ## To staging
+deploy: ## Bundle + deploy to staging
 	@echo "$(BLUE)Deploying to staging...$(RESET)"
 	@$(MAKE) --no-print-directory _check-staging-config
 	@$(MAKE) --no-print-directory _ensure-clean-git
@@ -168,7 +161,7 @@ deploy: ## To staging
 	@$(MAKE) --no-print-directory _deploy-bundle host=$(STAGING_HOST) path=$(STAGING_PATH) env=staging
 	@echo "$(GREEN)$(STAGING_URL)$(RESET)"
 
-ship: ## To production
+ship: ## Bundle + deploy to production (confirmed, DB backup first)
 	@$(MAKE) --no-print-directory _check-production-config
 	@echo "$(RED)SHIP TO LIVE?$(RESET)"
 	@$(MAKE) --no-print-directory _confirm message="Continue?"
@@ -180,7 +173,7 @@ ship: ## To production
 	@echo "$(GREEN)$(PRODUCTION_URL)$(RESET)"
 
 # === FEATURE BRANCHES ===
-feature: ## make feature name=login
+feature: ## Create feature/<name> from staging (name=xyz)
 	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make feature name=xyz$(RESET)"; exit 1; fi
 	@if ! echo "$(name)" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]*$$'; then echo "$(RED)Invalid name$(RESET)"; exit 1; fi
 	@if git show-ref --verify --quiet refs/heads/feature/$(name); then echo "$(RED)Exists$(RESET)"; exit 1; fi
@@ -188,7 +181,7 @@ feature: ## make feature name=login
 	@git checkout -b feature/$(name)
 	@echo "$(GREEN)feature/$(name) created$(RESET)"
 
-finish: ## Merge → staging
+finish: ## Merge current feature branch into staging
 	@BRANCH=$$(git branch --show-current); \
 	if ! echo "$$BRANCH" | grep -q "^feature/"; then echo "$(RED)Not on feature$(RESET)"; exit 1; fi; \
 	read -p "Merge $$BRANCH → staging? [y/N]: " c; [ "$$c" = "y" ] || exit 1; \
@@ -198,7 +191,7 @@ finish: ## Merge → staging
 ## REVIEW: db-clean bulk-deletes spam/trash comments and ALL post revisions with
 ## no confirmation prompt (other destructive targets gate on _confirm). Keep
 ## as-is, add _confirm, or drop? — Stefan's call at close-out.
-db-clean: ## Clean DB
+db-clean: ## Delete spam/trash comments, revisions, transients; optimize DB
 	@echo "Cleaning DB..."
 	@ddev wp comment delete $$(ddev wp comment list --status=spam,trash --format=ids) --force 2>/dev/null || true
 	@ddev wp post delete $$(ddev wp post list --post_type=revision --format=ids) --force 2>/dev/null || true
@@ -206,13 +199,8 @@ db-clean: ## Clean DB
 	@ddev wp db optimize
 	@echo "$(GREEN)DB cleaned$(RESET)"
 
-db-backup: ## Backup DB
-	@mkdir -p $(BACKUP_DIR)
-	@ddev export-db --file=$(BACKUP_DIR)/local-$$(date +%Y%m%d-%H%M%S).sql.gz
-	@echo "$(GREEN)DB backed up$(RESET)"
-
 # === SYNC ===
-sync-to-local: ## Pull staging → local
+sync-to-local: ## Pull staging DB + uploads into local
 	@echo "$(BLUE)Syncing staging → local...$(RESET)"
 	@$(MAKE) --no-print-directory _check-ddev
 	@mkdir -p $(BACKUP_DIR)
@@ -224,7 +212,7 @@ sync-to-local: ## Pull staging → local
 	@ddev wp cache flush
 	@echo "$(GREEN)Synced$(RESET)"
 
-sync-to-staging: ## Push local → staging
+sync-to-staging: ## Push local DB + uploads to staging (confirmed)
 	@echo "$(BLUE)Syncing local → staging...$(RESET)"
 	@$(MAKE) --no-print-directory _check-ddev
 	@$(MAKE) --no-print-directory _confirm message="Overwrite staging?"
@@ -244,7 +232,7 @@ sync-to-staging: ## Push local → staging
 ## Possibly superseded; template-load also overwrites the local DB + content
 ## (behind a confirm). Keep, or retire in favor of the payload flow? — Stefan's
 ## call at close-out.
-template-save: ## Export site as template
+template-save: ## Export DB + content as template (name=x)
 	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make template-save name=my-template$(RESET)"; exit 1; fi
 	@if ! echo "$(name)" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]*$$'; then echo "$(RED)Invalid name$(RESET)"; exit 1; fi
 	@echo "$(BLUE)Saving template: $(name)$(RESET)"
@@ -264,12 +252,12 @@ template-save: ## Export site as template
 	   echo "To push: cd $$SAVE_DIR && git remote add origin ... && git push"; \
 	fi
 
-template-load: ## Import template
+template-load: ## Import template: overwrites local DB + content (name=x)
 	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make template-load name=my-template$(RESET)"; exit 1; fi
 	@echo "$(BLUE)Loading template: $(name)$(RESET)"
 	@$(MAKE) --no-print-directory _check-ddev
 	@echo "$(RED)This will OVERWRITE the local DB and $(CONTENT_LOCAL)/$(RESET)"
-	@read -p "Continue? [y/N]: " c && [ "$$c" = "y" ] || exit 1
+	@$(MAKE) --no-print-directory _confirm message="Continue?"
 	@LOAD_DIR="$(TEMPLATE_DIR)/$(TEMPLATE_PREFIX)$(name)"; \
 	if [ -d "$$LOAD_DIR" ] && [ -f "$$LOAD_DIR/README.md" ]; then \
 	   echo "Using local template"; \
@@ -286,7 +274,7 @@ template-load: ## Import template
 	ddev wp cache flush; \
 	echo "$(GREEN)Template '$(name)' loaded$(RESET)"
 
-template-list: ## List templates
+template-list: ## List templates (local + GitHub)
 	@echo "$(BLUE)Templates$(RESET)"
 	@echo "$(YELLOW)Local:$(RESET)"
 	@if [ -d "$(TEMPLATE_DIR)" ]; then \
@@ -307,12 +295,12 @@ template-list: ## List templates
 	done 2>/dev/null || echo "  (install 'gh' CLI)"
 
 # === UTILITIES ===
-status: ## Show status
+status: ## Show local branch/changes + last staging commit
 	@echo "$(BLUE)STATUS$(RESET)"
 	@echo "$(YELLOW)LOCAL:$(RESET) $$(git branch --show-current) | $$(git status --porcelain | wc -l) changes"
 	@echo "$(YELLOW)STAGING:$(RESET) $$(ssh $(STAGING_HOST) "cd $(STAGING_PATH) && git log --oneline -1" 2>/dev/null || echo 'Not accessible')"
 
-backup: ## Full backup
+backup: ## Export local DB + archive uploads to backups/
 	@mkdir -p $(BACKUP_DIR)
 	@ddev export-db --file=$(BACKUP_DIR)/local-$$(date +%s).sql.gz
 	@if [ -d "$(UPLOADS_LOCAL)" ]; then tar -czf $(BACKUP_DIR)/uploads-$$(date +%s).tar.gz $(UPLOADS_LOCAL); fi
@@ -324,35 +312,46 @@ backup: ## Full backup
 ## needed. The backup-<timestamp> tags _deploy-bundle creates are never used;
 ## resetting to the latest backup-* tag is probably the intended mechanism.
 ## Redesign needs a call on the deploy history model — Stefan, at close-out.
-rollback: ## Emergency rollback
+# NOTE: the production-config check and the confirm prompt are INLINED here
+# (no $(MAKE) recursion on the compound line) so that `make -n rollback`
+# prints the ssh reset instead of executing it — make -n runs any recipe
+# line that contains $(MAKE).
+rollback: ## Emergency remote rollback (see REVIEW note)
 	@echo "$(RED)ROLLBACK$(RESET)"
 	@read -p "1) Staging  2) Production: " e; \
-	if [ "$$e" = "1" ]; then H=$(STAGING_HOST); P=$(STAGING_PATH); else make _check-production-config; H=$(PRODUCTION_HOST); P=$(PRODUCTION_PATH); fi; \
-	make _confirm message="Rollback $$H?"; \
+	if [ "$$e" = "1" ]; then H=$(STAGING_HOST); P=$(STAGING_PATH); else \
+	   { [ -n "$(PRODUCTION_HOST)" ] && [ -n "$(PRODUCTION_PATH)" ]; } || { echo "$(RED)Production not set$(RESET)"; exit 1; }; \
+	   H=$(PRODUCTION_HOST); P=$(PRODUCTION_PATH); fi; \
+	read -p "$(YELLOW)Rollback $$H? [type 'yes']: $(RESET)" c; [ "$$c" = "yes" ] || exit 1; \
 	ssh $$H "cd $$P && git reset --hard HEAD~1 && wp cache flush --path=." && \
 	echo "$(GREEN)Rolled back$(RESET)"
 
-ssh: ## SSH to staging
+ssh: ## Open SSH shell in the staging path
 	@ssh $(STAGING_HOST) -t "cd $(STAGING_PATH); bash"
 
 # === BUNDLE & DEPLOY (APP → ROOT) ===
+# Working-tree copy note (S5): an earlier --exclude-from="$(git ls-files …)"
+# on the content rsync was a verified NO-OP — git ls-files emits repo-root-
+# relative paths while rsync matches patterns relative to the transfer root,
+# so no tracked file was ever excluded. The real WIP guard is _ensure-clean-git,
+# which every caller (deploy/ship/setup-staging) runs first: with a clean tree,
+# tracked files are byte-identical to the `git archive HEAD` content already in
+# BUILD_DIR, so the copy below only ADDS the gitignored third-party
+# plugins/themes/mu-plugins.
 _create-bundle:
 	@set -e; \
 	BUNDLE="deploy-$$(git rev-parse --short HEAD)-$$(date +%s).bundle"; \
 	BUILD_DIR="$(TEMP_DIR)/build-$$$$"; \
 	TEMP_REPO="$(TEMP_DIR)/deploy-$$$$"; \
 	WORK_DIR="$$(pwd)"; \
-	echo "$(YELLOW)Building bundle from staging branch...$(RESET)"; \
+	echo "$(YELLOW)Building bundle from branch $$(git branch --show-current)...$(RESET)"; \
 	\
 	mkdir -p "$$BUILD_DIR"; \
 	git archive HEAD | tar -x -C "$$BUILD_DIR"; \
 	\
-	echo "$(YELLOW)Adding gitignored third-party files (not your WIP code)...$(RESET)"; \
+	echo "$(YELLOW)Adding gitignored third-party files (tree is clean, see _ensure-clean-git)...$(RESET)"; \
 	for dir in themes plugins mu-plugins; do \
-	   TRACKED="/tmp/tracked-$$dir-$$$$"; \
-	   git ls-files $(APP_DIR)/content/$$dir/ > "$$TRACKED"; \
-	   rsync -a --exclude=node_modules --exclude-from="$$TRACKED" $(APP_DIR)/content/$$dir/ "$$BUILD_DIR/$(APP_DIR)/content/$$dir/"; \
-	   rm -f "$$TRACKED"; \
+	   rsync -a --exclude=node_modules $(APP_DIR)/content/$$dir/ "$$BUILD_DIR/$(APP_DIR)/content/$$dir/"; \
 	done; \
 	\
 	if [ -f "$$BUILD_DIR/$(VITE_PATH)/package.json" ]; then \
@@ -439,8 +438,3 @@ _backup-production:
 	[ -s $$F ] || { rm -f $$F; echo "$(RED)Production backup is empty$(RESET)"; exit 1; }; \
 	echo "$(GREEN)Production backed up: $$F$(RESET)"
 
-# === ALIASES ===
-s: save
-d: deploy
-
-p: sync-to-local

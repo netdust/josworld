@@ -15,30 +15,23 @@ Copy `.env.example` to `.env` and adjust it, then run `make setup`. An optional 
 
 ## Make targets
 
+The daily drivers:
+
 | Target | Purpose |
 |--------|---------|
 | `make setup` | Local setup: DDEV + Composer + WP core into `app/wp/` + theme npm install |
-| `make setup-staging` | Initialize the staging remote (git init, first bundle, DB push, uploads) |
-| `make setup-production` | Initialize the production remote (confirmed) |
 | `make dev` | Start DDEV and switch to a safe (non-main) branch |
-| `make save` (`make s`) | Stage everything and commit with a prompted message |
-| `make deploy` (`make d`) | Build a Git bundle (incl. theme asset build) and deploy to staging |
+| `make save` | Stage everything and commit with a prompted message |
+| `make deploy` | Build a Git bundle (incl. theme asset build) and deploy to staging |
 | `make ship` | Same as deploy, to production — confirmed, with a DB backup first |
-| `make feature name=xyz` | Create `feature/xyz` from `staging` |
-| `make finish` | Merge the current feature branch back into `staging` |
-| `make db-clean` | Delete spam/trash comments, revisions, transients; optimize the DB |
-| `make db-backup` | Export the local DB to `backups/` |
-| `make sync-to-local` (`make p`) | Pull the staging DB + uploads into the local site |
-| `make sync-to-staging` | Push the local DB + uploads to staging (confirmed, staging DB backed up) |
-| `make template-save name=x` | Export DB + content as a reusable template (local or GitHub) |
-| `make template-load name=x` | Import a template — overwrites the local DB and content (confirmed) |
-| `make template-list` | List available templates (local + GitHub) |
-| `make status` | Show local branch/changes and the last staging commit |
+| `make feature name=xyz` / `make finish` | Create `feature/xyz` from `staging` / merge it back |
+| `make sync-to-local` | Pull the staging DB + uploads into the local site |
 | `make backup` | Export the local DB and archive uploads to `backups/` |
-| `make rollback` | Emergency remote rollback (see the REVIEW note in the Makefile) |
-| `make ssh` | Open an SSH shell in the staging path |
 
-Deploys ship the `app/` directory to the server root as a single-commit Git bundle; the theme's assets are built inside the bundle build dir, and `node_modules` is never deployed. Staging/production hosts, paths, and URLs are configured at the top of the Makefile.
+Run `make help` for the full list — the help output is generated from the `##`
+comments on the targets themselves, so it cannot drift from the Makefile.
+
+Deploys ship the `app/` directory to the server root as a single-commit Git bundle; the theme's assets are built inside the bundle build dir, and `node_modules` is never deployed. Staging/production hosts, paths, and URLs are configured at the top of the Makefile. An optional root `.deployignore` file (rsync exclude patterns, one per line) is honored when the bundle is assembled, for keeping site-specific files out of deploys.
 
 ## Update model
 
