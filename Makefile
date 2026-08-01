@@ -74,7 +74,10 @@ RESET := \033[0m
 export PATH := $(PATH):/usr/bin:/bin
 
 # === HELP ===
-.PHONY: help
+.PHONY: help setup setup-staging setup-production dev save deploy ship \
+        feature finish db-clean db-backup sync-to-local sync-to-staging \
+        template-save template-load template-list status backup rollback ssh \
+        s d p
 help: ## Show this help
 	@echo "$(BLUE)╔════════════════════════════════════════════════════╗$(RESET)"
 	@echo "$(BLUE)║  $(PROJECT_NAME) - Custom App Structure$(RESET)"
@@ -136,9 +139,9 @@ setup-staging: ## Setup staging
 	fi
 
 setup-production: ## Setup production
-	@make _check-production-config
+	@$(MAKE) --no-print-directory _check-production-config
 	@echo "$(RED)SETUP PRODUCTION?$(RESET)"
-	@make _confirm message="Continue?"
+	@$(MAKE) --no-print-directory _confirm message="Continue?"
 	@ssh $(PRODUCTION_HOST) "echo 'SSH OK'" || exit 1
 	@ssh $(PRODUCTION_HOST) "cd $(PRODUCTION_PATH) && git init && git config receive.denyCurrentBranch ignore && git config user.name Deploy"
 	@echo "$(GREEN)Production initialized$(RESET)"
@@ -158,6 +161,7 @@ save: ## Commit
 
 deploy: ## To staging
 	@echo "$(BLUE)Deploying to staging...$(RESET)"
+	@$(MAKE) --no-print-directory _check-staging-config
 	@$(MAKE) --no-print-directory _ensure-clean-git
 	@$(MAKE) --no-print-directory _verify-ssh-access host=$(STAGING_HOST)
 	@$(MAKE) --no-print-directory _create-bundle
@@ -165,14 +169,14 @@ deploy: ## To staging
 	@echo "$(GREEN)$(STAGING_URL)$(RESET)"
 
 ship: ## To production
-	@make _check-production-config
+	@$(MAKE) --no-print-directory _check-production-config
 	@echo "$(RED)SHIP TO LIVE?$(RESET)"
-	@make _confirm message="Continue?"
-	@make _ensure-clean-git
-	@make _backup-production
-	@make _verify-ssh-access host=$(PRODUCTION_HOST)
-	@make _create-bundle
-	@make _deploy-bundle host=$(PRODUCTION_HOST) path=$(PRODUCTION_PATH) env=production
+	@$(MAKE) --no-print-directory _confirm message="Continue?"
+	@$(MAKE) --no-print-directory _ensure-clean-git
+	@$(MAKE) --no-print-directory _backup-production
+	@$(MAKE) --no-print-directory _verify-ssh-access host=$(PRODUCTION_HOST)
+	@$(MAKE) --no-print-directory _create-bundle
+	@$(MAKE) --no-print-directory _deploy-bundle host=$(PRODUCTION_HOST) path=$(PRODUCTION_PATH) env=production
 	@echo "$(GREEN)$(PRODUCTION_URL)$(RESET)"
 
 # === FEATURE BRANCHES ===
@@ -191,6 +195,9 @@ finish: ## Merge → staging
 	git checkout staging && git merge --no-ff "$$BRANCH" -m "Merge $$BRANCH" && git branch -d "$$BRANCH" && echo "$(GREEN)Done$(RESET)"
 
 # === DATABASE ===
+## REVIEW: db-clean bulk-deletes spam/trash comments and ALL post revisions with
+## no confirmation prompt (other destructive targets gate on _confirm). Keep
+## as-is, add _confirm, or drop? — Stefan's call at close-out.
 db-clean: ## Clean DB
 	@echo "Cleaning DB..."
 	@ddev wp comment delete $$(ddev wp comment list --status=spam,trash --format=ids) --force 2>/dev/null || true
@@ -218,7 +225,7 @@ sync-to-local: ## Pull staging → local
 
 sync-to-staging: ## Push local → staging
 	@echo "$(BLUE)Syncing local → staging...$(RESET)"
-	@$(MAKE) --no-print-main _check-ddev
+	@$(MAKE) --no-print-directory _check-ddev
 	@$(MAKE) --no-print-directory _confirm message="Overwrite staging?"
 	@ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp db export --path=. -" > $(BACKUP_DIR)/staging-$$(date +%s).sql
 	@ddev export-db --file=$(TEMP_DIR)/local.sql.gz && gunzip $(TEMP_DIR)/local.sql.gz
@@ -230,6 +237,11 @@ sync-to-staging: ## Push local → staging
 	@echo "$(GREEN)Synced$(RESET)"
 
 # === TEMPLATES ===
+## REVIEW: the template-save/load/list subsystem predates the wp-starter payload
+## flow (new-site.sh --stack=stackwp now scaffolds theme + mu-plugins directly).
+## Possibly superseded; template-load also overwrites the local DB + content
+## (behind a confirm). Keep, or retire in favor of the payload flow? — Stefan's
+## call at close-out.
 template-save: ## Export site as template
 	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make template-save name=my-template$(RESET)"; exit 1; fi
 	@if ! echo "$(name)" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]*$$'; then echo "$(RED)Invalid name$(RESET)"; exit 1; fi
@@ -301,9 +313,15 @@ status: ## Show status
 backup: ## Full backup
 	@mkdir -p $(BACKUP_DIR)
 	@ddev export-db --file=$(BACKUP_DIR)/local-$$(date +%s).sql.gz
-	@[ -d "$(UPLOADS_LOCAL)" ] && tar -czf $(BACKUP_DIR)/uploads-$$(date +%s).tar.gz $(UPLOADS_LOCAL)
+	@if [ -d "$(UPLOADS_LOCAL)" ]; then tar -czf $(BACKUP_DIR)/uploads-$$(date +%s).tar.gz $(UPLOADS_LOCAL); fi
 	@echo "$(GREEN)Backup complete$(RESET)"
 
+## REVIEW: rollback does `git reset --hard HEAD~1` on the remote, but every
+## _deploy-bundle checkout is a SINGLE PARENTLESS commit (fresh temp repo per
+## deploy) — HEAD~1 cannot resolve, so this rollback likely fails exactly when
+## needed. The backup-<timestamp> tags _deploy-bundle creates are never used;
+## resetting to the latest backup-* tag is probably the intended mechanism.
+## Redesign needs a call on the deploy history model — Stefan, at close-out.
 rollback: ## Emergency rollback
 	@echo "$(RED)ROLLBACK$(RESET)"
 	@read -p "1) Staging  2) Production: " e; \
