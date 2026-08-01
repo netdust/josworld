@@ -55,8 +55,6 @@ Thumbs.db
 !CHANGELOG.md
 !composer.json
 !composer.lock
-!package.json
-!vite.config.js
 !wp-cli.yml
 !Makefile
 
@@ -70,15 +68,6 @@ Thumbs.db
 !mstile-*.png
 !safari-pinned-tab.svg
 !site.webmanifest
-
-# -------------------------
-# Src directory rules
-# -------------------------
-
-# Allow the src directory
-!src/
-!src/**
-
 
 # -------------------------
 # App directory rules
