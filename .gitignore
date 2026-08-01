@@ -87,6 +87,11 @@ app/content/uploads/
 # Ignore debug logs
 app/content/debug.log
 
+# Ignore runtime logs — daily rotation churns these; they must never be tracked.
+# Must stay AFTER the !app/content/** re-include above to win. Non-log files
+# in logs/ (.htaccess, index.html, .gitkeep) remain trackable.
+app/content/logs/*.log
+
 
 # Ignore all plugins by default
 app/content/plugins/*
