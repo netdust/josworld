@@ -49,7 +49,6 @@ Thumbs.db
 !.htaccess
 !.gitignore
 !.env.example
-!.gitmodules
 !.editorconfig
 !.phpcs.xml.dist
 !README.md
@@ -100,8 +99,8 @@ app/content/plugins/*
 # Ignore all themes by default
 app/content/themes/*
 
-# Allow specific custom themes
-!app/content/themes/ntdstheme/
+# Allow specific custom themes (add your custom theme here)
+# Example: !app/content/themes/my-theme/
 
 # Allow index.php protection files
 !app/content/themes/index.php
@@ -115,5 +114,5 @@ app/content/themes/*
 !app/index.php
 !app/wp-config.php
 
-# Re-ignore Zone.Identifier files (mus
+# Re-ignore Zone.Identifier files (must stay last so it wins over whitelists)
 **/*:Zone.Identifier

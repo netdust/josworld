@@ -8,7 +8,9 @@
 #                          PROJECT CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════
 
-PROJECT_NAME := yves
+# Defaults to the directory name (matches DDEV's default project naming);
+# override with `make PROJECT_NAME=foo …` or set it here.
+PROJECT_NAME ?= $(notdir $(CURDIR))
 STAGING_HOST := #
 STAGING_PATH := #
 STAGING_URL := #
@@ -36,8 +38,9 @@ THEMES_REMOTE := $(CONTENT_REMOTE)/themes
 MU_PLUGINS_LOCAL := $(CONTENT_LOCAL)/mu-plugins
 MU_PLUGINS_REMOTE := $(CONTENT_REMOTE)/mu-plugins
 
-# Vite theme (adjust if different)
-VITE_THEME := ntdstheme
+# Vite theme slug — the theme owning the Vite build under $(THEMES_LOCAL).
+# Defaults to the project name; override if your theme folder differs.
+VITE_THEME ?= $(PROJECT_NAME)
 VITE_PATH := $(THEMES_LOCAL)/$(VITE_THEME)
 
 # ═══════════════════════════════════════════════════════════════════════════
