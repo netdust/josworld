@@ -110,7 +110,8 @@ setup: ## Local setup
 	@if ! ddev describe >/dev/null 2>&1; then ddev config --docroot=$(APP_DIR) --project-type=wordpress --project-name=$(PROJECT_NAME); fi
 	@ddev start
 	ddev composer install --working-dir=$(APP_DIR) 2>/dev/null || true
-	@npm install 2>/dev/null || true
+	@if [ ! -f $(APP_DIR)/wp/wp-settings.php ]; then echo "$(YELLOW)Downloading WordPress core into $(APP_DIR)/wp...$(RESET)"; ddev wp core download; fi
+	@if [ -f $(VITE_PATH)/package.json ]; then echo "$(YELLOW)Installing theme dependencies ($(VITE_THEME))...$(RESET)"; cd $(VITE_PATH) && npm install; fi
 	@$(MAKE) --no-print-directory _git-setup
 	@echo "$(GREEN)Setup complete$(RESET)"
 
@@ -239,7 +240,6 @@ template-save: ## Export site as template
 	ddev export-db --file="$$SAVE_DIR/database.sql.gz" && gunzip "$$SAVE_DIR/database.sql.gz"; \
 	sed -i.bak "s|$(LOCAL_URL)|__SITE_URL__|g" "$$SAVE_DIR/database.sql" && rm -f "$$SAVE_DIR/database.sql.bak"; \
 	[ -d "$(CONTENT_LOCAL)" ] && cp -R $(CONTENT_LOCAL) "$$SAVE_DIR/content"; \
-	[ -d "src" ] && cp -R src "$$SAVE_DIR/src"; \
 	echo "# Template: $(name)\nCreated: $$(date)\nSource: $(PROJECT_NAME)" > "$$SAVE_DIR/README.md"; \
 	cd "$$SAVE_DIR" && git init -b main && git add . && git commit -m "Template: $(name)"; \
 	if git ls-remote "git@github.com:$(GITHUB_USER)/$(TEMPLATE_PREFIX)$(name).git" >/dev/null 2>&1; then \
@@ -254,7 +254,7 @@ template-load: ## Import template
 	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make template-load name=my-template$(RESET)"; exit 1; fi
 	@echo "$(BLUE)Loading template: $(name)$(RESET)"
 	@$(MAKE) --no-print-directory _check-ddev
-	@echo "$(RED)This will OVERWRITE DB, content & src folders$(RESET)"
+	@echo "$(RED)This will OVERWRITE the local DB and $(CONTENT_LOCAL)/$(RESET)"
 	@read -p "Continue? [y/N]: " c && [ "$$c" = "y" ] || exit 1
 	@LOAD_DIR="$(TEMPLATE_DIR)/$(TEMPLATE_PREFIX)$(name)"; \
 	if [ -d "$$LOAD_DIR" ] && [ -f "$$LOAD_DIR/README.md" ]; then \
@@ -262,14 +262,13 @@ template-load: ## Import template
 	elif git clone "git@github.com:$(GITHUB_USER)/$(TEMPLATE_PREFIX)$(name).git" "$$LOAD_DIR" 2>/dev/null; then \
 	   echo "Cloned from GitHub"; \
 	else \
-	   echo "$(RED)Template not found$(RESET)"; $(MAKE) template-list; exit 1; \
+	   echo "$(RED)Template not found — run 'make template-list'$(RESET)"; exit 1; \
 	fi; \
 	mkdir -p $(BACKUP_DIR); \
 	[ -f "$$LOAD_DIR/database.sql" ] && ddev export-db --file="$(BACKUP_DIR)/before-$$(date +%s).sql.gz" && \
 	   ddev import-db --src="$$LOAD_DIR/database.sql" && \
 	   ddev wp search-replace '__SITE_URL__' "$(LOCAL_URL)" --all-tables; \
 	[ -d "$$LOAD_DIR/content" ] && mkdir -p $(CONTENT_LOCAL) && rsync -av --delete "$$LOAD_DIR/content/" $(CONTENT_LOCAL)/; \
-	[ -d "$$LOAD_DIR/src" ] && mkdir -p src && rsync -av --delete "$$LOAD_DIR/src/" src/; \
 	ddev wp cache flush; \
 	echo "$(GREEN)Template '$(name)' loaded$(RESET)"
 
@@ -332,20 +331,22 @@ _create-bundle:
 	for dir in themes plugins mu-plugins; do \
 	   TRACKED="/tmp/tracked-$$dir-$$$$"; \
 	   git ls-files $(APP_DIR)/content/$$dir/ > "$$TRACKED"; \
-	   rsync -a --exclude-from="$$TRACKED" $(APP_DIR)/content/$$dir/ "$$BUILD_DIR/$(APP_DIR)/content/$$dir/"; \
+	   rsync -a --exclude=node_modules --exclude-from="$$TRACKED" $(APP_DIR)/content/$$dir/ "$$BUILD_DIR/$(APP_DIR)/content/$$dir/"; \
 	   rm -f "$$TRACKED"; \
 	done; \
 	\
-	if [ -f "$$BUILD_DIR/package.json" ]; then \
-	   echo "$(YELLOW)Building assets in /tmp (PHPStorm won't see this)...$(RESET)"; \
-	   cd "$$BUILD_DIR" && npm ci -q && VITE_THEME=$(VITE_THEME) npm run build; \
+	if [ -f "$$BUILD_DIR/$(VITE_PATH)/package.json" ]; then \
+	   echo "$(YELLOW)Building theme assets in /tmp ($(VITE_THEME))...$(RESET)"; \
+	   ( cd "$$BUILD_DIR/$(VITE_PATH)" && npm ci -q && npm run build ); \
 	fi; \
 	\
 	mkdir -p "$$TEMP_REPO" && cd "$$TEMP_REPO" && git init -q; \
 	git config user.name "$$(git -C "$$WORK_DIR" config user.name)"; \
 	git config user.email "$$(git -C "$$WORK_DIR" config user.email)"; \
 	\
-	rsync -a --exclude-from="$$BUILD_DIR/.deployignore" "$$BUILD_DIR/$(APP_DIR)/" "$$TEMP_REPO"/; \
+	DEPLOY_EXCLUDES="--exclude=node_modules --exclude=.git"; \
+	if [ -f "$$BUILD_DIR/.deployignore" ]; then DEPLOY_EXCLUDES="$$DEPLOY_EXCLUDES --exclude-from=$$BUILD_DIR/.deployignore"; fi; \
+	rsync -a $$DEPLOY_EXCLUDES "$$BUILD_DIR/$(APP_DIR)/" "$$TEMP_REPO"/; \
 	rm -f "$$TEMP_REPO/.gitignore"; \
 	\
 	git add -A && git commit -m "Deploy" --no-verify -q; \
