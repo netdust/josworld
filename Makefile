@@ -112,7 +112,7 @@ setup: ## Local setup
 	@if [ ! -f $(ENV_FILE) ]; then cp $(ENV_EXAMPLE) $(ENV_FILE) && echo "$(YELLOW)Created $(ENV_FILE)$(RESET)"; fi
 	@if ! ddev describe >/dev/null 2>&1; then ddev config --docroot=$(APP_DIR) --project-type=wordpress --project-name=$(PROJECT_NAME); fi
 	@ddev start
-	ddev composer install --working-dir=$(APP_DIR) 2>/dev/null || true
+	ddev composer install --working-dir=$(APP_DIR)
 	@if [ ! -f $(APP_DIR)/wp/wp-settings.php ]; then echo "$(YELLOW)Downloading WordPress core into $(APP_DIR)/wp...$(RESET)"; ddev wp core download; fi
 	@if [ -f $(VITE_PATH)/package.json ]; then echo "$(YELLOW)Installing theme dependencies ($(VITE_THEME))...$(RESET)"; cd $(VITE_PATH) && npm install; fi
 	@$(MAKE) --no-print-directory _git-setup
@@ -215,6 +215,7 @@ db-backup: ## Backup DB
 sync-to-local: ## Pull staging → local
 	@echo "$(BLUE)Syncing staging → local...$(RESET)"
 	@$(MAKE) --no-print-directory _check-ddev
+	@mkdir -p $(BACKUP_DIR)
 	@ddev export-db --file=$(BACKUP_DIR)/local-before-sync-$$(date +%s).sql.gz
 	@ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp db export --path=. -" > $(TEMP_DIR)/staging.sql
 	@ddev import-db --src=$(TEMP_DIR)/staging.sql
@@ -227,6 +228,7 @@ sync-to-staging: ## Push local → staging
 	@echo "$(BLUE)Syncing local → staging...$(RESET)"
 	@$(MAKE) --no-print-directory _check-ddev
 	@$(MAKE) --no-print-directory _confirm message="Overwrite staging?"
+	@mkdir -p $(BACKUP_DIR)
 	@ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp db export --path=. -" > $(BACKUP_DIR)/staging-$$(date +%s).sql
 	@ddev export-db --file=$(TEMP_DIR)/local.sql.gz && gunzip $(TEMP_DIR)/local.sql.gz
 	@sed -i.bak "s|$(LOCAL_URL)|$(STAGING_URL)|g" $(TEMP_DIR)/local.sql && rm -f $(TEMP_DIR)/local.sql.bak
@@ -376,21 +378,26 @@ _create-bundle:
 	echo "$(GREEN)✓ Ready: $$BUNDLE$(RESET)"; \
 	echo "$$BUNDLE" > $(TEMP_DIR)/.bundle-name
 
+# The remote chain runs under `set -e`: a failed bundle-verify, tag, checkout
+# or composer install is FATAL. Only the genuinely optional legs (.env absent,
+# wp-cli absent) are soft, behind explicit if-guards. The ssh exit status is
+# checked BEFORE local cleanup so `rm -f` can never mask a failed deploy.
 _deploy-bundle:
 	@BUNDLE=$$(cat $(TEMP_DIR)/.bundle-name); \
 	scp $(TEMP_DIR)/$$BUNDLE $(host):$(path)/ || exit 1; \
-	ssh $(host) "cd $(path) && \
-	   git bundle verify $$BUNDLE && \
-	   git tag backup-$$(date +%s) && \
-	   [ -f .env ] && cp .env .env.backup || echo 'No .env to backup' && \
-	   REF=\$$(git bundle list-heads $$BUNDLE | awk '{print \$$1}') && \
-	   git bundle unbundle $$BUNDLE && \
-	   git checkout -f \$$REF && \
-	   [ -f .env.backup ] && mv .env.backup .env || echo 'No .env to restore' && \
-	   composer install --no-dev --optimize-autoloader && \
-	   [ -f wp/wp-settings.php ] && wp cache flush || echo 'wp-cli skipped' && \
-	   rm $$BUNDLE" && \
-	echo "$(GREEN)Deployed$(RESET)"; rm -f $(TEMP_DIR)/$$BUNDLE $(TEMP_DIR)/.bundle-name
+	ssh $(host) "set -e; cd $(path); \
+	   git bundle verify $$BUNDLE; \
+	   git tag backup-$$(date +%s); \
+	   if [ -f .env ]; then cp .env .env.backup; else echo 'No .env to backup'; fi; \
+	   REF=\$$(git bundle list-heads $$BUNDLE | awk '{print \$$1}'); \
+	   git bundle unbundle $$BUNDLE; \
+	   git checkout -f \$$REF; \
+	   if [ -f .env.backup ]; then mv .env.backup .env; fi; \
+	   composer install --no-dev --optimize-autoloader; \
+	   if command -v wp >/dev/null 2>&1 && [ -f wp/wp-settings.php ]; then wp cache flush; else echo 'wp-cli skipped'; fi; \
+	   rm $$BUNDLE" || exit 1; \
+	echo "$(GREEN)Deployed$(RESET)"; \
+	rm -f $(TEMP_DIR)/$$BUNDLE $(TEMP_DIR)/.bundle-name
 
 # === HELPERS ===
 _check-requirements:
@@ -426,8 +433,11 @@ _init-remote-git:
 
 _backup-production:
 	@mkdir -p $(BACKUP_DIR)
-	@ssh $(PRODUCTION_HOST) "cd $(PRODUCTION_PATH) && wp db export --path=. - | gzip" > $(BACKUP_DIR)/prod-$$(date +%s).sql.gz
-	@echo "$(GREEN)Production backed up$(RESET)"
+	@F=$(BACKUP_DIR)/prod-$$(date +%s).sql.gz; \
+	ssh $(PRODUCTION_HOST) "cd $(PRODUCTION_PATH) && bash -c 'set -o pipefail; wp db export --path=. - | gzip'" > $$F \
+	   || { rm -f $$F; echo "$(RED)Production DB export failed$(RESET)"; exit 1; }; \
+	[ -s $$F ] || { rm -f $$F; echo "$(RED)Production backup is empty$(RESET)"; exit 1; }; \
+	echo "$(GREEN)Production backed up: $$F$(RESET)"
 
 # === ALIASES ===
 s: save
