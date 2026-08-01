@@ -50,11 +50,11 @@ property the template guarantees, and it rests on three checkable facts:
    it, so wp-admin's update/install UI stays enabled
    (`wp eval 'var_export(defined("DISALLOW_FILE_MODS") ? DISALLOW_FILE_MODS : false);'`
    → `false`, and `get_filesystem_method()` → `'direct'`).
-2. **Core is never tracked by Git** — `**/wp/` is gitignored, and deploys never ship or
-   reset `app/wp/`. Core is provisioned once at setup (Composer's
-   `johnpbloch/wordpress` package, with `wp core download` as the Makefile fallback);
-   after that, wp-admin updates write straight to `app/wp/` and nothing in the deploy
-   flow reverts them.
+2. **Core is installed by download — never version-locked in Git or Composer.**
+   `**/wp/` is gitignored, no Composer manifest requires WordPress core, and deploys
+   never ship or reset `app/wp/`. `make setup` provisions core once via
+   `wp core download` (always the latest release); after that, wp-admin updates write
+   straight to `app/wp/` and nothing in the deploy flow reverts them.
 3. **Plugins and themes live as regular directories** under `app/content/plugins/` and
    `app/content/themes/` — untracked by default in `.gitignore`, so wp-admin
    installs/updates land as plain files that no deploy or Git operation stomps.

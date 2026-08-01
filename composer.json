@@ -36,7 +36,6 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "extra": {
-    "wordpress-install-dir": "app/wp",
     "installer-paths": {
       "app/content/mu-plugins/{$name}/": ["type:wordpress-muplugin"],
       "app/content/plugins/{$name}/": ["type:wordpress-plugin"],
