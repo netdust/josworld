@@ -18,14 +18,24 @@ if (
 if (file_exists( $autoload = __DIR__ . '/vendor/autoload.php' ) )
     require_once realpath($autoload);
 
+/**
+ * Environment loading. Later loads override earlier ones (createMutable):
+ *   1. app/.env          — deployed servers, where app/ contents ARE the site root
+ *   2. <root>/.env       — the canonical local file (cp .env.example .env)
+ *   3. <root>/.env.local — optional, never-committed local override
+ * The project-root .env is sufficient on its own for local development.
+ */
 $dotenv = Dotenv\Dotenv::createMutable(__DIR__);
 $dotenv->safeLoad();
 
+$rootDir = dirname(__DIR__);
+if (file_exists($rootDir . '/.env')) {
+    Dotenv\Dotenv::createMutable($rootDir)->safeLoad();
+}
+
 // Load .env.local if present and override
-$envLocal = dirname(__DIR__, 1) . '/.env.local';
-if (file_exists($envLocal)) {
-    $dotenvLocal = Dotenv\Dotenv::createMutable(dirname(__DIR__, 1), '.env.local');
-    $dotenvLocal->safeLoad();
+if (file_exists($rootDir . '/.env.local')) {
+    Dotenv\Dotenv::createMutable($rootDir, '.env.local')->safeLoad();
 }
 
 /**
@@ -128,7 +138,7 @@ defined('WP_CONTENT_URL') or define('WP_CONTENT_URL', rtrim(WP_HOME, '/').'/cont
 /**
  * Clean up.
  */
-unset($env, $environment, $server, $secure, $scheme, $name, $autoload);
+unset($env, $environment, $server, $secure, $scheme, $name, $autoload, $rootDir);
 
 
 /**

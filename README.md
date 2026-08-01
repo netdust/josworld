@@ -11,4 +11,4 @@ stackedWP is a WordPress boilerplate for projects managed with Git and Composer 
 
 ## Getting Started
 
-Configure .env.local, composer install and look into the Makefile on how to continue
+Copy `.env.example` to `.env` and adjust it, run `composer install`, and look into the Makefile on how to continue. An optional `.env.local` (never committed) can override `.env` for local-only tweaks.

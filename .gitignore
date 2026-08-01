@@ -48,6 +48,7 @@ Thumbs.db
 # Track these files, if they exist
 !.htaccess
 !.gitignore
+!.env.example
 !.gitmodules
 !.editorconfig
 !.phpcs.xml.dist
