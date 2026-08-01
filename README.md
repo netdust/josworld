@@ -39,3 +39,22 @@ Copy `.env.example` to `.env` and adjust it, then run `make setup`. An optional 
 | `make ssh` | Open an SSH shell in the staging path |
 
 Deploys ship the `app/` directory to the server root as a single-commit Git bundle; the theme's assets are built inside the bundle build dir, and `node_modules` is never deployed. Staging/production hosts, paths, and URLs are configured at the top of the Makefile.
+
+## Update model
+
+**This stack is client-updatable by design.** After handover, WordPress core, plugin,
+and theme updates work from wp-admin — Netdust involvement is not required. That is a
+property the template guarantees, and it rests on three checkable facts:
+
+1. **No `DISALLOW_FILE_MODS`.** Neither `app/wp-config.php` nor the environment defines
+   it, so wp-admin's update/install UI stays enabled
+   (`wp eval 'var_export(defined("DISALLOW_FILE_MODS") ? DISALLOW_FILE_MODS : false);'`
+   → `false`, and `get_filesystem_method()` → `'direct'`).
+2. **Core is never tracked by Git** — `**/wp/` is gitignored, and deploys never ship or
+   reset `app/wp/`. Core is provisioned once at setup (Composer's
+   `johnpbloch/wordpress` package, with `wp core download` as the Makefile fallback);
+   after that, wp-admin updates write straight to `app/wp/` and nothing in the deploy
+   flow reverts them.
+3. **Plugins and themes live as regular directories** under `app/content/plugins/` and
+   `app/content/themes/` — untracked by default in `.gitignore`, so wp-admin
+   installs/updates land as plain files that no deploy or Git operation stomps.
