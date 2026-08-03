@@ -73,8 +73,8 @@ add_action('plugins_loaded', function (): void {
     // Admin-only service (T04)
     require_once $dir . '/admin/AdminUIService.php';
 
-    // Multilingual service (T09) — none yet:
-    // require_once $dir . '/multilingual/MultilingualService.php';
+    // Multilingual service (T09):
+    require_once $dir . '/multilingual/MultilingualService.php';
 
     unset($dir); // no longer needed after the require_once list above
 
@@ -92,8 +92,13 @@ add_action('plugins_loaded', function (): void {
             ntdst_get(\josworld\services\admin\AdminUIService::class);
         }
 
-        // Multilingual service — conditional on Polylang being active
-        // (T09), not a hand-rolled function_exists() sprinkled elsewhere:
-        // ntdst_get(\josworld\services\multilingual\MultilingualService::class);
+        // Multilingual service (T09) — resolved unconditionally like the
+        // content services. NOT gated behind an is_admin()-style branch or
+        // a hand-rolled function_exists('pll_...') check here: the class
+        // itself only ever calls add_filter() (always safe, see its
+        // docblock), so there is nothing to guard at the boot-block call
+        // site — SC-4 is honoured INSIDE the service, not by conditionally
+        // skipping its construction.
+        ntdst_get(\josworld\services\multilingual\MultilingualService::class);
     }, 5);
 }, 5);
