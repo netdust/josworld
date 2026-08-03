@@ -85,6 +85,12 @@ if (class_exists('NTDST_Theme')) {
  * Priority 20 so it lands after YOOtheme's own enqueues.
  */
 add_action('wp_enqueue_scripts', static function (): void {
+    // NOTE: the brand fonts are NOT enqueued here. YOOtheme's StyleFontLoader
+    // parses the `@import url(fonts.googleapis.com/...)` at the top of
+    // less/theme.josworld.less, downloads the woff2 files and SELF-HOSTS them
+    // (packages/styler/src/StyleFontLoader.php) — so adding a wp_enqueue_style
+    // for the same families would load them twice, and from Google's CDN
+    // instead of this server.
     wp_enqueue_style(
         'yootheme',
         get_template_directory_uri() . '/style.css',
