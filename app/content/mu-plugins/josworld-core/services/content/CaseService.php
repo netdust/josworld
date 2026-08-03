@@ -56,6 +56,17 @@
  * `_jw_` via `meta_prefix` — a first-class register() arg (Data.php:52,71,
  * 1541) — rather than baked into each field key by hand.
  *
+ * META KEY NAMING RULE (review finding CB-B-2, human-decided 2026-08-03):
+ * every meta key (the array key passed to getFields(), i.e. the part after
+ * `_jw_`) is ALWAYS ENGLISH. Editor-facing __() labels are ALWAYS DUTCH. The
+ * two are independent: a key is a durable storage/API contract every future
+ * YOOtheme builder template reads directly, while a label is UI copy under
+ * FR-11's Dutch-admin requirement — conflating them (as this file originally
+ * did with `wat_we_hebben_gedaan`/`doelgroep`/`uitdaging_*`/`resultaat_*`,
+ * fixed in this same commit) mixes a translation concern into a data
+ * contract. Every sibling content service (TeamService, VacatureService,
+ * ToolService) already complies; keep it that way for any new field.
+ *
  * i18n (FR-11): every editor-facing label goes through __()/_x() against the
  * JOSWORLD_CORE_TEXTDOMAIN constant. Labels are Dutch (correct — this is
  * editor-facing Dutch UI per FR-1), never hardcoded outside a translation
@@ -123,11 +134,11 @@ final class CaseService
                 'type' => 'text',
                 'label' => __('Tagline', JOSWORLD_CORE_TEXTDOMAIN),
             ],
-            'wat_we_hebben_gedaan' => [
+            'what_we_did' => [
                 'type' => 'textarea',
                 'label' => __('Wat we hebben gedaan', JOSWORLD_CORE_TEXTDOMAIN),
             ],
-            'doelgroep' => [
+            'target_audience' => [
                 'type' => 'textarea',
                 'label' => __('Doelgroep', JOSWORLD_CORE_TEXTDOMAIN),
             ],
@@ -151,21 +162,21 @@ final class CaseService
 
             // UITDAGING (title + body — no group/object field type exists,
             // confirmed against ntdst-core/api/MetaboxGenerator.php)
-            'uitdaging_title' => [
+            'challenge_title' => [
                 'type' => 'text',
                 'label' => __('Uitdaging — titel', JOSWORLD_CORE_TEXTDOMAIN),
             ],
-            'uitdaging_body' => [
+            'challenge_body' => [
                 'type' => 'textarea',
                 'label' => __('Uitdaging — tekst', JOSWORLD_CORE_TEXTDOMAIN),
             ],
 
             // RESULTAAT (title + body)
-            'resultaat_title' => [
+            'result_title' => [
                 'type' => 'text',
                 'label' => __('Resultaat — titel', JOSWORLD_CORE_TEXTDOMAIN),
             ],
-            'resultaat_body' => [
+            'result_body' => [
                 'type' => 'textarea',
                 'label' => __('Resultaat — tekst', JOSWORLD_CORE_TEXTDOMAIN),
             ],
@@ -244,7 +255,7 @@ final class CaseService
         return [
             'intro' => [
                 'title' => __('Klant & intro', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['client', 'tagline', 'wat_we_hebben_gedaan', 'doelgroep'],
+                'fields' => ['client', 'tagline', 'what_we_did', 'target_audience'],
                 'context' => 'normal',
                 'priority' => 'high',
             ],
@@ -256,7 +267,7 @@ final class CaseService
             ],
             'narrative' => [
                 'title' => __('Uitdaging & resultaat', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['uitdaging_title', 'uitdaging_body', 'resultaat_title', 'resultaat_body'],
+                'fields' => ['challenge_title', 'challenge_body', 'result_title', 'result_body'],
                 'context' => 'normal',
                 'priority' => 'default',
             ],
