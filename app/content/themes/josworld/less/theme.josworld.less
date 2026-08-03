@@ -27,12 +27,15 @@ Type: Flat
 // designed and added one at a time on the section page.
 //
 // ⚠ THIS FILE IS THE SOURCE OF TRUTH FOR THE TOKENS — NOT THE CUSTOMIZER.
-// The Customizer exposes variables by PATTERN whitelist (config/styler.php:
-// `@global-*`, `@button-*`, `@card-*`, …), so the `@jw-*` tokens in section 1
-// do NOT appear there and cannot be edited in the UI. Editing a colour under
-// Customizer → Global → Colors overrides the MAPPED `@global-*` value while the
-// `@jw-*` token it came from still reads the old value — the two silently
-// diverge, and the DB copy wins at runtime.
+// The Customizer exposes variables by PATTERN whitelist (config/styler.php), so
+// the two halves of this file behave DIFFERENTLY there:
+//   - section 2's mappings (`@global-*`, `@base-*`, `@button-*`, `@card-*`,
+//     `@navbar-*`, `@inverse-*`) DO appear as editable fields — 139 of them;
+//   - section 1's `@jw-*` tokens match no pattern and never appear.
+// That asymmetry is the trap: editing a colour under Customizer → Global →
+// Colors overrides the MAPPED `@global-*` value while the `@jw-*` token it was
+// derived FROM still reads the old value. The two silently diverge, the DB copy
+// wins at runtime, and this file — the one that looks authoritative — is stale.
 // So: change brand values HERE, in section 1. Use the Customizer for fonts and
 // per-page work. If a value ever DOES need to be client-editable, rename that
 // token to match an exposed pattern deliberately — and note that its source of
