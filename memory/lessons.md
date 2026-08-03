@@ -8,6 +8,90 @@ is a harness behaviour, not a josworld fact.
 
 ---
 
+## The plan's TASK GRANULARITY is challengeable at the seam — not just the ceremony applied to it
+
+**Date:** 2026-08-03
+**Correction:** *"i am concerned that a setup that untill now is more config
+than anything else took so long."*
+
+This is a DIFFERENT failure from `stakes-dial-ignored`, and it is the one
+that actually cost the four hours. Recorded here as well as at fleet level
+because the two compound and are easy to confuse.
+
+### The measurement
+
+**290 minutes (~4h).** Deliverable: **2,077 lines** of declarative config
+(4 CPTs, 1 taxonomy, field maps) against an existing reference
+implementation (DAAN). Tests: **4,651 lines** — a 2.2:1 ratio on field maps.
+
+Where it went:
+| | |
+|---|---|
+| The actual config | ~45 min — should have been the whole job |
+| Ceremony (18 dispatches, 8 reviews, ledger writes) | ~2h — mostly waste |
+| Real bug investigation | ~45 min — genuinely earned |
+| Chasing my own bad diagnosis (`wp eval` dead end) | ~30 min — my error |
+
+### The distinction that matters
+
+`stakes-dial-ignored` says: **scale the ceremony to the stakes.** True, and
+already recorded. But it operates INSIDE a given plan — it tunes how much
+verification each task buys.
+
+It never asks whether the plan's DECOMPOSITION was right. Here it wasn't:
+12 gated tasks with per-task test contracts, for what is essentially
+`'client' => ['type' => 'text']` twenty-five times. T05–T08 were four
+separate dispatches producing four near-identical field maps. That is ONE
+task with four field maps in it, not four tasks.
+
+**I executed that plan faithfully instead of pushing back on it at the
+seam** — where I had explicit authority to correct it, and where I DID use
+that authority twice for other things (the T03/T04 vacuous-ordering defect,
+the `composer.json` file-list error). I corrected the plan's *content* twice
+and never once questioned its *shape*.
+
+### The rule
+
+At the seam, before approving a plan, ask a second question:
+
+1. (existing) Are the gates right for the stakes?
+2. **(new) Is the task GRANULARITY right for the KIND of work?**
+
+For **config against an existing reference implementation**:
+**one task per cluster, not one per model.** T01–T02 collapse to one.
+T05–T08 collapse to one. Realistically ~6 tasks instead of 12.
+
+A task boundary should exist where there is a real decision, a real risk, or
+a real dependency — not merely where there is another item in a list. Four
+field maps that differ only in their field names share ONE contract and want
+ONE review.
+
+### The evidence it would have worked
+
+Cluster C ran the light protocol (mutation-test per task, ONE review at the
+cluster gate) and came in at **0.44×** verification budget, versus 1.39× and
+1.10× for A and B — with the SAME guard rigour, every guard mutation-tested
+and biting. That shape should have applied from T01.
+
+Estimated correct cost for this work: **60–75 minutes**, with all four real
+bugs still caught, because every one of them came from mutation testing —
+the cheap technique — and none from the eight review dispatches.
+
+### The counter-check (do not over-correct)
+
+The four real bugs were worth finding and would have reached production:
+- `search_posts` fataled on its own default args — the relation picker never
+  worked, for ANY field, on 11 sites
+- a stored XSS in ported admin JS, incl. my own insufficient first fix
+- the Polylang `nav_menus` mapping (site down without it)
+- T02's guard not biting (commented scaffolding pre-satisfied its invariant)
+
+So the lesson is NOT "do less verification". It is: **fewer, larger tasks;
+mutation-test the guards inside them; review at cluster boundaries.** The
+bug-finding technique was never the expensive part.
+
+---
+
 ## Local: the plan's acceptance criteria were wrong twice, and that was fine
 
 **Date:** 2026-08-03
