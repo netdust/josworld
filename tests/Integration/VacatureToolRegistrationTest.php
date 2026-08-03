@@ -195,4 +195,54 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
         $this->assertContains($toolA->ID, array_map('intval', $related));
         $this->assertContains($toolB->ID, array_map('intval', $related));
     }
+
+    /**
+     * CB-B-3 (review finding): the AF-4 mid-flow-failure edge — "related
+     * tool deleted -> surviving tool still reads" — mirrors
+     * TeamServiceRegistrationTest::
+     * test_deleting_a_linked_team_member_leaves_the_referring_case_readable(),
+     * the case->team equivalent, but this project's own tool->tool
+     * self-relation (`related_tools`, FR-8) had no equivalent proof.
+     *
+     * Deliberately a same-model self-relation (tool relates to tool), not
+     * the cross-model case->team shape — the risk this closes is specific
+     * to `related_tools` pointing at another `tool` post, per this task's
+     * brief.
+     */
+    public function test_deleting_a_related_tool_leaves_the_surviving_tool_readable(): void
+    {
+        $model = ntdst_data()->get('tool');
+
+        $toolB = $model->create(['title' => 'Tool B (to be deleted)', 'subtitle' => 'B']);
+        $this->assertNotWPError($toolB);
+
+        $toolA = $model->create([
+            'title' => 'Tool A (survives)',
+            'subtitle' => 'A',
+            'related_tools' => [$toolB->ID],
+        ]);
+        $this->assertNotWPError($toolA);
+
+        wp_delete_post($toolB->ID, true);
+
+        // The surviving tool must still read cleanly — no WP_Error, no
+        // fatal from dereferencing the now-dangling related_tools id.
+        $reread = $model->find($toolA->ID, true);
+        $this->assertNotWPError($reread, 'a tool relating to a since-deleted tool must still read cleanly');
+        $this->assertSame('Tool A (survives)', $reread->fields['title'] ?? get_the_title($toolA->ID));
+
+        // The relation field degrades sanely: formatMeta()'s `relation` case
+        // (Data.php) only intval()s the stored ids — it never dereferences
+        // them into a WP_Post — so the dangling id is expected to remain
+        // present as a plain int, not silently vanish or fatal. Assert that
+        // explicitly rather than assuming either shape.
+        $related = $reread->fields['related_tools'] ?? [];
+        $this->assertIsArray($related, 'related_tools must still be a well-formed array after the target is deleted');
+        $this->assertContains(
+            (int) $toolB->ID,
+            array_map('intval', $related),
+            'the dangling related_tools id is expected to remain present but inert — '
+            . 'relation reads never dereference into a WP_Post (Data.php formatMeta())',
+        );
+    }
 }
