@@ -8,6 +8,68 @@ is a harness behaviour, not a josworld fact.
 
 ---
 
+## Do not spend session time verifying WordPress fundamentals
+
+**Date:** 2026-08-03
+**Correction (Stefan, watching a parallel session):** *"stuff like this takes
+time isn't this already stored knowledge or something?"* -> *"tell them to
+stop verifying wordpress basics"*
+
+Triggered by a session step reading "Confirming WP_Hook same-priority
+ordering behavior". That is documented, invariant WordPress behaviour. It
+costs a probe, a tool round-trip, and reading time to rediscover something
+that could be stated in one line.
+
+### STATE these, do not derive them
+
+- `add_action`/`add_filter` at the SAME priority fire in REGISTRATION order.
+- Lower priority numbers run FIRST. Default 10.
+- `plugins_loaded` -> `after_setup_theme` -> `init` -> `wp_loaded`.
+- mu-plugins are included alphabetically, BEFORE regular plugins.
+- `get_current_screen()` is populated when `admin_enqueue_scripts` fires on
+  `post.php`/`post-new.php`.
+- `update_post_meta()` on a PHP array serialises via `maybe_serialize()`.
+- `wp_get_object_terms()` orders by NAME, not insertion.
+- `public => false` does NOT gate REST reads.
+
+If one of these is ever wrong, the next test run says so immediately. The
+cost of being wrong is one red test; the cost of checking every time is
+paid on every task forever.
+
+### DO verify: where a primitive does not do what its name implies
+
+The distinction is *stable framework behaviour* vs *this project's wiring*.
+Three from this session, each of which cost real time and NONE of which was
+guessable from documentation:
+
+- DAAN's `josworld-coreloader.php` sorts BEFORE `ntdst-coreloader.php`
+  alphabetically — the whole reason the boot defers to `plugins_loaded`.
+- `NTDST_RelationField` SELF-REGISTERS at the bottom of its own file. I read
+  the class, saw no bootstrap resolving it, and concluded it was never
+  instantiated. Wrong — I nearly shipped a brief that would have
+  double-registered every reverse metabox. **Read framework files to the
+  END.**
+- `select` renders a dropdown but does NOT validate on save
+  (`MetaboxGenerator.php:686-697`). A "closed list" enforces nothing without
+  a `validate` callback — so the obvious test (assert the dropdown's
+  options) is a presence check wearing a denial check's clothes.
+
+### The rule
+
+Ground-truth what a task will BUILD ON — a signature, a storage format,
+whether a guard actually fires. Do not ground-truth what the next test run
+would reveal anyway.
+
+### Why it matters at this scale
+
+Same branch, same day: this session took **290 min for 2,077 lines** of
+declarative config; the parallel baseline session took **26 min for 4,291**.
+The gap was not the verification TECHNIQUE — mutation testing found every
+real bug and is cheap — it was ceremony plus re-deriving known things.
+See also the granularity entry below and `stakes-dial-ignored`.
+
+---
+
 ## The plan's TASK GRANULARITY is challengeable at the seam — not just the ceremony applied to it
 
 **Date:** 2026-08-03
