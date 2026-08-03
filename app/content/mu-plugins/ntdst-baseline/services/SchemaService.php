@@ -150,10 +150,10 @@ final class SchemaService
 
         $entity = JsonLd::mainEntity($this->config);
         if ($entity !== null) {
-            $schemas[] = apply_filters('ntdst/schema/main_entity', $entity);
+            $schemas[] = apply_filters('ntdst/baseline/schema/main_entity', $entity);
 
             $website = JsonLd::website($this->config, $entity);
-            $schemas[] = apply_filters('ntdst/schema/website', $website);
+            $schemas[] = apply_filters('ntdst/baseline/schema/website', $website);
         }
 
         $pages = (array) $this->config['pages'];
@@ -161,14 +161,14 @@ final class SchemaService
         if (is_singular('post')) {
             $article = $this->buildArticleSchema();
             if ($article !== null) {
-                $schemas[] = apply_filters('ntdst/schema/article', $article, $post);
+                $schemas[] = apply_filters('ntdst/baseline/schema/article', $article, $post);
             }
         } elseif (is_page()) {
             $pageId = $post instanceof \WP_Post ? $post->ID : 0;
 
             $webpage = $this->buildWebpageSchema();
             if ($webpage !== null) {
-                $schemas[] = apply_filters('ntdst/schema/webpage', $webpage, $post);
+                $schemas[] = apply_filters('ntdst/baseline/schema/webpage', $webpage, $post);
             }
 
             if ($pageId > 0 && isset($pages['contact']) && (int) $pages['contact'] === $pageId) {
@@ -198,13 +198,13 @@ final class SchemaService
             $postType = get_post_type($post);
             if ($postType && !in_array($postType, ['post', 'page'], true)) {
                 /**
-                 * Filter: ntdst/schema/post_type/{post_type}
+                 * Filter: ntdst/baseline/schema/post_type/{post_type}
                  * Add schema for specific custom post types.
                  *
                  * @param array<string, mixed>|null $schema
                  * @param \WP_Post $post
                  */
-                $customSchema = apply_filters("ntdst/schema/post_type/{$postType}", null, $post);
+                $customSchema = apply_filters("ntdst/baseline/schema/post_type/{$postType}", null, $post);
                 if ($customSchema) {
                     $schemas[] = $customSchema;
                 }
@@ -212,13 +212,13 @@ final class SchemaService
         }
 
         /**
-         * Filter: ntdst/schema/custom
+         * Filter: ntdst/baseline/schema/custom
          * Add completely custom schema objects.
          *
          * @param array<int, mixed> $customSchemas
          * @param \WP_Post|null $post
          */
-        $customSchemas = (array) apply_filters('ntdst/schema/custom', [], $post);
+        $customSchemas = (array) apply_filters('ntdst/baseline/schema/custom', [], $post);
         foreach ($customSchemas as $custom) {
             if ($custom) {
                 $schemas[] = $custom;
@@ -339,13 +339,13 @@ final class SchemaService
         }
 
         /**
-         * Filter: ntdst/schema/faq_items
+         * Filter: ntdst/baseline/schema/faq_items
          * Provide FAQ Q&A items for the FAQ page schema.
          *
          * @param array<int, array{question?: string, answer?: string}> $items
          * @param \WP_Post $post
          */
-        $items = (array) apply_filters('ntdst/schema/faq_items', [], $post);
+        $items = (array) apply_filters('ntdst/baseline/schema/faq_items', [], $post);
 
         return JsonLd::faqPage([
             'title' => get_the_title($post),

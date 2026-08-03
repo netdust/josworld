@@ -69,6 +69,31 @@ guess):
 | `maintenance` | `MaintenanceService` | `ntdst/baseline/maintenance/config` |
 | `cache_headers` | `CacheHeadersService` | `ntdst/baseline/cache_headers/config` |
 
+**Content-extension filters** — beyond the per-module `…/config` above,
+two modules expose filters for changing what they *emit*. These are the
+extension points a site actually hooks to add its own structured data or
+head tags:
+
+| Filter | Args | What it does |
+|---|---|---|
+| `ntdst/baseline/seo/meta` | `string[] $tags` | The final `<meta>`/`<link>` tag strings, just before they are echoed on `wp_head`. **Anything added here is passed through `wp_kses()` with a `<meta>`/`<link>` allow-list** — post-filter content cannot be assumed pre-escaped, so a tag that is not one of those two elements will not survive. |
+| `ntdst/baseline/schema/main_entity` | `array $entity` | The site's main-entity (Organization/Person) node. |
+| `ntdst/baseline/schema/website` | `array $website` | The WebSite node. |
+| `ntdst/baseline/schema/article` | `array $article`, `WP_Post $post` | The Article node on a singular post. |
+| `ntdst/baseline/schema/webpage` | `array $webpage`, `WP_Post $post` | The WebPage node on a singular page. |
+| `ntdst/baseline/schema/post_type/{post_type}` | `array\|null $schema`, `WP_Post $post` | Per-CPT schema. Returns `null` by default; return an array to emit a node for that post type. The `{post_type}` segment is interpolated, so the literal hook name for a `case` CPT is `ntdst/baseline/schema/post_type/case`. |
+| `ntdst/baseline/schema/custom` | `array $schemas`, `WP_Post\|null $post` | Append entirely custom schema objects. |
+| `ntdst/baseline/schema/faq_items` | `array $items`, `WP_Post\|null $post` | FAQPage items; emits nothing when empty. |
+
+> **Renamed 2026-08-03.** The seven `schema/*` filters above previously
+> fired under `ntdst/schema/*` — the one place this plugin's naming was
+> inconsistent with itself, since `SchemaService`'s own config filter
+> already used `ntdst/baseline/`. They now match the convention, and
+> `tests/Unit/BaselineFilterNamespaceTest.php` fails the build if a future
+> filter drifts back out of the `ntdst/baseline/` namespace. **If you are
+> updating a site that hooked the old names, rename there too — a stale
+> hook name does not error, it just silently stops firing.**
+
 Each config filter receives an array and must return an array; unset keys
 fall back to that module's internal `DEFAULTS` via `Config::merge()`
 (shallow-merge — a key you don't set is untouched, not wiped).
