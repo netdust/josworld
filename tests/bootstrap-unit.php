@@ -28,4 +28,7 @@ defined('ABSPATH') || define('ABSPATH', '/tmp/');
 // new-site time. The unit tier (and ContainerTest) only runs after that.
 require_once dirname(__DIR__) . '/app/content/mu-plugins/ntdst-core/core/Container.php';
 
+// Shared test-only helpers (no PSR-4 for tests/ — require explicitly).
+require_once __DIR__ . '/Support/DetectsTimeoutBinary.php';
+
 require_once __DIR__ . '/Unit/TestCase.php';

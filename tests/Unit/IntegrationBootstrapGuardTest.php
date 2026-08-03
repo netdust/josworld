@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NtdstTests\Unit;
 
+use NtdstTests\Support\DetectsTimeoutBinary;
+
 /**
  * Permanent contract test for the tests/bootstrap-integration.php dev-DB
  * guard (review C4, findings I2 + I3).
@@ -26,10 +28,9 @@ namespace NtdstTests\Unit;
  */
 final class IntegrationBootstrapGuardTest extends TestCase
 {
-    private const GUARD_MESSAGE = 'FATAL: integration suite refused to run';
+    use DetectsTimeoutBinary;
 
-    /** `'timeout 20 '` when GNU timeout exists, `''` otherwise. Detected once. */
-    private static ?string $timeoutPrefix = null;
+    private const GUARD_MESSAGE = 'FATAL: integration suite refused to run';
 
     public function test_guard_refuses_the_dev_database(): void
     {
@@ -118,20 +119,6 @@ final class IntegrationBootstrapGuardTest extends TestCase
         unlink($stderrFile);
 
         return ['exit' => $exit, 'stdout' => $stdout, 'stderr' => $stderr];
-    }
-
-    /**
-     * GNU `timeout` is not on stock macOS — detect it once and prefix the
-     * subprocess command only when it exists (portability, review C5 I-1).
-     */
-    private function timeout_prefix(): string
-    {
-        if (self::$timeoutPrefix === null) {
-            exec('command -v timeout >/dev/null 2>&1', $unusedOutput, $exit);
-            self::$timeoutPrefix = $exit === 0 ? 'timeout 20 ' : '';
-        }
-
-        return self::$timeoutPrefix;
     }
 
     private function fixture_config(string $dbName): string

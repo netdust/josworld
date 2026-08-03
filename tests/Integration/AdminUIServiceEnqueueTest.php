@@ -63,7 +63,7 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
     }
 
     /**
-     * @return array{0: bool, 1: array<int, string>} [is enqueued, deps]
+     * @return array{0: bool, 1: array<int, string>, 2: string} [is enqueued, deps, src]
      */
     private function fireEnqueueOn(string $hook, ?string $postType): array
     {
@@ -80,11 +80,12 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
 
         global $wp_scripts;
         $deps = $isEnqueued ? $wp_scripts->registered['josworld-metabox-fields']->deps : [];
+        $src = $isEnqueued ? (string) $wp_scripts->registered['josworld-metabox-fields']->src : '';
 
         wp_dequeue_script('josworld-metabox-fields');
         wp_deregister_script('josworld-metabox-fields');
 
-        return [$isEnqueued, $deps];
+        return [$isEnqueued, $deps, $src];
     }
 
     public function test_enqueues_on_a_case_edit_screen_with_jquery_and_sortable_deps(): void
@@ -94,6 +95,35 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
         $this->assertTrue($isEnqueued, 'expected the metabox field JS to be enqueued on a case edit screen');
         $this->assertContains('jquery', $deps);
         $this->assertContains('jquery-ui-sortable', $deps);
+    }
+
+    /**
+     * Registration is not resolution. Every other test here proves the script
+     * is REGISTERED with the right deps on the right screens — none of them
+     * would notice if its URL pointed nowhere.
+     *
+     * The src comes from
+     * `plugins_url('assets/js/metabox-fields.js', dirname(__DIR__, 2) . '/josworld-core.php')`,
+     * and that `dirname(__DIR__, 2)` hop is exactly the kind of path
+     * arithmetic a later "simplify this" edit breaks: drop it to
+     * `dirname(__DIR__)` and WordPress resolves the URL against
+     * `services/` instead of the plugin root, shipping a 404ing script tag
+     * while `wp_script_is(..., 'enqueued')` stays happily true and this whole
+     * file stays green. The relation/repeater/gallery fields would silently
+     * go back to being inert markup — the precise breakage T04 existed to fix.
+     */
+    public function test_enqueued_script_src_resolves_inside_the_plugin_directory(): void
+    {
+        [$isEnqueued, , $src] = $this->fireEnqueueOn('post.php', 'case');
+
+        $this->assertTrue($isEnqueued, 'precondition: the script must be enqueued to have a src');
+        $this->assertStringEndsWith(
+            '/mu-plugins/josworld-core/assets/js/metabox-fields.js',
+            $src,
+            'the enqueued src must resolve to the file inside josworld-core, not to a '
+            . 'sibling/parent directory — a wrong dirname() hop 404s silently',
+        );
+        $this->assertStringStartsWith('http', $src, 'plugins_url() must yield an absolute URL');
     }
 
     public function test_enqueues_on_each_josworld_post_type_new_screen(): void

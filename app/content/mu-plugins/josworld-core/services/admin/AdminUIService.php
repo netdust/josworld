@@ -14,10 +14,19 @@
  * enqueue here, in the plugin, makes the content model work independently
  * of the active theme's build tooling.
  *
- * Shape mirrors DAAN's AdminUIService (services/admin/AdminUIService.php):
- * a plain class resolved through the container (see josworld-core.php's
- * boot block), doing its work via a private init() hooking
- * admin_enqueue_scripts. Unlike DAAN's version, the constructor takes no
+ * Shares ONE thing with DAAN's AdminUIService
+ * (services/admin/AdminUIService.php): the service shape — a plain class
+ * resolved through the container (see josworld-core.php's boot block), doing
+ * its work via a private init() hooking admin_enqueue_scripts.
+ *
+ * It is NOT otherwise a port of that file, and a reader going looking for
+ * parity will not find it: DAAN's is ~305 lines of Vite manifest resolution,
+ * dev/build asset branching, a $config array, an admin_body_class filter and
+ * a public registerAdminPage()/getAdminPages() extension API — none of which
+ * josworld needs, because josworld enqueues one static script from the plugin
+ * directory. Mirroring the shape, not the substance, is deliberate.
+ *
+ * Also unlike DAAN's version, the constructor takes no
  * NTDST_Data_Manager — this service's scoping is a static, spec-derived
  * post-type list (see below), not a data-layer lookup, and phpstan level 6
  * (property.onlyWritten) is right to reject an unused dependency purely for

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NtdstTests\Integration;
 
 use josworld\services\admin\AdminUIService;
+use NtdstTests\Support\DetectsTimeoutBinary;
 use WP_Hook;
 use WP_UnitTestCase;
 
@@ -66,6 +67,8 @@ use WP_UnitTestCase;
  */
 final class JosworldCoreBootTest extends WP_UnitTestCase
 {
+    use DetectsTimeoutBinary;
+
     protected function tearDown(): void
     {
         global $current_screen;
@@ -298,18 +301,5 @@ final class JosworldCoreBootTest extends WP_UnitTestCase
             fwrite(STDOUT, "NO_FATAL_REACHED\\n");
             fwrite(STDOUT, 'REGISTERED_POST_TYPES=' . count(\$GLOBALS['__registered_post_types']) . "\\n");
             PHP;
-    }
-
-    /** GNU `timeout` is not on stock macOS — detect once, mirroring IntegrationBootstrapGuardTest. */
-    private function timeout_prefix(): string
-    {
-        static $prefix = null;
-
-        if ($prefix === null) {
-            exec('command -v timeout >/dev/null 2>&1', $unusedOutput, $exit);
-            $prefix = $exit === 0 ? 'timeout 20 ' : '';
-        }
-
-        return $prefix;
     }
 }

@@ -55,6 +55,9 @@ if (!defined('DB_NAME') || (DB_NAME !== 'wptests' && DB_NAME !== getenv('WP_TEST
 // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CLI bootstrap output, not HTML.
 echo 'Integration suite DB: ' . DB_NAME . PHP_EOL;
 
+// Shared test-only helpers (no PSR-4 for tests/ — require explicitly).
+require_once __DIR__ . '/Support/DetectsTimeoutBinary.php';
+
 // wp-phpunit exports its location via putenv() in its composer-autoloaded
 // __loaded.php — present because the autoloader above ran; a broken install
 // fatals loudly on the require itself.
