@@ -58,6 +58,62 @@ final class DocumentedMetaKeysConsistencyTest extends WP_UnitTestCase
         new ToolService(ntdst_data());
     }
 
+    /**
+     * The SECOND half of the drift guard (added at T12 close, after the
+     * controller mutation-tested the first).
+     *
+     * The doc carries meta keys in TWO places: the machine-checked block
+     * between the META-KEY-TABLE markers, and the human-readable per-model
+     * tables (`| field | meta key | type | notes |`) that a developer
+     * actually reads when building a template. Only the first was guarded.
+     *
+     * Proven, not assumed: renaming `_jw_client` -> `_jw_klant` in the
+     * per-model table at line 66 left the suite GREEN, while the same rename
+     * inside the marker block correctly failed. So 25 documented meta keys —
+     * the ones humans read — could drift from the code silently, which is
+     * precisely the failure this task exists to prevent.
+     *
+     * This asserts the two tables agree with each other. Combined with the
+     * marker block already being diffed against the live registry, that
+     * transitively pins the human-readable tables to the code too.
+     */
+    public function test_the_human_readable_tables_agree_with_the_machine_checked_table(): void
+    {
+        $markerKeys = array_map(
+            static fn (string $triple): string => substr($triple, (int) strrpos($triple, '=') + 1),
+            $this->parse_documented_triples(),
+        );
+
+        $markdown = (string) file_get_contents(self::DOC_PATH);
+
+        // Strip the marker block so its rows are not counted twice.
+        $start = strpos($markdown, '<!-- META-KEY-TABLE:START -->');
+        $end = strpos($markdown, '<!-- META-KEY-TABLE:END -->');
+        if ($start !== false && $end !== false) {
+            $markdown = substr($markdown, 0, $start) . substr($markdown, $end);
+        }
+
+        preg_match_all('/^\|\s*`[a-z0-9_]+`\s*\|\s*`(_jw_[a-z0-9_]+)`\s*\|/mi', $markdown, $matches);
+        $proseKeys = array_values(array_unique($matches[1]));
+
+        $this->assertNotEmpty(
+            $proseKeys,
+            'precondition: the per-model tables must document at least one `_jw_` meta key, '
+            . 'or this comparison passes vacuously — if the doc format changed, this parser '
+            . 'must change with it rather than silently matching nothing',
+        );
+
+        $undocumentedInMarkerTable = array_values(array_diff($proseKeys, $markerKeys));
+
+        $this->assertSame(
+            [],
+            $undocumentedInMarkerTable,
+            'these meta keys appear in the human-readable per-model tables but NOT in the '
+            . 'machine-checked META-KEY-TABLE block, so nothing pins them to the live '
+            . 'registry and they can drift silently: ' . implode(', ', $undocumentedInMarkerTable),
+        );
+    }
+
     public function test_the_documented_meta_key_table_matches_the_live_model_registry_exactly(): void
     {
         $documented = $this->parse_documented_triples();
