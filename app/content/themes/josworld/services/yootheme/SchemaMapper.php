@@ -69,14 +69,15 @@ final class SchemaMapper
      *                                        string (`'title' => 'text'`) — see
      *                                        ntdst-core/api/Data.php::setupSanitizers().
      * @param  string  $prefix  The model's meta prefix (e.g. `_jw_`).
-     * @param  string  $typeName  T06 SIGNATURE SHELL. The parent object type name
-     *                            T07 derives from the post type (e.g. `Case`), used
-     *                            to compose repeater sub-type names as
-     *                            `<Type><Field>Item`. OPTIONAL WITH A DEFAULT on
-     *                            purpose: T04's committed contract calls this
-     *                            method with two arguments and all eight of its
-     *                            tests must stay green, so the parameter is
-     *                            strictly additive.
+     * @param  string  $typeName  The parent object type name T07 derives from the
+     *                            post type (e.g. `Case`), used to compose repeater
+     *                            sub-type names as `<Type><Field>Item`. OPTIONAL
+     *                            WITH A DEFAULT on purpose: T04's committed
+     *                            contract calls this method with two arguments and
+     *                            all eight of its tests must stay green, so the
+     *                            parameter is strictly additive. Two-arg calls
+     *                            (no type name) omit any repeater entirely — see
+     *                            `toSubObjectTypes()`'s denial path.
      * @return array<string, array<string, mixed>> Field name => definition. Fields
      *                                             whose type has no mapping are
      *                                             OMITTED from this array entirely.
@@ -102,6 +103,16 @@ final class SchemaMapper
 
             $type = $config['type'] ?? null;
 
+            if ($type === 'repeater') {
+                $definition = self::toRepeaterFieldDefinition($config, $prefix, $typeName, (string) $field);
+
+                if ($definition !== null) {
+                    $mapped[$field] = $definition;
+                }
+
+                continue;
+            }
+
             if (! is_string($type) || $type === '' || ! isset(self::TYPE_MAP[$type])) {
                 // Unknown, empty, missing, or non-string type: omit the key
                 // entirely rather than map it to null or default it to
@@ -125,13 +136,6 @@ final class SchemaMapper
     }
 
     /**
-     * T06 SIGNATURE SHELL ONLY — authored by the independent test-author ahead
-     * of the implementation so that `RepeaterMappingTest` fails for a
-     * BEHAVIOURAL reason ("expected CaseImpactItem, got []") rather than
-     * "call to undefined method". The body below is a sentinel: the implementer
-     * replaces it with the real sub-type emission and must not weaken the
-     * committed contract test.
-     *
      * Emit the YOOtheme object-type DEFINITIONS for a schema's repeater fields.
      *
      * A SECOND METHOD rather than a richer return from `toObjectType()`: that
@@ -156,6 +160,116 @@ final class SchemaMapper
      */
     public static function toSubObjectTypes(array $schema, string $prefix, string $typeName = ''): array
     {
-        return [];
+        if ($typeName === '') {
+            // No parent type name means no composable sub-type name — the
+            // denial path of the optional third parameter (T04's retained
+            // two-arg test). Emitting an unscoped name would let two CPTs'
+            // same-named repeater fields silently collide.
+            return [];
+        }
+
+        $types = [];
+
+        foreach ($schema as $field => $config) {
+            if (! is_array($config) || ($config['type'] ?? null) !== 'repeater') {
+                continue;
+            }
+
+            $subFields = $config['sub_fields'] ?? null;
+
+            if (! is_array($subFields) || $subFields === []) {
+                continue;
+            }
+
+            $fields = self::toObjectType($subFields, $prefix);
+
+            if ($fields === []) {
+                // Every sub-field was unmapped — a listOf of an empty
+                // sub-object type is worse than omission: it registers a
+                // bindable field whose every row renders nothing. Same
+                // argument as omit-don't-default, one level down.
+                continue;
+            }
+
+            $typeNameForField = self::composeSubTypeName($typeName, (string) $field);
+
+            $types[$typeNameForField] = ['fields' => $fields];
+        }
+
+        return $types;
+    }
+
+    /**
+     * Build the `listOf` field definition for a single repeater entry, or
+     * null if it must be omitted (no parent type name, no usable sub_fields,
+     * or every sub_field unmapped). Mirrors `toSubObjectTypes()`'s denial
+     * rules exactly — both methods must agree on which repeaters are usable,
+     * since a `listOf => 'X'` reference with no `X` definition emitted would
+     * be a dangling type name T07 tries to register.
+     *
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>|null
+     */
+    private static function toRepeaterFieldDefinition(
+        array $config,
+        string $prefix,
+        string $typeName,
+        string $field,
+    ): ?array {
+        if ($typeName === '') {
+            return null;
+        }
+
+        $subFields = $config['sub_fields'] ?? null;
+
+        if (! is_array($subFields) || $subFields === []) {
+            return null;
+        }
+
+        if (self::toObjectType($subFields, $prefix) === []) {
+            return null;
+        }
+
+        $definition = [
+            'type' => ['listOf' => self::composeSubTypeName($typeName, $field)],
+        ];
+
+        if (isset($config['label'])) {
+            $definition['label'] = $config['label'];
+        }
+
+        return $definition;
+    }
+
+    /**
+     * Compose a repeater sub-object type name: `<TypeName><Field>Item`,
+     * UpperCamelCase. `_`/`-` are treated as word boundaries, matching
+     * YOOtheme's own `Str::camelCase()` convention (packages/utils/src/
+     * Str.php:182) WITHOUT importing it — this class stays pure so it is
+     * unit-testable without WordPress or YOOtheme (see class docblock).
+     *
+     * Parent-type scoping is deliberate: without it, `Tool.benefits` and
+     * `Case.benefits` would silently collapse into one shared sub-type name
+     * and give one CPT the other's row shape.
+     */
+    private static function composeSubTypeName(string $typeName, string $field): string
+    {
+        return $typeName . self::upperCamelCase($field) . 'Item';
+    }
+
+    /**
+     * UpperCamelCase a snake_case/kebab-case field name: `key_figures` ->
+     * `KeyFigures`. `_` and `-` are word boundaries, not literal characters —
+     * left as either would produce an illegal GraphQL type name.
+     */
+    private static function upperCamelCase(string $value): string
+    {
+        $words = preg_split('/[_\-]+/', $value, -1, PREG_SPLIT_NO_EMPTY);
+
+        if ($words === false) {
+            $words = [];
+        }
+
+        return implode('', array_map('ucfirst', $words));
     }
 }
