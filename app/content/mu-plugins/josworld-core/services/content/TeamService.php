@@ -40,8 +40,33 @@
  *     the full wp-admin list/edit screens (P2: create/edit a member).
  *   - `show_in_rest => true` — kept for the same reason `case` keeps it:
  *     future-proofing for block-editor/REST tooling on an editor-facing
- *     screen, not a public API surface (REST reads are gated by the same
- *     `publicly_queryable`/capability posture, not opened separately here).
+ *     screen.
+ *
+ * REST EXPOSURE — CORRECTED, was factually wrong (review finding M-2,
+ * 2026-08-03): `GET /wp-json/wp/v2/team` returns HTTP 200 to an
+ * UNAUTHENTICATED request — verified live. `public => false` does NOT gate
+ * REST reads; that is standard WP core behaviour, not a josworld bug.
+ * `WP_REST_Posts_Controller::get_items_permissions_check()` returns `true`
+ * for a read request outside `edit` context regardless of the post type's
+ * `public`/`publicly_queryable` flags — those flags gate the FRONT-END
+ * query, the sitemap, and site search, not the REST API's own permission
+ * check. (WP core's own `wp_template`/`wp_block` post types behave
+ * identically: `public => false`, REST-readable.) So `name` (post title)
+ * and `photo` (featured image) ARE publicly readable via REST once content
+ * exists, despite the "no public single view" framing above — that framing
+ * is about the FRONT-END single-post URL, not the REST API.
+ *
+ * `email` and `phone` are NOT currently exposed via REST — but ONLY because
+ * no `register_meta()` call exists anywhere in mu-plugins for either field
+ * (verified: zero hits). The day someone registers `email`/`phone` meta
+ * with `show_in_rest => true` (e.g. to power a builder template, or a
+ * default `auto_metabox`/schema change upstream in ntdst-core), that PII
+ * goes public through this same unauthenticated endpoint with no further
+ * code change and no test failure elsewhere — this is the real risk, and
+ * it is written here so the next person adding a REST-exposed meta field on
+ * `team` sees it before they ship it. See
+ * tests/Integration/TeamRestExposureTest.php for the regression test that
+ * documents the CURRENT posture and will go RED the moment that changes.
  *
  * `public => false` is set (not left at its `false` default implicitly)
  * BECAUSE it is the WordPress convenience flag that seeds several of the
