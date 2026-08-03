@@ -33,19 +33,6 @@ Type: Flat
 // so every import below reaches the parent (yootheme/) via ../../yootheme/…
 // The parent owns platform.less, theme.less, and the UIkit/vendor assets.
 
-// ---- Brand fonts -------------------------------------------------------
-// YOOtheme's StyleFontLoader (packages/styler/src/StyleFontLoader.php) parses
-// this exact `@import url(fonts.googleapis.com…)`, DOWNLOADS the woff2 files
-// and rewrites it into self-hosted @font-face rules — the fonts are served
-// from this site, not Google's CDN. That is why they belong here and are NOT
-// wp_enqueue_style'd in functions.php.
-//   Fraunces        — display / headings (300 Light, 400 Regular)
-//   Inter           — body + UI (400 Regular, 600 SemiBold)
-//   Instrument Sans — disclaimers (400)
-// Fraunces is a variable font; the `opsz` axis is requested across its full
-// 9..144 range so the optical size matches the rendered size.
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=Inter:wght@400;600&family=Instrument+Sans:wght@400&display=swap");
-
 // Platform
 @import "../../yootheme/less/platform.less";
 
@@ -98,12 +85,18 @@ Type: Flat
 // Fraunces = display/serif (headings, buttons). Inter = UI/body.
 // Instrument Sans = disclaimers only.
 //
+// LOADING: the font FILES are not requested here. They are picked in
+// Customizer → Theme → Style → Fonts, which is YOOtheme's own font selector —
+// it downloads and self-hosts the woff2 files (StyleFontLoader) and writes the
+// family into the style. The stacks below only name what to render with, and
+// carry the fallbacks for before/if a face loads.
+//
 // NAMING: Figma reports these as "Fraunces 72pt SuperSoft" and "Inter 18pt" —
 // those are the OPTICAL-SIZE cuts of two variable fonts, not separate families.
 // Google Fonts serves them under the plain family names below, with the optical
-// size selected by the `opsz` axis (see the @import above), so the CSS family
-// name must be "Fraunces" / "Inter". The Figma names are kept in the comments
-// only, so a future session can still map them back.
+// size selected by the `opsz` axis, so the CSS family name must be "Fraunces" /
+// "Inter". Pick those two in the font selector; the Figma names are kept in the
+// comments only, so a future session can still map them back.
 @jw-font-display:    "Fraunces", Georgia, "Times New Roman", serif;
 @jw-font-body:       "Inter", system-ui, -apple-system, sans-serif;
 @jw-font-ui:         "Inter", system-ui, -apple-system, sans-serif;
