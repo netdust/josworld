@@ -141,6 +141,58 @@
  *     SchemaMapper omits), so the emitted types are asserted against the
  *     shape the bridge will really see, not a toy.
  *
+ * (e) `buildTypes()` IS FLAT: parent types AND repeater sub-types share one
+ *     `name => config` map. CONTRACT CORRECTION, authored post-RED by this
+ *     file's author after the implementer escalated NEEDS_CONTEXT rather
+ *     than editing the test — correctly, and the defect was real and mine.
+ *
+ *     As first committed, two assertions were mutually exclusive over the
+ *     same fixture: `test_each_registered_type_name_derives_from_the_post_
+ *     type` asserted `assertSame(['Case','Team'], array_keys(buildTypes()))`
+ *     (an EXACT match) while `test_the_repeater_sub_type_is_scoped_by_the_
+ *     same_derived_type_name` required `CaseImpactItem` among those same
+ *     keys. No implementation could satisfy both.
+ *
+ *     FLAT IS THE CORRECT SHAPE, and the reason is forced rather than
+ *     stylistic: `SchemaBuilder::objectType(string $name, $config)`
+ *     (yootheme/packages/graphql/src/SchemaBuilder.php:220) is the ONLY
+ *     registration primitive YOOtheme offers, and it must be called for
+ *     parent types and sub-object types ALIKE — a field whose type is
+ *     `['listOf' => 'CaseImpactItem']` is a DANGLING reference unless
+ *     `CaseImpactItem` was itself registered through that same call. So the
+ *     payload T07 hands the `source.init` listener is inherently one flat
+ *     map of everything that needs registering; making `buildTypes()` return
+ *     exactly that keeps the contract expressed in the units YOOtheme
+ *     actually consumes.
+ *
+ *     WHY SchemaMapper's TWO-METHOD SPLIT DOES NOT TRANSFER (it is the
+ *     strongest argument for the other shape, and was weighed): the mapper
+ *     splits `toObjectType()` from `toSubObjectTypes()` because it is a PURE
+ *     MAPPER whose two outputs have different shapes, and because enriching
+ *     the first would have broken T04's committed tests. T07 is the
+ *     REGISTRAR, and merging those two buckets into the one thing
+ *     `objectType()` consumes is precisely its job. The split is right where
+ *     it is and would be wrong here.
+ *
+ *     WHAT THE CORRECTION PINS INSTEAD, so nothing is traded away — and
+ *     this is the part that makes it a STRENGTHENING rather than a
+ *     relaxation. The exact-key-match form was itself the brittleness
+ *     Cluster B1's finding I-1 named: "every existing test asserted ONE
+ *     method's output against a literal; none asserted the RELATIONSHIP
+ *     between the two" (SubTypeNameCollisionTest's docblock). Replacing it
+ *     with per-name `assertArrayHasKey` alone WOULD have been a weakening,
+ *     so it is accompanied by `test_every_listOf_reference_resolves_to_a_
+ *     type_that_is_actually_registered`, which states the relationship
+ *     invariant directly at the layer that matters: every `listOf`
+ *     reference anywhere in the payload must have a definition somewhere in
+ *     that same payload. That is finding C-1's exact desync (`refs=2
+ *     defs=1`, merged silently by YOOtheme rather than erroring) asserted
+ *     one layer UP from SchemaMapper — on what actually reaches the
+ *     builder. The derivation is additionally pinned negatively (the raw
+ *     slug `case` must NOT survive as a type name), and the accumulation
+ *     test keeps its negative half (`Team` absent before it is collected),
+ *     both of which the exact-match form got implicitly.
+ *
  * A test file by nature declares symbols and executes side effects
  * (requires, the YOOtheme namespace block).
  * phpcs:disable PSR1.Files.SideEffects
@@ -475,15 +527,107 @@ final class SourcesServiceTest extends TestCase
 
     public function test_each_registered_type_name_derives_from_the_post_type(): void
     {
+        // CONTRACT CORRECTION (authored by this file's author, post-RED —
+        // see the "buildTypes() IS FLAT" note in the file docblock).
+        // Originally this asserted `assertSame(['Case','Team'],
+        // array_keys(buildTypes()))` — an EXACT key match, which contradicted
+        // this file's own sub-type assertions below, since buildTypes() must
+        // also carry CaseImpactItem. The exact-match form was additionally
+        // the precise brittleness SubTypeNameCollisionTest's finding I-1
+        // calls out: asserting one method's output against a literal instead
+        // of asserting the RELATIONSHIP. What FR-1 actually promises is the
+        // DERIVATION (`case` -> `Case`), not that parents are the only
+        // entries — so the derivation is what is pinned, positively for each
+        // post type and negatively against the un-derived slug.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
         $service->collect('team', $this->teamConfig());
 
-        $this->assertSame(
-            ['Case', 'Team'],
-            array_keys($service->buildTypes()),
-            'the registered type name derives from the post type: case -> Case, '
-            . 'team -> Team',
+        $types = $service->buildTypes();
+
+        $this->assertArrayHasKey(
+            'Case',
+            $types,
+            'the registered type name derives from the post type: case -> Case',
+        );
+        $this->assertArrayHasKey(
+            'Team',
+            $types,
+            'the registered type name derives from the post type: team -> Team',
+        );
+
+        // The derivation must be a real transform, not a pass-through: the
+        // raw post-type slug must never appear as a registered type name.
+        // GraphQL type names are conventionally UpperCamelCase and YOOtheme
+        // merges same-named types silently (SchemaBuilder::objectType()
+        // appends to configs[$name][]), so a lowercase `case` entry
+        // alongside `Case` would be two types where one was meant.
+        $this->assertArrayNotHasKey(
+            'case',
+            $types,
+            'the raw post-type slug must not survive as a type name — the derivation '
+            . 'is case -> Case, not a pass-through',
+        );
+        $this->assertArrayNotHasKey(
+            'team',
+            $types,
+            'the raw post-type slug must not survive as a type name',
+        );
+    }
+
+    public function test_every_listOf_reference_resolves_to_a_type_that_is_actually_registered(): void
+    {
+        // THE RELATIONSHIP INVARIANT — the assertion the exact-key-match
+        // form above was standing in for, and the one that actually protects
+        // what matters. Cluster B1's Critical finding C-1 was exactly this
+        // desync one layer down: two `listOf` references, one emitted
+        // definition (`refs=2 defs=1`), silently MERGED by YOOtheme rather
+        // than erroring (SchemaBuilder::objectType() appends to
+        // configs[$name][]; loadType() applies every queued config). Finding
+        // I-1 recorded WHY 18 green tests missed it: every test asserted one
+        // method's output against a literal, none asserted the relationship
+        // between them. SubTypeNameCollisionTest states that invariant for
+        // SchemaMapper; this states it for what T07 actually hands YOOtheme,
+        // which is the layer where a dangling reference becomes a real
+        // builder failure.
+        //
+        // This is what makes the flattening SAFE rather than merely
+        // convenient: every reference emitted anywhere in the payload must
+        // have a definition somewhere in that same payload.
+        $service = new YOOthemeSourcesService();
+        $service->collect('case', $this->caseConfig());
+        $service->collect('team', $this->teamConfig());
+
+        $types = $service->buildTypes();
+        $references = 0;
+
+        foreach ($types as $typeName => $config) {
+            foreach ($config['fields'] ?? [] as $fieldName => $definition) {
+                $referenced = $definition['type']['listOf'] ?? null;
+
+                if ($referenced === null) {
+                    continue;
+                }
+
+                ++$references;
+
+                $this->assertArrayHasKey(
+                    $referenced,
+                    $types,
+                    "{$typeName}.{$fieldName} references listOf '{$referenced}', but no "
+                    . 'such type is registered in the payload handed to YOOtheme — a '
+                    . 'DANGLING TYPE REFERENCE. This is Cluster B1 finding C-1 one layer '
+                    . 'up: YOOtheme merges/omits silently rather than erroring, so the '
+                    . 'builder renders rows with no fields and nothing anywhere reports it',
+                );
+            }
+        }
+
+        $this->assertGreaterThan(
+            0,
+            $references,
+            'the fixture declares a repeater, so at least one listOf reference must have '
+            . 'been emitted — this invariant must not pass by vacuity',
         );
     }
 
@@ -692,18 +836,47 @@ final class SourcesServiceTest extends TestCase
             . 'enumerate models at construction time',
         );
 
+        // CONTRACT CORRECTION (same cause and same author as the correction
+        // at test_each_registered_type_name_derives_from_the_post_type):
+        // these two were `assertSame(['Case'], array_keys(...))` and
+        // `assertSame(['Case','Team'], ...)`, exact key matches that
+        // contradicted this file's own sub-type assertions once buildTypes()
+        // is understood as the FLAT payload. What this test is actually
+        // about is ACCUMULATION over time, so accumulation is what it now
+        // pins — including the negative half (Team absent before it is
+        // collected), which the exact-match form got for free and which
+        // would otherwise be lost.
         $service->collect('case', $this->caseConfig());
-        $this->assertSame(['Case'], array_keys($service->buildTypes()));
+
+        $afterFirst = $service->buildTypes();
+        $this->assertArrayHasKey(
+            'Case',
+            $afterFirst,
+            'the first collected model must be present immediately',
+        );
+        $this->assertArrayNotHasKey(
+            'Team',
+            $afterFirst,
+            'a model that has NOT been collected must be absent — the service reports '
+            . 'what the action actually gave it, never a speculative or hardcoded set',
+        );
 
         // The LATE registration — arriving after the first model was
         // already collected and after any type map might have been built.
         $service->collect('team', $this->teamConfig());
 
-        $this->assertSame(
-            ['Case', 'Team'],
-            array_keys($service->buildTypes()),
+        $afterSecond = $service->buildTypes();
+        $this->assertArrayHasKey(
+            'Team',
+            $afterSecond,
             'a model registered LATER must still be collected — the service accumulates '
             . 'what the action gives it rather than snapshotting once',
+        );
+        $this->assertArrayHasKey(
+            'Case',
+            $afterSecond,
+            'collecting a second model must not evict the first — the registry '
+            . 'accumulates rather than replaces',
         );
     }
 
