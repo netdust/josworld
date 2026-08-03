@@ -64,9 +64,9 @@ add_action('plugins_loaded', function (): void {
      */
     $dir = __DIR__ . '/services';
 
-    // Content services (T05-T08) — none yet; add a require_once line here
-    // as each lands, e.g.:
-    // require_once $dir . '/content/CaseService.php';
+    // Content services (T05-T08) — add a require_once line here as each
+    // lands:
+    require_once $dir . '/content/CaseService.php';
     // require_once $dir . '/content/TeamService.php';
     // require_once $dir . '/content/VacatureService.php';
     // require_once $dir . '/content/ToolService.php';
@@ -81,8 +81,8 @@ add_action('plugins_loaded', function (): void {
 
     add_action('after_setup_theme', function (): void {
         // Content services — resolved unconditionally (front + admin). Add
-        // ntdst_get() calls here as each service lands in T05-T08, e.g.:
-        // ntdst_get(\josworld\services\content\CaseService::class);
+        // ntdst_get() calls here as each service lands in T06-T08:
+        ntdst_get(\josworld\services\content\CaseService::class);
         // ntdst_get(\josworld\services\content\TeamService::class);
         // ntdst_get(\josworld\services\content\VacatureService::class);
         // ntdst_get(\josworld\services\content\ToolService::class);

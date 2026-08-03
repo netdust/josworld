@@ -63,9 +63,22 @@ final class AdminUIService
      * to — spec-derived (FR-1..FR-4), not inferred from a runtime registry
      * that does not exist until T05-T08 land.
      *
+     * PUBLIC (Cluster A review finding CB-4): nothing forced this list to
+     * match the CPTs actually registered by the content services — a T07
+     * typo registering `vacatures` (plural) would silently stop enqueueing
+     * the field JS on that screen with no test failure anywhere, because
+     * AdminUIServiceEnqueueTest registers its own fixture post types rather
+     * than depending on the real services. Making the constant public lets
+     * an integration test assert every slug here against the real registry
+     * (see PostTypeRegistryConsistencyTest), a check that can only fully
+     * verify equality once T08 lands (today only `case` is registered).
+     * A `const` rather than a getter: it needs no instance and is not
+     * PHP-mutable — the read-access problem, not a behavior, is what CB-4
+     * asks to close.
+     *
      * @var list<string>
      */
-    private const POST_TYPES = ['case', 'team', 'vacature', 'tool'];
+    public const POST_TYPES = ['case', 'team', 'vacature', 'tool'];
 
     public function __construct()
     {
