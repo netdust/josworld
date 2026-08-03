@@ -1,6 +1,1297 @@
-# Intentionally empty in the template. Regenerated per project by new-site.sh
-# (vendor/bin/phpstan analyse --generate-baseline) AFTER the wp-starter scaffold
-# lands ntdst-core + the theme, so pre-existing findings in the vendored
-# snapshot are frozen and only new code must be clean.
 parameters:
-    ignoreErrors: []
+	ignoreErrors:
+		-
+			message: '#^Access to an undefined property WP_Post\:\:\$fields\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Access to an undefined property WP_Post\:\:\$meta\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Access to an undefined property WP_Post\:\:\$terms\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Call to function is_array\(\) with non\-empty\-array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Call to function is_callable\(\) with callable\(\)\: mixed will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Function ntdst_get_posts_fast\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Function ntdst_get_posts_fast\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Manager\:\:getCachedPostMeta\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Manager\:\:getCachedPostTerms\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Manager\:\:getPostMetaFromCache\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Manager\:\:getPostTermsFromCache\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Manager\:\:getPostsFast\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Manager\:\:getPostsFast\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Manager\:\:register\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:__construct\(\) has parameter \$schema with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:all\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:attachTerms\(\) has parameter \$term_ids with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:cachedCount\(\) has parameter \$query_args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:create\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:decodeArrayField\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:decodeArrayField\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:detachTerms\(\) has parameter \$term_ids with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:extractMetaData\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:extractMetaData\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:extractPostData\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:extractPostData\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:first\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:formatMeta\(\) has parameter \$meta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:formatMeta\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:formatRepeaterField\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:get\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:getSchema\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:hydratePostFromResult\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:hydratePostFromResult\(\) has parameter \$item with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:orWhere\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:paginate\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:restoreMetaData\(\) has parameter \$previousMeta with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:restorePostData\(\) has parameter \$previousPostData with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeBoolean\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeData\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeData\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeField\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeField\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeJson\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeJson\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeNestedArray\(\) has parameter \$value with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeNestedArray\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeRepeater\(\) has parameter \$rows with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeRepeater\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeWpColumn\(\) has no return type specified\.$#'
+			identifier: missingType.return
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:sanitizeWpColumn\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:syncTerms\(\) has parameter \$term_ids with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:update\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:updateMetaValue\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:validateData\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:valuesMatch\(\) has parameter \$expected with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:valuesMatch\(\) has parameter \$stored with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:warnUnregisteredKeys\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:warnUnregisteredKeys\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:where\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:whereDate\(\) has parameter \$value with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:whereIn\(\) has parameter \$values with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:whereNot\(\) has parameter \$value with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Data_Model\:\:whereTax\(\) has parameter \$terms with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Parameter \#2 \$user_id of function get_the_author_meta expects int\|false, string given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Property NTDST_Data_Manager\:\:\$models type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Property NTDST_Data_Model\:\:\$query_args type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Property NTDST_Data_Model\:\:\$sanitizers type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Property NTDST_Data_Model\:\:\$schema type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Property NTDST_Data_Model\:\:\$validators type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Data.php
+
+		-
+			message: '#^Method NTDST_Endpoints\:\:error\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Endpoints.php
+
+		-
+			message: '#^Method NTDST_Endpoints\:\:get_request_params\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Endpoints.php
+
+		-
+			message: '#^Method NTDST_Endpoints\:\:handle_action\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Endpoints.php
+
+		-
+			message: '#^Method NTDST_Endpoints\:\:handle_get_nonce\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Endpoints.php
+
+		-
+			message: '#^Method NTDST_Endpoints\:\:success\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Endpoints.php
+
+		-
+			message: '#^Method NTDST_Endpoints\:\:success\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Endpoints.php
+
+		-
+			message: '#^Property NTDST_Endpoints\:\:\$public_actions type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Endpoints.php
+
+		-
+			message: '#^Left side of && is always true\.$#'
+			identifier: booleanAnd.leftAlwaysTrue
+			count: 3
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:register\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:register_grouped_metaboxes\(\) has parameter \$all_fields with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:register_grouped_metaboxes\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:register_grouped_metaboxes\(\) has parameter \$field_groups with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:register_tabbed_metabox\(\) has parameter \$all_fields with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:register_tabbed_metabox\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:register_tabbed_metabox\(\) has parameter \$field_groups with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:render_gallery_field\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:render_metabox\(\) has parameter \$metabox with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:render_relation_field\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:render_repeater_field\(\) has parameter \$options with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:render_repeater_row\(\) has parameter \$row_data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:render_repeater_row\(\) has parameter \$sub_fields with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:render_tabbed_metabox\(\) has parameter \$metabox with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_MetaboxGenerator\:\:sanitize_field\(\) has parameter \$field_config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Parameter \#1 \$text of function esc_attr expects string, int given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Property NTDST_MetaboxGenerator\:\:\$registered_models type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between float\|int\|non\-empty\-string and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/MetaboxGenerator.php
+
+		-
+			message: '#^Method NTDST_Query_Cache\:\:deepKsort\(\) has parameter \$array with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/QueryCache.php
+
+		-
+			message: '#^Method NTDST_Query_Cache\:\:deepKsort\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/QueryCache.php
+
+		-
+			message: '#^Method NTDST_Query_Cache\:\:generateKey\(\) has parameter \$query_args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/QueryCache.php
+
+		-
+			message: '#^Method NTDST_Query_Cache\:\:getMetaPrefixes\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/QueryCache.php
+
+		-
+			message: '#^Method NTDST_Query_Cache\:\:onMetaDelete\(\) has parameter \$meta_ids with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/QueryCache.php
+
+		-
+			message: '#^Property NTDST_Query_Cache\:\:\$meta_prefixes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/QueryCache.php
+
+		-
+			message: '#^Method NTDST_Response\:\:html\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Method NTDST_Response\:\:render\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Method NTDST_Response\:\:withData\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Method NTDST_Template_Loader\:\:getCustomPaths\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Property NTDST_Response\:\:\$cached_paths type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Property NTDST_Response\:\:\$data type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Property NTDST_Response\:\:\$mimeTypes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Property NTDST_Response\:\:\$template_cache type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Property NTDST_Response\:\:\$template_paths type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Property NTDST_Template_Loader\:\:\$custom_paths type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/api/Response.php
+
+		-
+			message: '#^Method NTDST_Bootstrap\:\:__construct\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Method NTDST_Bootstrap\:\:checkSectorRequirements\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Method NTDST_Bootstrap\:\:getBootedServices\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Method NTDST_Bootstrap\:\:getModuleConfig\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Method NTDST_Bootstrap\:\:getServiceMetadata\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Method NTDST_Bootstrap\:\:getServiceSlugCached\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Method NTDST_Bootstrap\:\:getServices\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Method NTDST_Bootstrap\:\:isServiceEnabled\(\) has parameter \$metadata with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Property NTDST_Bootstrap\:\:\$bootedServices type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Property NTDST_Bootstrap\:\:\$config type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Property NTDST_Bootstrap\:\:\$moduleConfigCache type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Property NTDST_Bootstrap\:\:\$services type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Property NTDST_Bootstrap\:\:\$slugCache type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Bootstrap.php
+
+		-
+			message: '#^Call to an undefined method ReflectionType\:\:getName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Call to an undefined method ReflectionType\:\:isBuiltin\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Function ntdst_make\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Method NTDST_Container\:\:call\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Method NTDST_Container\:\:getReflection\(\) return type with generic class ReflectionClass does not specify its types\: T$#'
+			identifier: missingType.generics
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Method NTDST_Container\:\:keys\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Method NTDST_Container\:\:make\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Method NTDST_Container\:\:resolveClass\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Method NTDST_Container\:\:resolveParameters\(\) has parameter \$parameters with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Method NTDST_Container\:\:resolveParameters\(\) has parameter \$primitives with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Method NTDST_Container\:\:resolveParameters\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Property NTDST_Container\:\:\$callableReflections type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Property NTDST_Container\:\:\$factoryCache type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Property NTDST_Container\:\:\$reflections type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Property NTDST_Container\:\:\$resolved type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Property NTDST_Container\:\:\$resolving type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Property NTDST_Container\:\:\$services type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Container.php
+
+		-
+			message: '#^Action callback returns NTDST_Router but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Router.php
+
+		-
+			message: '#^Method NTDST_Router\:\:url\(\) has parameter \$params with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Router.php
+
+		-
+			message: '#^Property NTDST_Router\:\:\$routes type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Router.php
+
+		-
+			message: '#^Property NTDST_Router\:\:\$template_hooks type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Router.php
+
+		-
+			message: '#^Method NTDST_SectorRegistry\:\:all\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Method NTDST_SectorRegistry\:\:checkRequirements\(\) has parameter \$requirements with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Method NTDST_SectorRegistry\:\:get\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Method NTDST_SectorRegistry\:\:getDiscoveryPaths\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Method NTDST_SectorRegistry\:\:getEnabled\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Method NTDST_SectorRegistry\:\:getState\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Method NTDST_SectorRegistry\:\:getTiers\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Method NTDST_SectorRegistry\:\:register\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Property NTDST_SectorRegistry\:\:\$enabledCache type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Property NTDST_SectorRegistry\:\:\$sectors type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Property NTDST_SectorRegistry\:\:\$tierCache type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/SectorRegistry.php
+
+		-
+			message: '#^Method NTDST_Service_Meta\:\:metadata\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/ServiceInterface.php
+
+		-
+			message: '#^Call to an undefined method NTDST_Theme\:\:data\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Call to an undefined method NTDST_Theme\:\:router\(\)\.$#'
+			identifier: method.notFound
+			count: 3
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:__call\(\) has parameter \$arguments with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:__construct\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:apiAction\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:get_config\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:register\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:taxonomy\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:taxonomy\(\) has parameter \$post_types with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:validate_config\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method NTDST_Theme\:\:validate_config\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method class@anonymous/app/content/mu\-plugins/ntdst\-core/core/Theme\.php\:349\:\:__call\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Method class@anonymous/app/content/mu\-plugins/ntdst\-core/core/Theme\.php\:349\:\:call\(\) has parameter \$args with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Property NTDST_Theme\:\:\$config type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Property NTDST_Theme\:\:\$mixins type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/core/Theme.php
+
+		-
+			message: '#^Function ntdst_log_debug\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Function ntdst_log_error\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Function ntdst_log_info\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Method NTDST_Logger\:\:critical\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Method NTDST_Logger\:\:debug\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Method NTDST_Logger\:\:error\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Method NTDST_Logger\:\:info\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Method NTDST_Logger\:\:interpolate\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Method NTDST_Logger\:\:log\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Method NTDST_Logger\:\:recent\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Method NTDST_Logger\:\:warning\(\) has parameter \$context with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Property NTDST_Logger\:\:\$batchedLogs type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Property NTDST_Logger\:\:\$handlers type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Logger.php
+
+		-
+			message: '#^Function ntdst_notify\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:bcc\(\) has parameter \$email with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:buildHeaders\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:cc\(\) has parameter \$email with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:getDefaultTemplate\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:renderTemplate\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:template\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:to\(\) has parameter \$email with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:toArray\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_Mailer\:\:wrapInLayout\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Property NTDST_Mailer\:\:\$attachments type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Property NTDST_Mailer\:\:\$bcc type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Property NTDST_Mailer\:\:\$cc type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Property NTDST_Mailer\:\:\$headers type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Property NTDST_Mailer\:\:\$template_data type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Property NTDST_Mailer\:\:\$to type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/Mailer.php
+
+		-
+			message: '#^Method NTDST_RelationField\:\:findReferringPosts\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/RelationField.php
+
+		-
+			message: '#^Method NTDST_RelationField\:\:getModelsWithRelations\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/RelationField.php
+
+		-
+			message: '#^Method NTDST_RelationField\:\:metadata\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/RelationField.php
+
+		-
+			message: '#^Method NTDST_RelationField\:\:renderReverseRelationshipMetabox\(\) has parameter \$metabox with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/RelationField.php
+
+		-
+			message: '#^Property NTDST_RelationField\:\:\$theme is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: app/content/mu-plugins/ntdst-core/services/RelationField.php
+
+		-
+			message: '#^Parameter \#1 \$args of function wp_nav_menu expects array\{menu\?\: int\|string\|WP_Term, menu_class\?\: string, menu_id\?\: string, container\?\: string, container_class\?\: string, container_id\?\: string, container_aria_label\?\: string, fallback_cb\?\: \(callable\(\)\: mixed\)\|false, \.\.\.\}, array\{theme_location\: ''footer'', container\: false, menu_class\: ''space\-y\-2'', walker\: Ntdst_Nav_Walker\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/content/themes/josworld/footer.php
+
+		-
+			message: '#^Access to an undefined property WP_Post\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/content/themes/josworld/functions.php
+
+		-
+			message: '#^Action callback returns NTDST_Bootstrap but should not return anything\.$#'
+			identifier: return.void
+			count: 2
+			path: app/content/themes/josworld/functions.php
+
+		-
+			message: '#^Parameter \#1 \$args of function wp_nav_menu expects array\{menu\?\: int\|string\|WP_Term, menu_class\?\: string, menu_id\?\: string, container\?\: string, container_class\?\: string, container_id\?\: string, container_aria_label\?\: string, fallback_cb\?\: \(callable\(\)\: mixed\)\|false, \.\.\.\}, array\{theme_location\: ''primary'', container\: false, menu_class\: ''flex items\-center…'', fallback_cb\: ''josworld_fallback…'', walker\: Ntdst_Nav_Walker\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/content/themes/josworld/header.php
+
+		-
+			message: '#^Parameter \#1 \$args of function wp_nav_menu expects array\{menu\?\: int\|string\|WP_Term, menu_class\?\: string, menu_id\?\: string, container\?\: string, container_class\?\: string, container_id\?\: string, container_aria_label\?\: string, fallback_cb\?\: \(callable\(\)\: mixed\)\|false, \.\.\.\}, array\{theme_location\: ''primary'', container\: false, menu_class\: ''space\-y\-1'', fallback_cb\: ''josworld_fallback…'', walker\: Ntdst_Nav_Walker\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/content/themes/josworld/header.php
+
+		-
+			message: '#^Function josworld_template_html\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/themes/josworld/helpers/templates.php
+
+		-
+			message: '#^Function josworld_template_part\(\) has parameter \$args with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: app/content/themes/josworld/helpers/templates.php
+
+		-
+			message: '#^Constant JOSWORLD_DIR not found\.$#'
+			identifier: constant.notFound
+			count: 2
+			path: app/content/themes/josworld/services/frontend/hooks/AssetHooks.php
+
+		-
+			message: '#^Constant JOSWORLD_URI not found\.$#'
+			identifier: constant.notFound
+			count: 2
+			path: app/content/themes/josworld/services/frontend/hooks/AssetHooks.php

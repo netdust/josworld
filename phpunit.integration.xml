@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap-integration.php"
+         cacheResultFile=".phpunit.cache/integration/test-results"
+         colors="true"
+         failOnRisky="true"
+         failOnWarning="true">
+    <!--
+        INTEGRATION tier: real WordPress (app/wp) + real database — the
+        dedicated `wptests` DB ONLY, never the dev database. See
+        tests/bootstrap-integration.php for the hard guard.
+        Run INSIDE DDEV (`ddev composer test:int` / `ddev test-int`):
+        the DB host `db` only resolves in the container.
+        Unit tier (no WordPress, no DB) lives in phpunit.unit.xml.
+        Schema is PHPUnit 9.x: wp-phpunit 6.8.x ceilings at PHPUnit 9.6.x,
+        which pins the whole project to ^9.6 (decision record / T10).
+    -->
+    <testsuites>
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

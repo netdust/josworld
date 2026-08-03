@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap-unit.php"
+         cacheResultFile=".phpunit.cache/unit/test-results"
+         colors="true"
+         failOnRisky="true"
+         failOnWarning="true">
+    <!--
+        UNIT tier: no WordPress bootstrap, no database.
+        Integration tier gets its own phpunit.integration.xml.
+        Schema is PHPUnit 9.x: the project PHPUnit is pinned to ^9.6 because
+        wp-phpunit (integration tier) ceilings at PHPUnit 9.6.x — see the
+        decision record / T10 commit body.
+    -->
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

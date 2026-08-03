@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+## Description: Run the isolated PHP unit tier (PHPUnit + Brain Monkey, no WordPress)
+
+cd "${DDEV_COMPOSER_ROOT:-/var/www/html}"
+
+composer test:unit

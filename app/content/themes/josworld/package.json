@@ -1,0 +1,29 @@
+{
+  "name": "josworld",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "lint:css": "stylelint \"src/css/**/*.css\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^10.8.0",
+    "globals": "^17.8.0",
+    "postcss": "^8.4.35",
+    "stylelint": "^17.14.1",
+    "stylelint-config-standard": "^40.0.0",
+    "tailwindcss": "^3.4.1",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "@alpinejs/collapse": "^3.15.8",
+    "alpinejs": "^3.13.5"
+  }
+}

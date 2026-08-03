@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Build output (run `npm run build` to regenerate)
+dist/
+
+# Lockfile is COMMITTED — required input for the dependency audit gate (npm audit)
+
+# OS / editor
+.DS_Store
+*.log

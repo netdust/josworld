@@ -1,0 +1,13 @@
+#!/bin/bash
+
+## Description: Run the host-side Playwright e2e suite against this project's primary URL
+## Usage: test-e2e
+## Example: "ddev test-e2e"
+
+# e2e lives on the HOST (decision 7). All real logic is in bin/e2e.sh —
+# this command only anchors the working directory and delegates.
+# DDEV exports DDEV_APPROOT + DDEV_PRIMARY_URL to host commands;
+# bin/e2e.sh picks DDEV_PRIMARY_URL up as its URL source.
+set -eu
+cd "$DDEV_APPROOT"
+composer test:e2e

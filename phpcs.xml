@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<ruleset name="netdust-gates">
+    <description>Lint gate: PSR-12 base + WordPress security/DB sniffs + PHP 8.3 compatibility.</description>
+
+    <!--
+        GATE SCOPE: tests/ only.
+
+        The full intended surface mirrors phpstan.neon:
+        app/content/mu-plugins + app/content/themes + tests. phpcs has no baseline
+        mechanism, and pre-existing framework/theme debt is not fixed as part
+        of gate introduction — so the gate scans only what is green today.
+        Add mu-plugins/themes back as their debt is paid.
+        Full-surface check by hand: vendor/bin/phpcs app/content/mu-plugins app/content/themes
+    -->
+    <file>tests</file>
+
+    <!-- Third-party / not our code (applies when wider paths are passed manually) -->
+    <exclude-pattern>*/app/content/themes/twentytwentyfive/*</exclude-pattern>
+    <exclude-pattern>*/app/content/mu-plugins/bedrock-disallow-indexing/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/app/wp/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/dist/*</exclude-pattern>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+
+    <!-- Base: PSR-12 only. Full WPCS ruleset rejected — no WPCS formatting sniffs. -->
+    <rule ref="PSR12"/>
+
+    <!--
+        Test-convention carve-outs, scoped to tests/ ONLY (security, DB and
+        compatibility sniffs remain fully active there):
+        - snake_case behavior-named test methods are the project's test-naming
+          convention (testing-workflow: "name tests by behavior").
+        - a zero-dependency inline fixture class per test file is a deliberate
+          test pattern, not production layout.
+    -->
+    <rule ref="PSR1.Methods.CamelCapsMethodName">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+    <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
+        <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+
+    <!-- WordPress security + database sniff groups only -->
+    <rule ref="WordPress.Security"/>
+    <rule ref="WordPress.DB"/>
+
+    <!-- PHP compatibility, pinned to the deployment target (not a range floor) -->
+    <rule ref="PHPCompatibilityWP"/>
+    <config name="testVersion" value="8.3"/>
+</ruleset>

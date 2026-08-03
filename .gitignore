@@ -154,3 +154,11 @@ app/content/themes/*
 
 # Re-ignore Zone.Identifier files (must stay last so it wins over whitelists)
 **/*:Zone.Identifier
+# Track this site's own theme (the deliverable) — scaffold-appended
+!app/content/themes/josworld/
+!app/content/themes/josworld/**
+# Never the theme's deps/build residue (must FOLLOW the whitelist above)
+app/content/themes/josworld/node_modules/
+app/content/themes/josworld/dist/
+# Re-assert (must stay last so it wins over whitelists)
+**/*:Zone.Identifier

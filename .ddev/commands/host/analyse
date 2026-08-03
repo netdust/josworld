@@ -1,0 +1,14 @@
+#!/bin/bash
+
+## Description: Run the PHPStan analyse gate (composer analyse) — host-side
+## Usage: analyse
+## Example: "ddev analyse"
+
+# analyse lives on the HOST, like gate and test-e2e: the phpstan result
+# cache (.phpstan-cache, mounted project-local per phpstan.neon) is
+# context-coupled — a container run seeds it with container paths and
+# poisons it for the host-orchestrated gate ("phar://….stub is not a file"
+# internal errors on the next host `composer analyse`). One context only.
+set -eu
+cd "$DDEV_APPROOT"
+composer analyse

@@ -1,0 +1,14 @@
+{
+  "name": "bedrock-e2e",
+  "private": true,
+  "description": "Host-side Playwright e2e tier. Runs against the live DDEV URL; the single entry point is bin/e2e.sh (composer test:e2e / ddev test-e2e / npm run test:e2e all converge on it). NOTE: this root package is NOT covered by the audit:js gate (bin/js-gate.sh loops theme dirs only).",
+  "scripts": {
+    "test:e2e": "sh bin/e2e.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^20.19.43",
+    "@wordpress/e2e-test-utils-playwright": "^1.52.0",
+    "typescript": "^7.0.2"
+  }
+}

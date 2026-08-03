@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+## Description: Run the dependency audit gate (composer audit:deps)
+
+cd "${DDEV_COMPOSER_ROOT:-/var/www/html}"
+
+composer audit:deps

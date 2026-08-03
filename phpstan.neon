@@ -1,0 +1,46 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+    # Pre-existing findings in the vendored framework + theme, frozen at gate
+    # introduction. New code must be clean; do not add to this file.
+    # Coupling: the baseline references app/content/mu-plugins/ntdst-core + the theme —
+    # both live in THIS repo (netdust/wp-starter) and are rendered into a
+    # project by scaffold_wp_starter; regenerate with --generate-baseline
+    # after changing the vendored framework or theme.
+    - phpstan-baseline.neon
+
+parameters:
+    level: 6
+    # Project-local cache — NEVER the shared system tmp. PHPStan's default
+    # tmpDir (sys_get_temp_dir()/phpstan) is shared by every project on the
+    # host: stale reflection entries pointing at another project's (since
+    # deleted/moved) phpstan.phar poison a fresh site's FIRST `composer gate`
+    # with "phar://…/phpstan.phar/….stub is not a file" internal errors
+    # (hit on the T04 acceptance run via a stale gate-pilot cache).
+    # Relative path → resolved beside this file, i.e. the project root.
+    # The dir ships with the gate payload and self-ignores (.gitignore inside).
+    # Coupling: run ALL phpstan invocations from ONE context (the host — the
+    # gate is host-orchestrated); a container run would seed this shared,
+    # mounted cache with container paths and recreate the same poisoning.
+    tmpDir: .phpstan-cache
+    scanFiles:
+        # WP test-scaffold symbols (WP_UnitTestCase & friends) for the
+        # integration tier under tests/Integration — discovery only, the
+        # scaffold itself is never analysed. Deliberately NOT the whole
+        # includes/ dir: its object-cache.php redeclares wp_cache_get with
+        # a narrower signature than the WordPress stubs and would shadow it.
+        - vendor/wp-phpunit/wp-phpunit/includes/phpunit-adapter-testcase.php
+        - vendor/wp-phpunit/wp-phpunit/includes/abstract-testcase.php
+        - vendor/wp-phpunit/wp-phpunit/includes/testcase.php
+    paths:
+        - app/content/mu-plugins
+        - app/content/themes
+        - tests
+    excludePaths:
+        # Composer-installed stock theme — not our code (constant name, portability-safe)
+        - app/content/themes/twentytwentyfive (?)
+        # Theme build artifacts / JS dependencies — never analysed.
+        # Trailing /* is required: wildcard excludePaths are fnmatch'd against
+        # FILE paths, so a bare .../node_modules pattern never matches the files
+        # beneath it (surfaced by flatted/php/flatted.php inside npm deps).
+        - app/content/themes/*/node_modules/* (?)
+        - app/content/themes/*/dist/* (?)

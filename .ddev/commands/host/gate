@@ -1,0 +1,13 @@
+#!/bin/bash
+
+## Description: Run the full 9-tier quality gate (cheapest-first, fail-fast)
+## Usage: gate
+## Example: "ddev gate"
+
+# The gate is HOST-orchestrated (see bin/gate.sh): test:e2e needs host-side
+# Playwright, test:int hops into the container via `ddev composer`. A *web*
+# command named gate would either skip tiers or always fail at e2e — so the
+# mirror lives here, as a host command, like test-e2e.
+set -eu
+cd "$DDEV_APPROOT"
+composer gate

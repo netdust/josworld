@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+## Description: Run the phpcs lint gate (composer lint)
+
+cd "${DDEV_COMPOSER_ROOT:-/var/www/html}"
+
+composer lint
