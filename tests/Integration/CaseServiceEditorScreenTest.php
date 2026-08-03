@@ -230,5 +230,57 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
             count($schema),
             'precondition: the case model has enough fields for tabs to matter',
         );
+
+        // The assertion that actually enforces the T11 criterion.
+        //
+        // This method previously stopped at the field-count precondition
+        // above, while its own comment claimed to assert the tabs criterion.
+        // It did not: flipping `use_tabs` to false in CaseService left this
+        // whole file green (7/7) — proven by mutation, which is how the gap
+        // was found at the Cluster C review gate.
+        //
+        // `use_tabs`/`field_groups` are NOT on NTDST_Data_Model — getSchema()
+        // cannot see them. NTDST_Data_Manager::register() forwards the whole
+        // config to the metabox generator (Data.php:1546-1552), which retains
+        // it in a private `$registered_models` (MetaboxGenerator.php:19,83).
+        // That retained config is the only place the live tab settings exist,
+        // so reflection is how this is read — the same pattern this cluster
+        // already uses to reach framework internals.
+        $generator = ntdst_metabox();
+        $property = new \ReflectionProperty($generator, 'registered_models');
+        $property->setAccessible(true);
+        /** @var array<string, array<string, mixed>> $registered */
+        $registered = $property->getValue($generator);
+
+        $this->assertArrayHasKey(
+            'case',
+            $registered,
+            'precondition: the case model must be registered with the metabox generator, '
+            . 'or the tab settings below are read from an empty set',
+        );
+
+        $config = $registered['case'];
+
+        $this->assertTrue(
+            $config['use_tabs'] ?? false,
+            'the case edit screen must opt into tabs — without use_tabs the editor gets '
+            . 'one flat wall of every field, which is the T11 acceptance criterion this '
+            . 'test exists to enforce',
+        );
+
+        $this->assertNotEmpty(
+            $config['field_groups'] ?? [],
+            'use_tabs alone renders nothing useful — field_groups must define the groups, '
+            . 'or the screen falls back to a single untabbed block',
+        );
+
+        // Groups must actually cover the schema, not just exist: a single
+        // group containing everything is a flat wall wearing a tab.
+        $this->assertGreaterThan(
+            1,
+            count($config['field_groups']),
+            'more than one field group is required for tabs to group anything — one group '
+            . 'is a flat wall with a label on it',
+        );
     }
 }

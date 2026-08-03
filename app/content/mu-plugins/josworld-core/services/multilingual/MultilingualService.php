@@ -83,9 +83,22 @@ final class MultilingualService
      * read from, so a fifth post type added later needs one line here, not
      * a hunt through two call sites.
      *
+     * PUBLIC (Cluster C review finding): this was the THIRD independent
+     * hardcoded copy of the same four slugs — alongside
+     * `AdminUIService::POST_TYPES` (made public for exactly this reason when
+     * CB-4 closed) and the live `ntdst_data()` registry — with no test tying
+     * it to either. The failure mode is safe-direction (`isRegistered()`
+     * filtering below means a stale entry is silently EXCLUDED, never
+     * phantom-included), which is precisely why it would go unnoticed: a post
+     * type could quietly stop being declared translatable to Polylang with no
+     * test failure anywhere, discoverable only by noticing a missing language
+     * switcher. Public so `PostTypeRegistryConsistencyTest` can assert it
+     * against the registry rather than trusting three lists to be hand-kept
+     * in sync.
+     *
      * @var list<string>
      */
-    private const TRANSLATABLE_POST_TYPES = ['case', 'team', 'vacature', 'tool'];
+    public const TRANSLATABLE_POST_TYPES = ['case', 'team', 'vacature', 'tool'];
 
     private const TRANSLATABLE_TAXONOMY = 'dienst';
 

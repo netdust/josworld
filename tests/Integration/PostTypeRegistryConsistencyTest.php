@@ -6,6 +6,7 @@ namespace NtdstTests\Integration;
 
 use josworld\services\admin\AdminUIService;
 use josworld\services\content\CaseService;
+use josworld\services\multilingual\MultilingualService;
 use josworld\services\content\TeamService;
 use josworld\services\content\ToolService;
 use josworld\services\content\VacatureService;
@@ -314,6 +315,44 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
             'jw_fixture_hidden',
             AdminUIService::POST_TYPES,
             'precondition: the fixture must be absent from POST_TYPES for this to be a real gap',
+        );
+    }
+
+    /**
+     * THE THIRD LIST (Cluster C review finding).
+     *
+     * CB-4 closed the drift between `AdminUIService::POST_TYPES` and the live
+     * registry. T09 then introduced a third independent copy of the same four
+     * slugs — `MultilingualService::TRANSLATABLE_POST_TYPES` — with nothing
+     * tying it to either.
+     *
+     * Its failure mode is safe-direction, which is exactly what makes it
+     * dangerous: `MultilingualService` filters through `isRegistered()`, so a
+     * stale or misspelled entry is silently EXCLUDED rather than phantom-
+     * included. A post type would quietly stop being declared translatable to
+     * Polylang with no test failure anywhere — discoverable only by an editor
+     * noticing a missing language switcher, long after the fact.
+     *
+     * Asserting equality with POST_TYPES (itself already pinned to the live
+     * registry in both directions by the tests above) transitively pins this
+     * third list to the code too, without inventing a fourth source of truth.
+     */
+    public function test_the_translatable_post_type_list_matches_the_admin_ui_list(): void
+    {
+        $translatable = MultilingualService::TRANSLATABLE_POST_TYPES;
+        $adminUi = AdminUIService::POST_TYPES;
+
+        sort($translatable);
+        sort($adminUi);
+
+        $this->assertSame(
+            $adminUi,
+            $translatable,
+            'MultilingualService::TRANSLATABLE_POST_TYPES has drifted from '
+            . 'AdminUIService::POST_TYPES. Because MultilingualService filters through '
+            . 'isRegistered(), a drifted entry does NOT fatal — it silently stops that '
+            . 'post type being declared translatable to Polylang, with no other test '
+            . 'failing. Keep the two lists identical, or collapse them into one.',
         );
     }
 }
