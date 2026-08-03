@@ -255,17 +255,34 @@ final class SchemaMapperTest extends TestCase
     }
 
     /**
-     * 7. INTERIM CONTRACT FOR T06. A repeater is OMITTED at T04.
+     * 7. A REPEATER IS OMITTED WHEN NO PARENT TYPE NAME IS SUPPLIED.
      *
-     * T04's scope is scalars; T06 adds `listOf` sub-object mapping and WILL
-     * change this assertion. Pinning it here means T06 starts from a DEFINED
-     * behaviour rather than an accident, and — until T06 lands — guarantees a
-     * repeater never leaks through as 'String' (which would render the literal
-     * text "Array" in the builder and look like working output).
+     * ─── DELIBERATE CONTRACT FLIP, T04 → T06 ───────────────────────────────
+     * This test was authored as `test_a_repeater_is_omitted_until_t06_adds_
+     * listof_support()`, pinning T04's INTERIM decision that a repeater is
+     * omitted like any other unmapped type. Its own name declared the flip was
+     * T06's to make, and T06's independent test-author has now made it: full
+     * repeater support lives in `RepeaterMappingTest`, which pins
+     * `['type' => ['listOf' => 'CaseImpactItem']]`.
+     *
+     * The test is RETAINED rather than deleted, because after the flip it
+     * covers a case `RepeaterMappingTest` deliberately does not: the TWO-ARG
+     * call. T06 adds an optional third parameter, `$typeName`, carrying the
+     * parent object type name (`Case`) that a sub-type name is composed from —
+     * `$prefix` is `_jw_` and cannot yield it. A two-arg call therefore has NO
+     * name to compose `<Type><Field>Item` from, and the only safe behaviour is
+     * the original one: OMIT.
+     *
+     * That is not a leftover; it is the denial path of the new parameter, and
+     * the reason it is safe to make the parameter optional at all. Emitting
+     * `ImpactItem` (unscoped) instead would hand T07 a name that collides
+     * across CPTs — exactly what `RepeaterMappingTest`'s naming test forbids.
+     * Emitting 'String' would render the literal text "Array" in the builder
+     * and look like working output.
      *
      * The fixture is CaseService's real `takeaways` repeater shape.
      */
-    public function test_a_repeater_is_omitted_until_t06_adds_listof_support(): void
+    public function test_a_repeater_is_omitted_when_no_parent_type_name_is_supplied(): void
     {
         $schema = [
             'subtitle' => ['type' => 'text', 'label' => 'Subtitel'],
@@ -279,14 +296,18 @@ final class SchemaMapperTest extends TestCase
             ],
         ];
 
+        // Two-arg call: no parent type name, so no sub-type name can be composed.
         $mapped = SchemaMapper::toObjectType($schema, self::PREFIX);
 
         $this->assertArrayNotHasKey(
             'takeaways',
             $mapped,
-            'T04 omits repeaters; T06 turns this into a listOf. It must never be String.',
+            'without a parent type name a repeater must be OMITTED — never String, never an unscoped listOf',
         );
         $this->assertArrayHasKey('subtitle', $mapped);
+
+        // ...and nothing is emitted to register either.
+        $this->assertSame([], SchemaMapper::toSubObjectTypes($schema, self::PREFIX));
     }
 
     /**

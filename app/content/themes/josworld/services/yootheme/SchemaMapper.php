@@ -69,11 +69,19 @@ final class SchemaMapper
      *                                        string (`'title' => 'text'`) — see
      *                                        ntdst-core/api/Data.php::setupSanitizers().
      * @param  string  $prefix  The model's meta prefix (e.g. `_jw_`).
+     * @param  string  $typeName  T06 SIGNATURE SHELL. The parent object type name
+     *                            T07 derives from the post type (e.g. `Case`), used
+     *                            to compose repeater sub-type names as
+     *                            `<Type><Field>Item`. OPTIONAL WITH A DEFAULT on
+     *                            purpose: T04's committed contract calls this
+     *                            method with two arguments and all eight of its
+     *                            tests must stay green, so the parameter is
+     *                            strictly additive.
      * @return array<string, array<string, mixed>> Field name => definition. Fields
      *                                             whose type has no mapping are
      *                                             OMITTED from this array entirely.
      */
-    public static function toObjectType(array $schema, string $prefix): array
+    public static function toObjectType(array $schema, string $prefix, string $typeName = ''): array
     {
         $mapped = [];
 
@@ -114,5 +122,40 @@ final class SchemaMapper
         }
 
         return $mapped;
+    }
+
+    /**
+     * T06 SIGNATURE SHELL ONLY — authored by the independent test-author ahead
+     * of the implementation so that `RepeaterMappingTest` fails for a
+     * BEHAVIOURAL reason ("expected CaseImpactItem, got []") rather than
+     * "call to undefined method". The body below is a sentinel: the implementer
+     * replaces it with the real sub-type emission and must not weaken the
+     * committed contract test.
+     *
+     * Emit the YOOtheme object-type DEFINITIONS for a schema's repeater fields.
+     *
+     * A SECOND METHOD rather than a richer return from `toObjectType()`: that
+     * method returns a flat `field => definition` map which T04's eight
+     * committed tests index directly, so enriching its return would break them.
+     * Two pure functions over the same input keeps the class stateless and
+     * T04's contract intact.
+     *
+     * The returned config uses YOOtheme's `['fields' => …]` objectType shape,
+     * ground-truthed against `builder-wordpress-toolset/src/Type/GroupType.php`
+     * — T07 feeds each entry to `$source->objectType($name, $config)`.
+     *
+     * @param  array<string, mixed>  $schema  The model schema as ntdst stores it.
+     * @param  string  $prefix  The model's meta prefix (e.g. `_jw_`).
+     * @param  string  $typeName  The parent object type name (e.g. `Case`).
+     * @return array<string, array<string, mixed>> Sub-type name => objectType
+     *                                             config, keyed by the SAME name
+     *                                             the parent field's `listOf`
+     *                                             references. Empty when the
+     *                                             schema declares no usable
+     *                                             repeater.
+     */
+    public static function toSubObjectTypes(array $schema, string $prefix, string $typeName = ''): array
+    {
+        return [];
     }
 }
