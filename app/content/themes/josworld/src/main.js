@@ -5,8 +5,9 @@
  * Add brand/feature components below as the site grows.
  */
 
-// Import styles (base.css imports tokens, components, utilities)
-import './css/base.css';
+// NOTE: no CSS is imported here. All styling lives in the YOOtheme LESS style
+// (less/theme.josworld.less), compiled by YOOtheme's builder — this bundle is
+// JavaScript only.
 
 // Import Alpine.js and plugins
 import Alpine from 'alpinejs';

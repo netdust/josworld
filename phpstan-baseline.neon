@@ -1269,5 +1269,5 @@ parameters:
 		-
 			message: '#^Constant JOSWORLD_URI not found\.$#'
 			identifier: constant.notFound
-			count: 2
+			count: 1
 			path: app/content/themes/josworld/services/frontend/hooks/AssetHooks.php

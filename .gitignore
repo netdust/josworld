@@ -162,3 +162,4 @@ app/content/themes/josworld/node_modules/
 app/content/themes/josworld/dist/
 # Re-assert (must stay last so it wins over whitelists)
 **/*:Zone.Identifier
+memory/.stop-hook-state.json
