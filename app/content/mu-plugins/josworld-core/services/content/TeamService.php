@@ -79,55 +79,22 @@
  * META PREFIX (FR-12/SC-5): every meta key prefixed `_jw_` via
  * `meta_prefix`, same as CaseService.
  *
- * REVERSE RELATIONSHIP WIRING (FR-7) — DIVERGENCE FROM THE HANDED-OVER
- * GROUND TRUTH, discovered during Step 2.5 grounding and reproduced against
- * the real wptests DB, not assumed:
+ * REVERSE RELATIONSHIP (FR-7): the metabox on a team member's edit screen
+ * listing the cases referring to it is entirely framework-provided —
+ * NTDST_RelationField self-registers on `after_setup_theme` and iterates
+ * every registered model's `relation` fields once `team` exists here.
+ * Registering `team` under this exact slug, with CaseService's `team` field
+ * already naming `post_type => 'team'`, is the whole of the wiring; nothing
+ * in this file calls RelationField directly.
  *
- * NTDST_RelationField DOES self-register on `after_setup_theme`
- * (ntdst-core/services/RelationField.php, verified live) and DOES iterate
- * every registered model's `relation` fields once `team` exists. But its
- * reverse-lookup (`findReferringPosts()`) cannot actually find josworld's
- * data, on TWO independent axes, both structural, both in ntdst-core (which
- * this task may not modify — shared with other sites):
- *
- *  1. PREFIX: `findReferringPosts()` queries `wp_postmeta` with
- *     `meta_key = $field_name` using the RAW, unprefixed field name
- *     ('team'). CaseService registers with `meta_prefix => '_jw_'`
- *     (FR-12/SC-5 — mandatory), so the value is actually stored under
- *     `_jw_team`. The framework's query structurally never matches.
- *  2. FORMAT: the framework's own docblock claims "Data.php stores
- *     relation values as JSON arrays ([6, 7]), not PHP serialized" and
- *     its SQL `LIKE` patterns are JSON-bracket-shaped. Verified against
- *     THIS project's actual `Data.php::updateMetaValue()` (a plain
- *     `update_post_meta()` call, no `json_encode` anywhere on the write
- *     path): the persisted value is standard PHP-serialized WP meta
- *     (`a:1:{i:0;i:4;}`), confirmed by a live round-trip during this
- *     task. The framework's LIKE patterns never match serialized data
- *     either, independently of (1).
- *
- * No sibling site (`rossi`, `sc1-stackwp`, `vad-vormingen`, `bavi`, `willy`,
- * `edushare`, `yves`, `vad-website` — all checked) has ever combined
- * `meta_prefix` with a `relation` field, so this is genuinely unexercised
- * framework territory josworld is first into, not a mistake on this
- * project's side.
- *
- * FIX, scoped to this file only (no ntdst-core edit): `add_meta_boxes` is
- * hooked here at priority 21 — one AFTER NTDST_RelationField's own
- * priority-20 registration — and RE-REGISTERS THE SAME metabox id
- * (`ntdst_reverse_case_team`) on the `team` screen with a josworld-owned
- * render callback that queries the ACTUAL stored shape (prefixed key,
- * `maybe_unserialize`). WordPress's `add_meta_box()` is keyed by id+screen
- * in the global `$wp_meta_boxes` array, so the later registration silently
- * replaces the framework's (which would otherwise always render "not
- * featured in any cases yet", the exact "mis-wired relation silently lists
- * nothing" failure mode this task warns about — proven, not hypothesised:
- * this is what the RED run of TeamServiceRegistrationTest showed before
- * this fix landed). This is the smallest correct fix that does not touch
- * shared framework code; the alternative (dropping `meta_prefix` on `case`)
- * would violate FR-12/SC-5, and JSON-encoding relation values ourselves
- * would diverge from every other `array`/`json` field's storage format in
- * this same model for no benefit (the read path already round-trips PHP-
- * serialized arrays correctly via `maybe_unserialize`).
+ * This used to need a josworld-side workaround: building this task
+ * surfaced two real defects in NTDST_RelationField's reverse-lookup (it
+ * couldn't find a meta_prefix'd or PHP-serialized relation value — this
+ * project's `case` model is both). That was fixed upstream in ntdst-core
+ * (commit 95b7e06) rather than left as a per-site patch, since the defects
+ * were structural, not josworld-specific. See
+ * tests/Integration/RelationFieldReverseLookupTest.php for the regression
+ * proof and the full history.
  *
  * A service file by nature both declares a symbol (the class below) and
  * executes a side effect (the ABSPATH guard) — exempt from the PSR-1
@@ -153,115 +120,6 @@ final class TeamService
     private function init(): void
     {
         $this->registerDataModel();
-
-        // Compatibility fix for NTDST_RelationField's reverse-metabox
-        // lookup — see the class docblock's "REVERSE RELATIONSHIP WIRING"
-        // section for why this is needed and why it is scoped to this file
-        // rather than ntdst-core. Priority 21: one after RelationField's own
-        // priority-20 `add_meta_boxes` registration, so this replaces it.
-        add_action('add_meta_boxes', [$this, 'registerCorrectedReverseCaseMetabox'], 21);
-    }
-
-    /**
-     * Replace NTDST_RelationField's reverse-relationship metabox on the
-     * `team` edit screen with a josworld-aware version that queries the
-     * ACTUAL stored shape (meta_prefix'd key, PHP-serialized value) rather
-     * than the framework's unprefixed/JSON-shaped assumption. Same metabox
-     * id as the framework registers (`ntdst_reverse_case_team`), so this is
-     * a REPLACEMENT, not a duplicate — WordPress's add_meta_box() is keyed
-     * by id+screen.
-     */
-    public function registerCorrectedReverseCaseMetabox(): void
-    {
-        if (! post_type_exists('case') || ! ntdst_data()->isRegistered('case')) {
-            return;
-        }
-
-        add_meta_box(
-            'ntdst_reverse_case_team',
-            __('Cases', JOSWORLD_CORE_TEXTDOMAIN),
-            [$this, 'renderReverseCaseMetabox'],
-            'team',
-            'side',
-            'default',
-        );
-    }
-
-    /**
-     * Render the cases referring to the team member being edited.
-     *
-     * Mirrors NTDST_RelationField::renderReverseRelationshipMetabox()'s
-     * markup and empty-state shape (kept consistent with the rest of the
-     * admin), but queries `_jw_team` (the ACTUAL prefixed meta key
-     * CaseService writes) and decodes with `maybe_unserialize()` (the
-     * ACTUAL storage format), instead of the framework's unprefixed/
-     * JSON-shaped query which never matches this project's data.
-     */
-    public function renderReverseCaseMetabox(\WP_Post $post): void
-    {
-        $referring = $this->findCasesReferringTo($post->ID);
-
-        if (empty($referring)) {
-            echo '<p class="ntdst-reverse-relations-empty" '
-                . 'style="padding: 12px; color: #646970; font-style: italic; margin: 0;">'
-                . esc_html__('Niet gekoppeld aan een case.', JOSWORLD_CORE_TEXTDOMAIN)
-                . '</p>';
-            return;
-        }
-
-        echo '<ul class="ntdst-reverse-relations-list" style="margin: 0; padding: 0;">';
-        foreach ($referring as $case) {
-            $editUrl = get_edit_post_link($case->ID);
-            echo '<li style="margin: 0; padding: 8px 12px; border-bottom: 1px solid #f0f0f1;">';
-            echo '<a href="' . esc_url((string) $editUrl) . '">' . esc_html($case->post_title) . '</a>';
-            echo '</li>';
-        }
-        echo '</ul>';
-    }
-
-    /**
-     * Find every published `case` whose `_jw_team` relation includes the
-     * given team member id.
-     *
-     * Deliberately re-queries via get_post_meta() rather than raw SQL
-     * pattern-matching (the framework's approach): the candidate set is
-     * every published case, which is small by design (spec: 7 cases exist
-     * today, SC-2), so a straight meta scan is simpler and correctness-safe
-     * against the actual serialized storage format, without re-deriving
-     * ntdst-core's LIKE-pattern narrowing for a data shape it does not
-     * apply to.
-     *
-     * @return list<\WP_Post>
-     */
-    private function findCasesReferringTo(int $teamMemberId): array
-    {
-        // An admin-screen metabox render, not a hot path, and the candidate
-        // set is every published `case` (spec: 7 exist today, SC-2) —
-        // narrowing by meta_key existence is cheap at this scale; see the
-        // docblock above for why a value-level LIKE scan (the framework's
-        // approach) is deliberately not reproduced here.
-        $teamMetaKey = JOSWORLD_CORE_META_PREFIX . 'team';
-
-        $cases = get_posts([
-            'post_type' => 'case',
-            'post_status' => 'publish',
-            'posts_per_page' => -1,
-            'meta_key' => $teamMetaKey, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
-            'orderby' => 'title',
-            'order' => 'ASC',
-            'no_found_rows' => true,
-        ]);
-
-        $matches = [];
-        foreach ($cases as $case) {
-            $raw = get_post_meta($case->ID, $teamMetaKey, true);
-            $ids = is_array($raw) ? $raw : [];
-            if (in_array($teamMemberId, array_map('intval', $ids), true)) {
-                $matches[] = $case;
-            }
-        }
-
-        return $matches;
     }
 
     /**

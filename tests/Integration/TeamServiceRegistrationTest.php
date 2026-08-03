@@ -6,36 +6,54 @@ namespace NtdstTests\Integration;
 
 use josworld\services\content\CaseService;
 use josworld\services\content\TeamService;
+use NTDST_RelationField;
+use NTDST_Theme;
+use ReflectionMethod;
 use WP_UnitTestCase;
 
 /**
  * Integration tier: proves the T06 CONTRACT against REAL WordPress + the
- * real (dedicated) wptests database — CPT registration effects, real
- * relation-field round-tripping, and reverse-relationship metabox
- * materialisation are none of which Brain Monkey (unit tier) can express.
+ * real (dedicated) wptests database — CPT registration effects and real
+ * relation-field round-tripping are none of which Brain Monkey (unit tier)
+ * can express.
  *
  * THE CONTRACT (tasks.md T06 Integration test line + spec FR-2/FR-7):
  *  1. Registering the model creates a `team` post type with NO public single
  *     view, but a full admin UI.
- *  2. A member linked from two cases lists EXACTLY those two cases in the
- *     reverse-relationship metabox (NTDST_RelationField, framework-provided,
- *     self-registers on `after_setup_theme` — see josworld-core.php; this is
- *     the WIRING proof, not a re-test of the framework).
- *  3. Linking the same member TWICE to ONE case yields ONE entry in that
+ *  2. Linking the same member TWICE to ONE case yields ONE entry in that
  *     case's `team` field, not two (spec acceptance criterion, dedup on
  *     save).
- *  4. Deleting a linked team member leaves the referring CASE still
+ *  3. Deleting a linked team member leaves the referring CASE still
  *     readable — a dangling relation id must not fatal the case's read
  *     (AF-1 mid-flow-failure edge).
- *  5. Denial/negative path: a member linked from NOTHING lists none in its
- *     reverse metabox (the mis-wired-relation failure mode this task exists
- *     to catch — an empty list must mean "genuinely unlinked", not "the
- *     wiring silently returns nothing for everyone").
+ *
+ * WHAT MOVED OUT OF THIS FILE (2026-08-03, following the ntdst-core
+ * reverse-lookup fix, commit 95b7e06): "a member linked from two cases
+ * lists exactly those two" and "a member linked from nothing lists none"
+ * used to be proven here against a josworld-owned workaround
+ * (TeamService::findCasesReferringTo(), since deleted) that compensated for
+ * two defects in NTDST_RelationField::findReferringPosts() — it could not
+ * find a meta_prefix'd or PHP-serialized relation value, and `case` (this
+ * project's own model) is both. Those defects are now fixed AT THE SOURCE
+ * in ntdst-core, proven by
+ * tests/Integration/RelationFieldReverseLookupTest.php's
+ * test_a_prefixed_model_resolves_its_referring_posts() (the exact
+ * two-cases-list-exactly-those-two shape, using this project's real `case`
+ * model) — repeating that proof here would duplicate, not add, coverage.
+ * The two clauses below stay here because they are josworld-specific
+ * acceptance criteria the framework-level regression test does not (and
+ * should not) know about: this project's own double-link dedup behaviour
+ * on save, and this project's own tolerance for a case whose linked member
+ * was deleted.
+ *
+ * Both remaining tests reflect into NTDST_RelationField::findReferringPosts
+ * directly (the same seam RelationFieldReverseLookupTest uses) rather than
+ * asserting on rendered metabox HTML — the lookup is the unit whose
+ * contract matters; coupling to markup would make these tests brittle to
+ * presentation changes that carry no risk.
  */
 final class TeamServiceRegistrationTest extends WP_UnitTestCase
 {
-    private TeamService $teamService;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -51,10 +69,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         }
 
         new CaseService(ntdst_data());
-        // Kept as the ONE instance for this test: reflected into directly
-        // below rather than asking the container for a second instance via
-        // ntdst_get(), which would double-register the add_meta_boxes hook.
-        $this->teamService = new TeamService(ntdst_data());
+        new TeamService(ntdst_data());
     }
 
     public function test_registering_the_model_creates_a_team_post_type_with_no_public_single_view(): void
@@ -73,45 +88,6 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
 
         // Full admin UI still required — editors manage members in wp-admin.
         $this->assertTrue($postType->show_ui, 'team must keep a full admin UI');
-    }
-
-    public function test_a_member_linked_from_two_cases_lists_exactly_those_two_in_the_reverse_metabox(): void
-    {
-        $caseModel = ntdst_data()->get('case');
-        $teamModel = ntdst_data()->get('team');
-
-        $member = $teamModel->create([
-            'title' => 'Ada Lovelace',
-            'role' => 'Developer',
-            'email' => 'ada@example.com',
-        ]);
-        $this->assertNotWPError($member);
-
-        $caseA = $caseModel->create([
-            'title' => 'Case A',
-            'client' => 'Acme',
-            'team' => [$member->ID],
-        ]);
-        $caseB = $caseModel->create([
-            'title' => 'Case B',
-            'client' => 'Acme',
-            'team' => [$member->ID],
-        ]);
-        $this->assertNotWPError($caseA);
-        $this->assertNotWPError($caseB);
-
-        // Publish both cases — the framework's reverse lookup scans
-        // published posts only (RelationField.php's post_status = 'publish'
-        // filter).
-        wp_publish_post($caseA->ID);
-        wp_publish_post($caseB->ID);
-
-        $referring = $this->invokeFindReferringPosts($member->ID, 'case', 'team');
-
-        $this->assertCount(2, $referring, 'a member linked from two cases must list exactly those two');
-        $referringIds = array_map(static fn ($post) => $post->ID, $referring);
-        $this->assertContains($caseA->ID, $referringIds);
-        $this->assertContains($caseB->ID, $referringIds);
     }
 
     public function test_linking_the_same_member_twice_to_one_case_yields_one_entry_not_two(): void
@@ -180,54 +156,46 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         $reread = $caseModel->find($case->ID, true);
         $this->assertNotWPError($reread, 'a case referring to a deleted member must still read cleanly');
         $this->assertSame('Case with a member later deleted', $reread->fields['title'] ?? get_the_title($case->ID));
-    }
 
-    public function test_a_member_linked_from_nothing_lists_none_in_its_reverse_metabox(): void
-    {
-        $teamModel = ntdst_data()->get('team');
+        // Same edge, through the reverse-lookup seam: a case referencing a
+        // now-deleted member must not fatal the (framework) reverse lookup
+        // for a DIFFERENT, still-live member either — the dangling id in
+        // the case's own `team` meta must be inert, not a crash.
+        $liveMember = $teamModel->create(['title' => 'Ada Lovelace', 'role' => 'Developer']);
+        $this->assertNotWPError($liveMember);
 
-        $member = $teamModel->create([
-            'title' => 'Unlinked Member',
-            'role' => 'Designer',
+        $secondCase = $caseModel->create([
+            'title' => 'Case with a live member',
+            'client' => 'Acme',
+            'team' => [$liveMember->ID],
         ]);
-        $this->assertNotWPError($member);
+        $this->assertNotWPError($secondCase);
+        wp_publish_post($secondCase->ID);
 
-        $referring = $this->invokeFindReferringPosts($member->ID, 'case', 'team');
+        $referring = $this->findReferring((int) $liveMember->ID, 'case', 'team');
+        // $wpdb->get_results() returns string column values, so cast before
+        // comparing — WP_Post's own ->ID is typed int, but these came back
+        // through wpdb's raw row objects.
+        $referringIds = array_map(static fn ($post) => (int) $post->ID, $referring);
 
-        $this->assertCount(
-            0,
-            $referring,
-            'a member linked from nothing must list none — proves the wiring genuinely discriminates '
-            . 'rather than always returning empty OR always returning something',
+        $this->assertContains(
+            (int) $secondCase->ID,
+            $referringIds,
+            'the reverse lookup must still resolve a live member\'s referrers '
+            . 'even while an unrelated case carries a dangling relation id',
         );
     }
 
     /**
-     * DIVERGENCE FROM THE ORIGINAL PLAN (see TeamService's class docblock,
-     * "REVERSE RELATIONSHIP WIRING" section): NTDST_RelationField's own
-     * findReferringPosts() is structurally unable to find josworld's data
-     * (raw unprefixed meta_key query against a meta_prefix'd model; a
-     * JSON-shaped LIKE pattern against PHP-serialized storage) — verified
-     * live, not assumed. TeamService therefore REPLACES the framework's
-     * reverse-metabox registration (same metabox id, later `add_meta_boxes`
-     * priority) with its own corrected lookup. This helper exercises THAT
-     * corrected lookup (TeamService::findCasesReferringTo(), the private
-     * method the replacement metabox actually renders from) via reflection
-     * — proving the WIRING this task is responsible for, without re-testing
-     * WP's own get_posts()/get_post_meta() machinery.
-     *
      * @return list<\WP_Post>
      */
-    private function invokeFindReferringPosts(int $memberId, string $postType, string $fieldName): array
+    private function findReferring(int $postId, string $postType, string $field): array
     {
-        // $postType/$fieldName are accepted for readability at call sites
-        // (mirrors the original contract) but TeamService's replacement is
-        // scoped to the one reverse relationship this project has: case ->
-        // team. A second relation target would need its own lookup method,
-        // same as the framework iterates per source/field pair.
-        $reflection = new \ReflectionMethod(TeamService::class, 'findCasesReferringTo');
-        $reflection->setAccessible(true);
+        $service = new NTDST_RelationField(ntdst_get(NTDST_Theme::class));
+        $method = new ReflectionMethod($service, 'findReferringPosts');
+        $method->setAccessible(true);
 
-        return $reflection->invoke($this->teamService, $memberId);
+        /** @var list<\WP_Post> */
+        return $method->invoke($service, $postId, $postType, $field);
     }
 }
