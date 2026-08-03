@@ -64,12 +64,11 @@ add_action('plugins_loaded', function (): void {
      */
     $dir = __DIR__ . '/services';
 
-    // Content services (T05-T08) — add a require_once line here as each
-    // lands:
+    // Content services (T05-T08, all four landed):
     require_once $dir . '/content/CaseService.php';
     require_once $dir . '/content/TeamService.php';
-    // require_once $dir . '/content/VacatureService.php';
-    // require_once $dir . '/content/ToolService.php';
+    require_once $dir . '/content/VacatureService.php';
+    require_once $dir . '/content/ToolService.php';
 
     // Admin-only service (T04)
     require_once $dir . '/admin/AdminUIService.php';
@@ -80,12 +79,12 @@ add_action('plugins_loaded', function (): void {
     unset($dir); // no longer needed after the require_once list above
 
     add_action('after_setup_theme', function (): void {
-        // Content services — resolved unconditionally (front + admin). Add
-        // ntdst_get() calls here as each service lands in T06-T08:
+        // Content services — resolved unconditionally (front + admin), all
+        // four landed (T05-T08):
         ntdst_get(\josworld\services\content\CaseService::class);
         ntdst_get(\josworld\services\content\TeamService::class);
-        // ntdst_get(\josworld\services\content\VacatureService::class);
-        // ntdst_get(\josworld\services\content\ToolService::class);
+        ntdst_get(\josworld\services\content\VacatureService::class);
+        ntdst_get(\josworld\services\content\ToolService::class);
 
         // Admin-only services — only in wp-admin. Never move a service out
         // of this branch without also moving its require_once with it.

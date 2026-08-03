@@ -7,6 +7,8 @@ namespace NtdstTests\Integration;
 use josworld\services\admin\AdminUIService;
 use josworld\services\content\CaseService;
 use josworld\services\content\TeamService;
+use josworld\services\content\ToolService;
+use josworld\services\content\VacatureService;
 use WP_UnitTestCase;
 
 /**
@@ -20,50 +22,25 @@ use WP_UnitTestCase;
  * because AdminUIServiceEnqueueTest registers its own fixture post types
  * rather than depending on the real services.
  *
- * WHY NOT A FULL EQUALITY CHECK TODAY: only `case` (T05) is registered as a
- * real josworld content service right now — `team`/`vacature`/`tool` land in
- * T06-T08. A `assertSame(POST_TYPES, registeredSlugs)` assertion today would
- * either force this test to special-case the three not-yet-built slugs
- * (weakening the check to fit an incomplete world) or fail permanently until
- * T08 lands (blocking every task in between on a check this task cannot
- * honestly satisfy). Per the T05 brief: assert what is honestly checkable
- * NOW, structured so the final assertion is a one-line change later.
- *
- * THE HONEST CHECK TODAY: `case` is a member of POST_TYPES AND is a really
- * registered ntdst content model (via NTDST_Data_Manager::isRegistered(),
- * which does NOT auto-create a phantom model as a side effect — unlike
- * get()). This naturally STRENGTHENS as T06-T08 land: each future task's own
- * test file registers its service (the same pattern CaseServiceRegistrationTest
- * establishes for `case`), and this file's TODO below marks exactly where to
- * widen ONE_TRUE_REGISTERED_SLUGS to make the check a full equality assertion
- * — the shape of the check never changes, only the fixture list grows.
+ * T07: `vacature` and `tool` now register (VacatureService/ToolService), so
+ * all four POST_TYPES slugs are real registered content models. Per this
+ * file's own TODO (left by T05/T06), the narrow "known slugs are honestly
+ * named as pending" tripwire is now retired in favour of the single full
+ * equality assertion it was always structured to become —
+ * test_every_registered_post_type_matches_admin_ui_service_post_types()
+ * below asserts `AdminUIService::POST_TYPES` against the REAL registry
+ * directly, with no pending/known-slugs bookkeeping left to drift.
  */
 final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
 {
-    /**
-     * TODO(T07): add 'vacature' and 'tool' once VacatureService/ToolService
-     * register them. Once all four are present, replace
-     * test_every_post_type_pending_registration_is_named_honestly() below
-     * with a single `assertSame(AdminUIService::POST_TYPES,
-     * $registeredSlugs)` — the one-line strengthening this test is
-     * structured for.
-     *
-     * T06: 'team' moved in here now that TeamService registers it — the
-     * tripwire assertion below (test_every_post_type_pending_registration_is_
-     * named_honestly) forces exactly this migration the moment a pending
-     * slug lands, which is why it is being edited as part of THIS task
-     * rather than left stale.
-     *
-     * @var list<string>
-     */
-    private const KNOWN_REGISTERED_SLUGS = ['case', 'team'];
-
     protected function setUp(): void
     {
         parent::setUp();
 
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/CaseService.php';
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/TeamService.php';
+        require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/VacatureService.php';
+        require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/ToolService.php';
 
         if (! defined('JOSWORLD_CORE_META_PREFIX')) {
             define('JOSWORLD_CORE_META_PREFIX', '_jw_');
@@ -74,6 +51,8 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
 
         new CaseService(ntdst_data());
         new TeamService(ntdst_data());
+        new VacatureService(ntdst_data());
+        new ToolService(ntdst_data());
     }
 
     public function test_post_types_constant_is_publicly_readable(): void
@@ -118,37 +97,65 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
         );
     }
 
-    public function test_every_post_type_pending_registration_is_named_honestly(): void
+    /**
+     * T07's mirror of the check above — `vacature` is now a real registered
+     * content model (VacatureService).
+     */
+    public function test_vacature_is_a_real_registered_content_model_and_is_named_in_post_types(): void
     {
-        // The three slugs T06-T08 have not landed yet. This assertion is the
-        // deliberately narrow half of CB-4: it does NOT claim they are
-        // registered (they are not), it only proves the KNOWN_REGISTERED_SLUGS
-        // fixture above — the thing this file widens per T06-T08 — has not
-        // silently drifted out of sync with POST_TYPES by gaining an entry
-        // POST_TYPES itself no longer carries.
-        foreach (self::KNOWN_REGISTERED_SLUGS as $slug) {
-            $this->assertContains(
-                $slug,
-                AdminUIService::POST_TYPES,
-                "'{$slug}' is claimed as a known-registered slug but is missing from POST_TYPES",
-            );
-        }
-
-        $pending = array_diff(AdminUIService::POST_TYPES, self::KNOWN_REGISTERED_SLUGS);
-        $this->assertSame(
-            ['vacature', 'tool'],
-            array_values($pending),
-            'once T06-T08 register a pending slug, move it into KNOWN_REGISTERED_SLUGS above — '
-            . 'this assertion is the tripwire that keeps that migration honest',
+        $this->assertContains(
+            'vacature',
+            AdminUIService::POST_TYPES,
+            'vacature must remain listed in POST_TYPES while it is a live josworld content model',
         );
 
-        foreach ($pending as $slug) {
-            $this->assertFalse(
-                ntdst_data()->isRegistered($slug),
-                "'{$slug}' is registered but still listed as pending in KNOWN_REGISTERED_SLUGS — "
-                . 'move it up once its service lands (this is the one-line strengthening point)',
-            );
-        }
+        $this->assertTrue(
+            ntdst_data()->isRegistered('vacature'),
+            'vacature must be a REALLY registered ntdst content model, not merely named in the static list — '
+            . 'isRegistered() (unlike get()) never auto-creates a phantom model as a side effect',
+        );
+    }
+
+    /**
+     * T07's mirror of the check above — `tool` is now a real registered
+     * content model (ToolService).
+     */
+    public function test_tool_is_a_real_registered_content_model_and_is_named_in_post_types(): void
+    {
+        $this->assertContains(
+            'tool',
+            AdminUIService::POST_TYPES,
+            'tool must remain listed in POST_TYPES while it is a live josworld content model',
+        );
+
+        $this->assertTrue(
+            ntdst_data()->isRegistered('tool'),
+            'tool must be a REALLY registered ntdst content model, not merely named in the static list — '
+            . 'isRegistered() (unlike get()) never auto-creates a phantom model as a side effect',
+        );
+    }
+
+    /**
+     * T07: all four POST_TYPES slugs are now real registered content
+     * models — the single full-equality assertion this file's TODO (left by
+     * T05/T06) named as the eventual strengthening point, now that there is
+     * no incomplete world left to special-case. Replaces the narrow
+     * "pending slugs are named honestly" tripwire that existed only because
+     * `vacature`/`tool` were not yet real models.
+     */
+    public function test_every_registered_post_type_matches_admin_ui_service_post_types(): void
+    {
+        $registeredSlugs = array_values(array_filter(
+            AdminUIService::POST_TYPES,
+            static fn (string $slug): bool => ntdst_data()->isRegistered($slug),
+        ));
+
+        $this->assertSame(
+            AdminUIService::POST_TYPES,
+            $registeredSlugs,
+            'every slug in AdminUIService::POST_TYPES must be a REALLY registered ntdst content model — '
+            . 'a typo or an unregistered slug here means the metabox field JS silently never enqueues (CB-4)',
+        );
     }
 
     /**
