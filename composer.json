@@ -58,7 +58,12 @@
     ],
     "audit:js": "sh bin/js-gate.sh audit:js 'audit --audit-level=high'",
     "lint:js": "sh bin/js-gate.sh lint:js 'run lint' 'run lint:css'",
-    "test:js": "sh bin/js-gate.sh test:js 'run test'",
+    "test:js": [
+      "@test:js:themes",
+      "@test:js:muplugins"
+    ],
+    "test:js:themes": "sh bin/js-gate.sh test:js 'run test'",
+    "test:js:muplugins": "npm run test:js:muplugins",
     "test:e2e": "sh bin/e2e.sh",
     "build:check": "sh bin/js-gate.sh build:check 'run build'",
     "gate": "sh bin/gate.sh"
