@@ -310,7 +310,8 @@ final class SecurityService
         return new \WP_Error(
             'ntdst_baseline_locked_out',
             sprintf(
-                'Too many failed login attempts. Please try again in %d minutes.',
+                /* translators: %d: number of minutes remaining in the login lockout. */
+                __('Too many failed login attempts. Please try again in %d minutes.', 'ntdst-baseline'),
                 (int) ceil($this->config['lockout_duration'] / 60),
             ),
         );
@@ -360,7 +361,7 @@ final class SecurityService
      */
     public function genericLoginError($error): string
     {
-        return 'Login credentials are incorrect. Please try again.';
+        return __('Login credentials are incorrect. Please try again.', 'ntdst-baseline');
     }
 
     private function attemptsTransientKey(string $ip): string
@@ -370,6 +371,16 @@ final class SecurityService
 
     private function clientIp(): string
     {
-        return ClientIp::resolve($_SERVER, (array) $this->config['trusted_proxies']);
+        // wp_unslash() the WHOLE array before the resolver reads REMOTE_ADDR
+        // and HTTP_X_FORWARDED_FOR out of it: PHP magic-quotes every
+        // $_SERVER value on some stacks, and the resolver validates its
+        // candidates with inet_pton(), which rejects a slash-mangled address.
+        // Not exploitable today — every mangled candidate simply fails
+        // closed to the next token or to REMOTE_ADDR — but the fail-closed
+        // behaviour is what absorbs it, not the input handling, and this is
+        // the same defect class the rest of this cluster closed (Cluster A
+        // review, finding I-2). No sanitizer here: an IP is validated by
+        // inet_pton(), and sanitize_text_field() would be the wrong tool.
+        return ClientIp::resolve(wp_unslash($_SERVER), (array) $this->config['trusted_proxies']);
     }
 }

@@ -77,11 +77,11 @@ use WP_UnitTestCase;
  * test, not all 6 — several OTHER constructors wire heavier real side
  * effects (cron scheduling, login-attempt tracking, admin-bar nodes) that
  * would widen this test's blast radius on the shared hook queue for no
- * added proof value. Both forgotten services are re-warmed in tearDown (a
- * bare `ntdst_get()` call each, with no test filter left attached) so no
- * OTHER test file's shared hook queue (`template_redirect`, `save_post`,
- * etc.) is left without that service's real, once-only registered
- * listeners.
+ * added proof value. Both evicted services have their ORIGINAL instances
+ * captured before the forget() and restored in tearDown — not re-warmed,
+ * and not left absent; see the tearDown body for why those two alternatives
+ * both corrupt state for later test files (Cluster A review, finding I-1,
+ * guarded by ZZBaselineHookLeakGuardTest).
  */
 final class BaselineBootTest extends WP_UnitTestCase
 {
@@ -97,35 +97,46 @@ final class BaselineBootTest extends WP_UnitTestCase
     ];
 
     /**
-     * @var array<int, callable>
-     */
-    private array $addedModuleFilters = [];
-
-    /**
-     * Any container service IDs this test evicted via forget() and must
-     * re-warm in tearDown so other test files' shared hook queues
-     * (template_redirect, save_post, etc.) still see that service's real,
-     * once-only registered listeners.
+     * The ORIGINAL container instances this test evicted via forget(),
+     * keyed by service id, so tearDown can put the very same object
+     * references back. Restoring the original object (rather than
+     * re-resolving a fresh one) is what keeps other test files' shared hook
+     * queues intact — see tearDown for the full ordering rationale.
      *
-     * @var array<int, class-string>
+     * @var array<class-string, object>
      */
-    private array $forgottenServiceIds = [];
+    private array $originalServiceInstances = [];
 
     protected function tearDown(): void
     {
-        foreach ($this->addedModuleFilters as $callback) {
-            remove_filter('ntdst/baseline/modules', $callback);
+        // Hooks need NO manual cleanup here: WP_UnitTestCase::tear_down()
+        // calls _restore_hooks(), which wholesale restores $wp_filter from
+        // a snapshot taken before this test — so any filter this file added
+        // is already gone by construction.
+        //
+        // The container DOES need cleanup, and neither re-warming nor
+        // forgetting is correct (Cluster A review, finding I-1, mechanically
+        // guarded by tests/Integration/ZZBaselineHookLeakGuardTest.php).
+        //
+        // The instance the REAL boot constructed is the only one whose
+        // listeners survive `_restore_hooks()`, because it registered them
+        // before the snapshot this test suite restores to. So:
+        //
+        //  - re-warming (`ntdst_get()`) constructs a NEW instance here, in
+        //    the child tearDown that runs BEFORE parent::tearDown(); its
+        //    fresh listeners are then wiped by `_restore_hooks()`, leaving
+        //    the container holding a service wired to NOTHING.
+        //  - forgetting leaves the slot empty, so the next resolution
+        //    anywhere builds a new instance whose listeners land after that
+        //    test's own snapshot — same broken end state, one step later.
+        //
+        // Restoring the ORIGINAL object reference is what actually holds the
+        // invariant: the container ends this file holding exactly the
+        // instance it held before, still wired to the surviving listeners.
+        foreach ($this->originalServiceInstances as $id => $instance) {
+            \ntdst_container()->set($id, $instance);
         }
-        $this->addedModuleFilters = [];
-
-        foreach ($this->forgottenServiceIds as $id) {
-            // Re-warm with the default (all-enabled) filter set — no
-            // test-added ntdst/baseline/modules filter remains attached at
-            // this point, so this reconstructs the service exactly as the
-            // real boot would.
-            \ntdst_get($id);
-        }
-        $this->forgottenServiceIds = [];
+        $this->originalServiceInstances = [];
 
         parent::tearDown();
     }
@@ -167,10 +178,14 @@ final class BaselineBootTest extends WP_UnitTestCase
         // may show a zero delta).
         $seoClass = \ntdst\baseline\services\SeoService::class;
         $schemaClass = \ntdst\baseline\services\SchemaService::class;
+
+        // Capture the ORIGINAL instances before evicting them — tearDown
+        // puts these exact object references back (see its rationale).
+        $this->originalServiceInstances[$seoClass] = \ntdst_get($seoClass);
+        $this->originalServiceInstances[$schemaClass] = \ntdst_get($schemaClass);
+
         \ntdst_container()->forget($seoClass);
         \ntdst_container()->forget($schemaClass);
-        $this->forgottenServiceIds[] = $seoClass;
-        $this->forgottenServiceIds[] = $schemaClass;
 
         // A CONSTRUCTOR REGISTERS its `booted` marker closure — it does not
         // FIRE the hook itself (nothing calls apply_filters('ntdst/baseline/
@@ -192,7 +207,6 @@ final class BaselineBootTest extends WP_UnitTestCase
             return $modules;
         };
         add_filter('ntdst/baseline/modules', $callback);
-        $this->addedModuleFilters[] = $callback;
 
         \ntdst\baseline\boot_modules();
 

@@ -324,8 +324,31 @@ class CacheHeadersService
         $ctx = $this->computeContext();
         $headers = CacheHeaderPolicy::compute($ctx, $this->config);
 
+        // wp_unslash() fixes the magic-quotes defect this file's docblock
+        // warns about. The second step is deliberately NOT
+        // sanitize_text_field(): that strips percent-encoded octets
+        // ("a%20b" -> "ab"), which is not a property an ETag comparator may
+        // depend on not encountering. Today's own ETags are hex-only so it
+        // happened to be lossless, but a CDN/reverse-proxy that rewrites
+        // ETags, or any future non-md5 derivation, would silently stop
+        // matching and present as "304s stopped working" with no error
+        // anywhere (Cluster A review, finding I-3). This keeps every byte
+        // RFC 9110's entity-tag grammar allows (VCHAR minus the delimiters
+        // this header uses) and drops the rest.
+        // NOTE the range is \x21-\x7E, i.e. printable ASCII INCLUDING \x22
+        // ('"'). RFC 9110's `etagc` rule excludes the double quote because
+        // it describes the characters INSIDE an entity-tag; this filter runs
+        // over the WHOLE header value, where the quotes are the delimiters
+        // and must survive. Filtering with the etagc range here would strip
+        // every quote and break matching outright — caught by
+        // tests/Unit/BaselineInputHandlingTest.php.
         $ifNoneMatch = isset($_SERVER['HTTP_IF_NONE_MATCH'])
-            ? sanitize_text_field(wp_unslash($_SERVER['HTTP_IF_NONE_MATCH']))
+            ? preg_replace(
+                '/[^\x21-\x7E,\s]/',
+                '',
+                // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- the enclosing preg_replace IS the sanitizer; sanitize_text_field() is the wrong tool for an entity-tag (it strips %xx). See the note above.
+                wp_unslash($_SERVER['HTTP_IF_NONE_MATCH']),
+            )
             : null;
 
         if (
