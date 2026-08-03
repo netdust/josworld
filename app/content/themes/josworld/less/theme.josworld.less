@@ -25,6 +25,18 @@ Type: Flat
 // SCOPE: sections 1–3 only (tokens → UIkit mapping → CSS custom properties).
 // Bespoke per-section component CSS is deliberately NOT here; sections get
 // designed and added one at a time on the section page.
+//
+// ⚠ THIS FILE IS THE SOURCE OF TRUTH FOR THE TOKENS — NOT THE CUSTOMIZER.
+// The Customizer exposes variables by PATTERN whitelist (config/styler.php:
+// `@global-*`, `@button-*`, `@card-*`, …), so the `@jw-*` tokens in section 1
+// do NOT appear there and cannot be edited in the UI. Editing a colour under
+// Customizer → Global → Colors overrides the MAPPED `@global-*` value while the
+// `@jw-*` token it came from still reads the old value — the two silently
+// diverge, and the DB copy wins at runtime.
+// So: change brand values HERE, in section 1. Use the Customizer for fonts and
+// per-page work. If a value ever DOES need to be client-editable, rename that
+// token to match an exposed pattern deliberately — and note that its source of
+// truth then moves into the DB, outside git, and stops travelling with the theme.
 // ========================================================================
 
 // NOTE: this style lives in the CHILD theme (josworld/less/). YOOtheme discovers
