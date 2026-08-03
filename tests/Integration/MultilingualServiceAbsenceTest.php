@@ -315,6 +315,12 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
                 \$GLOBALS['__registered_post_types'][] = \$postType;
             }
             function register_taxonomy(string \$taxonomy, \$objectType, array \$args = []): void {}
+            function add_filter(string \$hook, \$cb, int \$priority = 10, int \$args = 1): bool {
+                return true;
+            }
+            function add_action(string \$hook, \$cb, int \$priority = 10, int \$args = 1): bool {
+                return true;
+            }
 
             class NTDST_Theme {
                 public function taxonomy(string \$taxonomy, \$objectType, array \$args = []): void {}
@@ -330,6 +336,9 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
             final class NTDST_Data_Manager {
                 public function register(string \$name, array \$config = []): void {
                     register_post_type(\$name, \$config);
+                }
+                public function isRegistered(string \$name): bool {
+                    return in_array(\$name, \$GLOBALS['__registered_post_types'], true);
                 }
             }
 

@@ -85,6 +85,16 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
         wp_dequeue_script('josworld-metabox-fields');
         wp_deregister_script('josworld-metabox-fields');
 
+        // T11: josworld-metabox-conditional depends on josworld-metabox-fields.
+        // WP_Dependencies::query('enqueued') recurses the dependency tree of
+        // the QUEUE, not just the literal handle — so leaving the dependent
+        // script enqueued makes wp_script_is('josworld-metabox-fields',
+        // 'enqueued') report true again on the NEXT call even though the
+        // handle itself was just deregistered above. Clean up both handles
+        // this helper enqueues, not just the one it asserts on.
+        wp_dequeue_script('josworld-metabox-conditional');
+        wp_deregister_script('josworld-metabox-conditional');
+
         return [$isEnqueued, $deps, $src];
     }
 

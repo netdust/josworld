@@ -127,17 +127,17 @@ final class MultilingualService
      * longer (or does not yet) exist.
      *
      * NOTE on the absence-path contract test's minimal subprocess harness
-     * (MultilingualServiceAbsenceTest): its own hand-rolled
-     * `NTDST_Data_Manager` stub implements only `register()`, not
-     * `isRegistered()` — calling the latter there would itself fatal. That
-     * harness never reaches this line: it never defines `add_filter()`
-     * either, so the guard above returns before `isRegistered()` is ever
-     * called. On a REAL request (or the active-path contract test, which
-     * uses the real Data API), `add_filter()` always exists, so this line
-     * always executes against the real `NTDST_Data_Manager`, which always
-     * implements `isRegistered()` — this is not a coincidence to route
-     * around, it is exactly the SC-4 boundary this whole class exists to
-     * honour: nothing past "WordPress core itself is missing" runs.
+     * (MultilingualServiceAbsenceTest): as of T11 (CaseService gained
+     * `add_filter`/`add_action`-based admin columns), the harness defines
+     * both `add_filter()` and `NTDST_Data_Manager::isRegistered()` for real
+     * — the guard above is satisfied and this line executes against the
+     * harness's `isRegistered()`, which reports true for every post type
+     * the harness's `register_post_type()` recorded. On a REAL request (or
+     * the active-path contract test, which uses the real Data API), the
+     * same call reaches the real `NTDST_Data_Manager::isRegistered()` — the
+     * harness's version is a faithful stand-in, not a bypass: this is
+     * exactly the SC-4 boundary this whole class exists to honour, nothing
+     * past "WordPress core itself is missing" ever short-circuits.
      */
     private function registerTranslatableTypes(): void
     {

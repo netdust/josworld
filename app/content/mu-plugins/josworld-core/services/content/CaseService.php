@@ -116,6 +116,7 @@ final class CaseService
     {
         $this->registerDataModel();
         $this->registerDienstTaxonomy();
+        $this->registerAdminColumns();
     }
 
     /**
@@ -183,10 +184,31 @@ final class CaseService
 
             // TAKEAWAYS — OPTIONAL, repeating (title + body). Absent from
             // storage entirely when the editor adds none (see class docblock).
+            //
+            // T11: `has_takeaways` is the controlling boolean for the
+            // documented `condition` field option (ntdst-data/references/
+            // metabox.md "Conditional Fields") — the repeater stays hidden
+            // in the editor until this is checked. CONDITION IS
+            // PRESENTATION-ONLY (T11 acceptance criteria): the repeater's
+            // inputs are never removed from the DOM, so a value entered
+            // while the block was hidden (e.g. the editor unchecked the
+            // toggle after filling rows in) still submits and round-trips
+            // on save — see CaseServiceEditorScreenTest::
+            // test_a_value_in_a_hidden_conditional_block_still_round_trips_on_save.
+            // `has_takeaways` itself is a UI toggle, not a data gate: it is
+            // never read by the save path, so its own state never decides
+            // whether takeaways persist — only whether the editor SAW the
+            // block, matching the "absent-not-forced" storage contract
+            // documented in the class docblock.
+            'has_takeaways' => [
+                'type' => 'boolean',
+                'label' => __('Heeft take-aways?', JOSWORLD_CORE_TEXTDOMAIN),
+            ],
             'takeaways' => [
                 'type' => 'repeater',
                 'label' => __('Take-aways', JOSWORLD_CORE_TEXTDOMAIN),
                 'button_text' => __('Take-away toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
+                'condition' => ['has_takeaways' => true],
                 'sub_fields' => [
                     'title' => [
                         'type' => 'text',
@@ -213,11 +235,17 @@ final class CaseService
                 'label' => __('Testimonial — functie', JOSWORLD_CORE_TEXTDOMAIN),
             ],
 
-            // INTERVIEW — OPTIONAL, repeating (title + body) blocks
+            // INTERVIEW — OPTIONAL, repeating (title + body) blocks.
+            // T11: same `condition`/round-trip contract as takeaways above.
+            'has_interview' => [
+                'type' => 'boolean',
+                'label' => __('Heeft interview?', JOSWORLD_CORE_TEXTDOMAIN),
+            ],
             'interview' => [
                 'type' => 'repeater',
                 'label' => __('Interview', JOSWORLD_CORE_TEXTDOMAIN),
                 'button_text' => __('Interviewblok toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
+                'condition' => ['has_interview' => true],
                 'sub_fields' => [
                     'title' => [
                         'type' => 'text',
@@ -273,7 +301,7 @@ final class CaseService
             ],
             'takeaways' => [
                 'title' => __('Take-aways', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['takeaways'],
+                'fields' => ['has_takeaways', 'takeaways'],
                 'context' => 'normal',
                 'priority' => 'default',
             ],
@@ -285,7 +313,7 @@ final class CaseService
             ],
             'interview' => [
                 'title' => __('Interview', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['interview'],
+                'fields' => ['has_interview', 'interview'],
                 'context' => 'normal',
                 'priority' => 'default',
             ],
@@ -360,5 +388,75 @@ final class CaseService
             'show_in_rest' => true,
             'rewrite' => ['slug' => 'dienst'],
         ]);
+    }
+
+    /**
+     * T11 — admin list columns for `case`, following DAAN's
+     * registerAdminColumns() pattern (~/Sites/daan/.../DiscographyService.php:475):
+     * a `manage_{type}_posts_columns` filter to insert the columns after the
+     * title, and a `manage_{type}_posts_custom_column` action to render each
+     * one. Diverges from DAAN in one deliberate way: DAAN reads
+     * `get_post_meta($post_id, 'release_date', true)` directly because that
+     * model has no `meta_prefix`; this model does (`_jw_`, FR-12/SC-5), so
+     * columns read through `ntdst_data()->get('case')->find($id, true)`,
+     * which already resolves the prefix and the repeater/taxonomy shape —
+     * reaching for raw `get_post_meta()` here would silently read the wrong
+     * (unprefixed) key.
+     *
+     * `jw_` column-key prefix mirrors the model's own `_jw_` meta prefix so
+     * these keys cannot collide with a native WP column or another plugin's.
+     */
+    private function registerAdminColumns(): void
+    {
+        add_filter('manage_case_posts_columns', [$this, 'addAdminColumns']);
+        add_action('manage_case_posts_custom_column', [$this, 'renderAdminColumn'], 10, 2);
+    }
+
+    /**
+     * @param array<string, string> $columns
+     * @return array<string, string>
+     */
+    public function addAdminColumns(array $columns): array
+    {
+        $newColumns = [];
+
+        foreach ($columns as $key => $label) {
+            $newColumns[$key] = $label;
+
+            if ($key === 'title') {
+                $newColumns['jw_client'] = __('Klant', JOSWORLD_CORE_TEXTDOMAIN);
+                $newColumns['jw_diensten'] = __('Diensten', JOSWORLD_CORE_TEXTDOMAIN);
+                $newColumns['jw_impact_count'] = __('Impact', JOSWORLD_CORE_TEXTDOMAIN);
+            }
+        }
+
+        return $newColumns;
+    }
+
+    public function renderAdminColumn(string $column, int $postId): void
+    {
+        switch ($column) {
+            case 'jw_client':
+                $client = $this->dataManager->get('case')->getMeta($postId, 'client', '');
+                echo $client !== '' ? esc_html((string) $client) : '<span style="color:#999">—</span>';
+                break;
+
+            case 'jw_diensten':
+                $terms = get_the_terms($postId, 'dienst');
+                if (! is_array($terms) || $terms === []) {
+                    echo '<span style="color:#999">—</span>';
+                    break;
+                }
+                echo esc_html(implode(', ', array_map(static fn ($term) => $term->name, $terms)));
+                break;
+
+            case 'jw_impact_count':
+                $impact = $this->dataManager->get('case')->getMeta($postId, 'impact', []);
+                $count = is_array($impact) ? count($impact) : 0;
+                echo $count > 0
+                    ? '<strong>' . esc_html((string) $count) . '</strong>'
+                    : '<span style="color:#999">—</span>';
+                break;
+        }
     }
 }

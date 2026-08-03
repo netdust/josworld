@@ -116,5 +116,68 @@ final class AdminUIService
             null,
             true,
         );
+
+        $this->enqueueConditionalFieldScript($screen->post_type);
+    }
+
+    /**
+     * T11 — enqueue the `condition` field-option JS layer and hand it the
+     * per-post-type condition map (`fieldName => ['controllingField' =>
+     * expectedValue]`), read straight off the REGISTERED model's schema
+     * (`NTDST_Data_Model::getSchema()`) rather than duplicated here — the
+     * schema in CaseService (etc.) stays the single source of truth, and a
+     * future field gaining a `condition` option needs no change on this
+     * side to be picked up.
+     *
+     * DEGRADE-TO-VISIBLE, NOT DEGRADE-TO-HIDDEN (T11 acceptance criteria:
+     * "with JS disabled every field remains reachable and saveable"): the
+     * PHP renderer (ntdst-core's MetaboxGenerator, which this project does
+     * not modify) has no knowledge of `condition` at all and always renders
+     * every field visible. This script only ever ADDS a `display:none` at
+     * runtime for a currently-unmet condition — with JS disabled, nothing
+     * ever gets hidden in the first place. A CSS-first approach (hide by
+     * default, reveal via a class JS adds) would invert that and make every
+     * conditional field permanently unreachable without JS; deliberately
+     * not done.
+     *
+     * Localized as an empty array when the model carries no conditional
+     * fields (or is not yet registered, e.g. in a test fixture that
+     * registers the post type directly) — the JS module no-ops on an empty
+     * map.
+     */
+    private function enqueueConditionalFieldScript(string $postType): void
+    {
+        wp_enqueue_script(
+            'josworld-metabox-conditional',
+            plugins_url('assets/js/metabox-conditional.js', dirname(__DIR__, 2) . '/josworld-core.php'),
+            ['jquery', 'josworld-metabox-fields'],
+            null,
+            true,
+        );
+
+        wp_localize_script('josworld-metabox-conditional', 'josworldConditionalFields', [
+            'conditions' => $this->getConditionMap($postType),
+        ]);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function getConditionMap(string $postType): array
+    {
+        if (! function_exists('ntdst_data')) {
+            return [];
+        }
+
+        $schema = ntdst_data()->get($postType)->getSchema();
+
+        $conditions = [];
+        foreach ($schema as $fieldName => $fieldConfig) {
+            if (is_array($fieldConfig) && isset($fieldConfig['condition']) && is_array($fieldConfig['condition'])) {
+                $conditions[$fieldName] = $fieldConfig['condition'];
+            }
+        }
+
+        return $conditions;
     }
 }
