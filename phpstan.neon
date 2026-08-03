@@ -38,6 +38,11 @@ parameters:
     excludePaths:
         # Composer-installed stock theme — not our code (constant name, portability-safe)
         - app/content/themes/twentytwentyfive (?)
+        # YOOtheme Pro — licensed vendor parent theme, updated in-place via the
+        # YOOtheme license (never edited here, never committed: .gitignore
+        # ignores app/content/themes/* and re-includes only josworld/).
+        # Same posture as the stock theme above: not our code, not analysed.
+        - app/content/themes/yootheme (?)
         # Theme build artifacts / JS dependencies — never analysed.
         # Trailing /* is required: wildcard excludePaths are fnmatch'd against
         # FILE paths, so a bare .../node_modules pattern never matches the files

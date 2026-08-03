@@ -2,14 +2,20 @@
 /**
  * Josworld Theme — Functions
  *
- * Clean Bedrock starter wired into ntdst-core (Tailwind + Alpine + Vite).
+ * YOOtheme Pro child theme wired into ntdst-core (Tailwind + Alpine + Vite).
+ *
+ * YOOtheme (the parent) owns rendering: it ships the page templates and the
+ * builder, so this child deliberately carries NO template files — adding a
+ * header.php/page.php/etc. here would override the parent and bypass the
+ * builder entirely. This file is for the site's own wiring only.
  *
  * Wiring pattern (mirrors stridence, minus all LMS/domain code):
  *   1. Define theme constants.
  *   2. Load helper functions.
  *   3. Register NTDST_Bootstrap from theme-config.php, boot core @5 / features @15.
  *   4. Hand theme setup (menus, image sizes, support, ...) to NTDST_Theme.
- *   5. Bind the frontend hook classes to the theme.
+ *   5. Enqueue the parent stylesheet, then this child's own assets.
+ *   6. Bind the frontend hook classes to the theme.
  *
  * @package josworld
  */
@@ -68,6 +74,34 @@ if (class_exists('NTDST_Theme')) {
 }
 
 // ========================================
+// PARENT (YOOtheme) STYLESHEET
+// ========================================
+
+/**
+ * Load the parent (YOOtheme) stylesheet, then this child's own style.css after
+ * it. The Vite-built CSS is enqueued separately by AssetHooks; this only covers
+ * the child's hand-written style.css overrides.
+ *
+ * Priority 20 so it lands after YOOtheme's own enqueues.
+ */
+add_action('wp_enqueue_scripts', static function (): void {
+    wp_enqueue_style(
+        'yootheme',
+        get_template_directory_uri() . '/style.css',
+        [],
+        wp_get_theme(get_template())->get('Version') ?: null,
+    );
+
+    $child_css = JOSWORLD_DIR . '/style.css';
+    wp_enqueue_style(
+        'josworld-child',
+        JOSWORLD_URI . '/style.css',
+        ['yootheme'],
+        file_exists($child_css) ? (string) filemtime($child_css) : JOSWORLD_VERSION,
+    );
+}, 20);
+
+// ========================================
 // HOOKS (bound to NTDST_Theme)
 // ========================================
 
@@ -79,68 +113,17 @@ if (class_exists('NTDST_Theme')) {
 }
 
 // ========================================
-// NAVIGATION WALKER
+// ntdst-core integration point
 // ========================================
 
 /**
- * Tailwind-classed nav walker shared by the desktop and mobile menus.
+ * The framework is loaded by the `ntdst-coreloader.php` mu-plugin and booted
+ * above, so `ntdst_get()`, `ntdst_endpoints()`, … are available anywhere in
+ * this theme — no bootstrap required in template or service code.
  *
- * Deliberately minimal: it applies the `.nav-link` component class and an
- * active state, and appends a chevron icon to top-level items that have
- * children. No dropdown markup, no LMS classes — add what the brand needs.
+ * The Tailwind nav walker and fallback menu that shipped with the standalone
+ * starter were removed with the template files: YOOtheme renders navigation
+ * through its own builder elements, so a bespoke `Walker_Nav_Menu` has nothing
+ * to walk here. If a custom menu ever IS needed, add it back alongside the
+ * builder element that calls it.
  */
-class Ntdst_Nav_Walker extends Walker_Nav_Menu
-{
-    public function start_el(&$output, $item, $depth = 0, $args = null, $id = 0): void
-    {
-        $classes = empty($item->classes) ? [] : (array) $item->classes;
-        $has_children = in_array('menu-item-has-children', $classes, true);
-
-        $output .= '<li>';
-
-        $link_classes = 'nav-link';
-        if (in_array('current-menu-item', $classes, true) || in_array('current-menu-ancestor', $classes, true)) {
-            $link_classes .= ' nav-link-active';
-        }
-
-        $atts = [
-            'href'  => !empty($item->url) ? esc_url($item->url) : '',
-            'class' => $link_classes,
-        ];
-        if (!empty($item->target)) {
-            $atts['target'] = $item->target;
-        }
-
-        $attributes = '';
-        foreach ($atts as $attr => $value) {
-            if (!empty($value)) {
-                $attributes .= ' ' . $attr . '="' . esc_attr($value) . '"';
-            }
-        }
-
-        $title = apply_filters('the_title', $item->title, $item->ID);
-        $output .= '<a' . $attributes . '>' . esc_html($title);
-
-        if ($has_children && $depth === 0) {
-            $output .= ' ' . josworld_icon('chevron-down', 'w-3 h-3 inline-block');
-        }
-
-        $output .= '</a>';
-    }
-
-    public function end_el(&$output, $item, $depth = 0, $args = null): void
-    {
-        $output .= '</li>';
-    }
-}
-
-/**
- * Fallback menu used when no menu is assigned to a location.
- * Keeps the header/footer functional on a fresh install.
- */
-function josworld_fallback_menu(): void
-{
-    echo '<ul class="flex items-center gap-1">';
-    echo '<li><a href="' . esc_url(home_url('/')) . '" class="nav-link">' . esc_html__('Home', 'josworld') . '</a></li>';
-    echo '</ul>';
-}

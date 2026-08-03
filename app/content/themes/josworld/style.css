@@ -1,9 +1,10 @@
 /*
 Theme Name: Josworld
 Theme URI: https://netdust.be
+Template: yootheme
 Author: Netdust
 Author URI: https://netdust.be
-Description: Clean Bedrock starter theme wired into ntdst-core. Built with Tailwind CSS, Alpine.js, and Vite. Distilled from the stridence machinery with all LMS/domain code removed — a minimal, faithful skeleton to build a new site on.
+Description: Child theme of YOOtheme Pro for josworld, wired into ntdst-core. YOOtheme's builder renders the site; this child holds the site's own CSS/JS (Tailwind + Alpine via Vite), the ntdst-core bootstrap, and any PHP the site needs. Keeps the 41 MB YOOtheme parent untouched so it can update via license.
 Version: 1.0.0
 Requires at least: 6.4
 Tested up to: 6.5
@@ -11,8 +12,11 @@ Requires PHP: 8.1
 License: GNU General Public License v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: josworld
-Tags: tailwind, alpine, vite, ntdst-core, starter
+Tags: yootheme, tailwind, alpine, vite, ntdst-core
 
 This theme uses Vite for asset bundling.
 Run `npm run dev` for development or `npm run build` for production.
 */
+
+/* Site-specific CSS overrides go here (loaded after the parent's stylesheet).
+   Keep design tokens / heavier CSS in src/ and let Vite build them. */
