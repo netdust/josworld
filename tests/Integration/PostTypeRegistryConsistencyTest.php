@@ -6,6 +6,7 @@ namespace NtdstTests\Integration;
 
 use josworld\services\admin\AdminUIService;
 use josworld\services\content\CaseService;
+use josworld\services\content\TeamService;
 use WP_UnitTestCase;
 
 /**
@@ -40,7 +41,6 @@ use WP_UnitTestCase;
 final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
 {
     /**
-     * TODO(T06): add 'team' once TeamService registers it.
      * TODO(T07): add 'vacature' and 'tool' once VacatureService/ToolService
      * register them. Once all four are present, replace
      * test_every_post_type_pending_registration_is_named_honestly() below
@@ -48,15 +48,22 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
      * $registeredSlugs)` — the one-line strengthening this test is
      * structured for.
      *
+     * T06: 'team' moved in here now that TeamService registers it — the
+     * tripwire assertion below (test_every_post_type_pending_registration_is_
+     * named_honestly) forces exactly this migration the moment a pending
+     * slug lands, which is why it is being edited as part of THIS task
+     * rather than left stale.
+     *
      * @var list<string>
      */
-    private const KNOWN_REGISTERED_SLUGS = ['case'];
+    private const KNOWN_REGISTERED_SLUGS = ['case', 'team'];
 
     protected function setUp(): void
     {
         parent::setUp();
 
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/CaseService.php';
+        require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/TeamService.php';
 
         if (! defined('JOSWORLD_CORE_META_PREFIX')) {
             define('JOSWORLD_CORE_META_PREFIX', '_jw_');
@@ -66,6 +73,7 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
         }
 
         new CaseService(ntdst_data());
+        new TeamService(ntdst_data());
     }
 
     public function test_post_types_constant_is_publicly_readable(): void
@@ -90,6 +98,26 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
         );
     }
 
+    /**
+     * T06's mirror of the check above — `team` moved from
+     * KNOWN_REGISTERED_SLUGS's pending list into the fixture, so it earns
+     * the same real-registration proof `case` has.
+     */
+    public function test_team_is_a_real_registered_content_model_and_is_named_in_post_types(): void
+    {
+        $this->assertContains(
+            'team',
+            AdminUIService::POST_TYPES,
+            'team must remain listed in POST_TYPES while it is a live josworld content model',
+        );
+
+        $this->assertTrue(
+            ntdst_data()->isRegistered('team'),
+            'team must be a REALLY registered ntdst content model, not merely named in the static list — '
+            . 'isRegistered() (unlike get()) never auto-creates a phantom model as a side effect',
+        );
+    }
+
     public function test_every_post_type_pending_registration_is_named_honestly(): void
     {
         // The three slugs T06-T08 have not landed yet. This assertion is the
@@ -108,7 +136,7 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
 
         $pending = array_diff(AdminUIService::POST_TYPES, self::KNOWN_REGISTERED_SLUGS);
         $this->assertSame(
-            ['team', 'vacature', 'tool'],
+            ['vacature', 'tool'],
             array_values($pending),
             'once T06-T08 register a pending slug, move it into KNOWN_REGISTERED_SLUGS above — '
             . 'this assertion is the tripwire that keeps that migration honest',

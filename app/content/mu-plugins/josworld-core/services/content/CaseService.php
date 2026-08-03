@@ -200,11 +200,18 @@ final class CaseService
             ],
 
             // TEAM — relation to `team` (FR-7); top-level, not per impact row.
+            // `reverse_label` (T06): the title NTDST_RelationField shows on a
+            // linked team member's OWN edit screen for the reverse metabox
+            // (RelationField.php's `reverse_label ?? sprintf('Featured in
+            // %s', ...)` fallback). The framework default is a hardcoded
+            // English string ("Featured in Cases"), which FR-11 forbids in
+            // this otherwise-Dutch admin, so it is named explicitly here.
             'team' => [
                 'type' => 'relation',
                 'label' => __('Team', JOSWORLD_CORE_TEXTDOMAIN),
                 'post_type' => 'team',
                 'multiple' => true,
+                'reverse_label' => __('Cases', JOSWORLD_CORE_TEXTDOMAIN),
             ],
         ];
     }
