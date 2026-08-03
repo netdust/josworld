@@ -71,13 +71,13 @@ add_action('plugins_loaded', function (): void {
     // require_once $dir . '/content/VacatureService.php';
     // require_once $dir . '/content/ToolService.php';
 
-    // Admin-only service (T04) — none yet:
-    // require_once $dir . '/admin/AdminUIService.php';
+    // Admin-only service (T04)
+    require_once $dir . '/admin/AdminUIService.php';
 
     // Multilingual service (T09) — none yet:
     // require_once $dir . '/multilingual/MultilingualService.php';
 
-    unset($dir); // no services registered yet — avoids an unused-var lint hit
+    unset($dir); // no longer needed after the require_once list above
 
     add_action('after_setup_theme', function (): void {
         // Content services — resolved unconditionally (front + admin). Add
@@ -90,8 +90,7 @@ add_action('plugins_loaded', function (): void {
         // Admin-only services — only in wp-admin. Never move a service out
         // of this branch without also moving its require_once with it.
         if (is_admin()) {
-            // Add T04's AdminUIService here once it lands:
-            // ntdst_get(\josworld\services\admin\AdminUIService::class);
+            ntdst_get(\josworld\services\admin\AdminUIService::class);
         }
 
         // Multilingual service — conditional on Polylang being active
