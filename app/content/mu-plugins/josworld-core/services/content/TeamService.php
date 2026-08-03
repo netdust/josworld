@@ -50,22 +50,22 @@
  * makes the divergence from "fully public" legible in the config array
  * itself, rather than relying on a reader to know WP's implicit defaults.
  *
- * CB-4 / PostTypeRegistryConsistencyTest interaction: that test's forward
- * check (`test_no_ntdst_registered_post_type_is_missing_from_the_post_types_
- * constant`) filters candidates via `get_post_types(['public' => true])`.
- * Because `team` is registered with `public => false`, it does NOT appear
- * in that filtered list and the forward check cannot see it — a real gap
- * in the CB-4 net (a non-public josworld model could in principle drift out
- * of `AdminUIService::POST_TYPES` unnoticed by that specific assertion).
- * Per this task's brief that gap is named rather than silently patched by
- * weakening the check's filter to `[]`: `team` is still covered by every
- * OTHER assertion in that file (it is explicitly named in
- * KNOWN_REGISTERED_SLUGS and the plain isRegistered()/POST_TYPES-membership
- * checks), so the net loses only its `public=>true`-filtered forward leg
- * for this one model, not registry coverage entirely. Closing that filter
- * gap for non-public models in general is left to a follow-up review
- * finding rather than an on-the-fly change to a fixture this task does not
- * own.
+ * CB-4 / PostTypeRegistryConsistencyTest interaction — CLOSED (CB-B-4,
+ * follow-up review finding): the forward check
+ * (`test_no_ntdst_registered_post_type_is_missing_from_the_post_types_
+ * constant`) originally filtered candidates via
+ * `get_post_types(['public' => true])`. Because `team` is registered with
+ * `public => false`, it did not appear in that filtered list and the
+ * forward check could not see it — a real gap in the CB-4 net (a non-public
+ * josworld model could in principle drift out of `AdminUIService::
+ * POST_TYPES` unnoticed by that specific assertion; the other per-model
+ * assertions in that file still caught it, so this was a gap, not a hole).
+ * The forward check now iterates ALL registered post types and narrows by
+ * the `_jw_` meta prefix instead — the boundary already established in
+ * commit 2287cc6 and what actually makes a model josworld's, independent of
+ * its public-facing posture. Proven with a mutation test: typoing `team`
+ * out of `POST_TYPES` left the OLD forward check green (only the other
+ * per-model assertions caught it) and now fails the FIXED one directly.
  *
  * i18n (FR-11): every editor-facing label goes through __() against
  * JOSWORLD_CORE_TEXTDOMAIN. Dutch labels are correct — editor-facing Dutch

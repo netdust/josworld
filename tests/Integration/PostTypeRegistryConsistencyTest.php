@@ -189,11 +189,25 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
      * `_jw_` is what makes a model josworld's (FR-12/SC-5), so it is also the
      * honest boundary for "a model this constant is responsible for".
      * WordPress core's own types and third-party CPTs are likewise excluded.
+     *
+     * CB-B-4 (review finding): candidates are scoped by the `_jw_` META
+     * PREFIX, not WP's `public` flag. The prior version filtered candidates
+     * via `get_post_types(['public' => true])`, which is what "a model this
+     * constant is responsible for" actually meant in T05/T06 — but `team`
+     * registers `public => false` (TeamService — FR-2, no public single
+     * view), so it escaped that specific net: a typo in TEAM's slug would
+     * not have been caught HERE (the other per-model assertions in this
+     * file would still catch it — proven below to be a gap, not a hole,
+     * before this fix). Iterating ALL registered post types and narrowing
+     * by meta prefix instead is the boundary already established in commit
+     * 2287cc6 ("`_jw_` is what makes a model josworld's") and is what
+     * actually makes a model josworld's, independent of its public-facing
+     * posture.
      */
     public function test_no_ntdst_registered_post_type_is_missing_from_the_post_types_constant(): void
     {
         $ours = array_filter(
-            get_post_types(['public' => true], 'names'),
+            get_post_types([], 'names'),
             static function (string $slug): bool {
                 if (! ntdst_data()->isRegistered($slug)) {
                     return false;
@@ -219,5 +233,87 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
                 . "the '{$slug}' edit screen (CB-4).",
             );
         }
+    }
+
+    /**
+     * CB-B-4 (review finding): the forward check above filters candidates
+     * via `get_post_types(['public' => true])`. `team` registers with
+     * `public => false` (TeamService — FR-2, no public single view), so it
+     * escapes that specific net: a typo in TEAM's slug would not be caught
+     * by the forward check (the other per-model assertions in this file
+     * still catch it, so this was a gap, not a hole).
+     *
+     * MUTATION PROOF (this test): registers a `_jw_`-prefixed, NON-PUBLIC
+     * fixture model under a slug that is deliberately absent from
+     * AdminUIService::POST_TYPES, then asserts that the OLD, `public=>true`
+     * -filtered forward check fails to see it (proving the gap is real, not
+     * theoretical) while the FIXED, prefix-scoped forward check
+     * (test_no_ntdst_registered_post_type_is_missing_from_the_post_types_constant
+     * above, now scoped by `_jw_` meta prefix instead of WP's `public`
+     * flag) correctly flags it.
+     */
+    public function test_public_true_filter_misses_a_non_public_model_that_prefix_scoping_catches(): void
+    {
+        register_post_type('jw_fixture_hidden', [
+            'public' => false,
+            'show_ui' => true,
+        ]);
+        ntdst_data()->register('jw_fixture_hidden', [
+            'label' => 'Fixture (non-public, not in POST_TYPES)',
+            'public' => false,
+            'meta_prefix' => JOSWORLD_CORE_META_PREFIX,
+            'auto_metabox' => false,
+        ]);
+
+        // THE GAP, proven: the OLD forward check's own candidate set —
+        // `_jw_`-scoped but filtered through `public => true` — does not
+        // even contain the fixture, so it could never have flagged the
+        // missing-from-POST_TYPES slug.
+        $oldForwardCheckCandidates = array_filter(
+            get_post_types(['public' => true], 'names'),
+            static function (string $slug): bool {
+                if (! ntdst_data()->isRegistered($slug)) {
+                    return false;
+                }
+
+                return ntdst_data()->get($slug)->getMetaPrefix() === JOSWORLD_CORE_META_PREFIX;
+            },
+        );
+        $this->assertNotContains(
+            'jw_fixture_hidden',
+            $oldForwardCheckCandidates,
+            'MUTATION PROOF (gap side): a public=>true-filtered candidate set must NOT '
+            . 'contain a non-public model — this is the exact CB-B-4 blind spot',
+        );
+
+        // THE FIX, proven: the prefix-scoped candidate set (ALL registered
+        // WP post types — no `public` filter — narrowed only by the `_jw_`
+        // meta prefix, the actual "is this ours" boundary per FR-12/SC-5)
+        // DOES contain it, and therefore the forward check now fails
+        // loudly on it — since the fixture is deliberately absent from
+        // POST_TYPES, we assert the candidate set contains it (the
+        // precondition for the real forward check to fail on it), rather
+        // than duplicating the assertion loop.
+        $prefixScopedCandidates = array_filter(
+            get_post_types([], 'names'),
+            static function (string $slug): bool {
+                if (! ntdst_data()->isRegistered($slug)) {
+                    return false;
+                }
+
+                return ntdst_data()->get($slug)->getMetaPrefix() === JOSWORLD_CORE_META_PREFIX;
+            },
+        );
+        $this->assertContains(
+            'jw_fixture_hidden',
+            $prefixScopedCandidates,
+            'MUTATION PROOF (fix side): a `_jw_`-prefix-scoped candidate set must see a '
+            . 'non-public josworld model that public=>true filtering hides',
+        );
+        $this->assertNotContains(
+            'jw_fixture_hidden',
+            AdminUIService::POST_TYPES,
+            'precondition: the fixture must be absent from POST_TYPES for this to be a real gap',
+        );
     }
 }
