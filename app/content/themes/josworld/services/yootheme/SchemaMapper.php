@@ -104,7 +104,13 @@ final class SchemaMapper
             $type = $config['type'] ?? null;
 
             if ($type === 'repeater') {
-                $definition = self::toRepeaterFieldDefinition($config, $prefix, $typeName, (string) $field);
+                $definition = self::toRepeaterFieldDefinition(
+                    $config,
+                    $prefix,
+                    $typeName,
+                    (string) $field,
+                    $schema,
+                );
 
                 if ($definition !== null) {
                     $mapped[$field] = $definition;
@@ -193,10 +199,62 @@ final class SchemaMapper
 
             $typeNameForField = self::composeSubTypeName($typeName, (string) $field);
 
+            if (! self::isEligibleSubTypeName($typeNameForField, $schema, $typeName)) {
+                continue;
+            }
+
             $types[$typeNameForField] = ['fields' => $fields];
         }
 
         return $types;
+    }
+
+    /**
+     * Is this composed sub-type name safe to emit?
+     *
+     * TWO denial rules, both fail-closed, and both applied from ONE place so
+     * `toObjectType()` (which emits the `listOf` REFERENCE) and
+     * `toSubObjectTypes()` (which emits the DEFINITION) can never disagree
+     * about a given field. That desync is the failure this helper exists to
+     * make structurally impossible — see the class docblock.
+     *
+     * 1. ILLEGAL GRAPHQL NAME. A GraphQL type name must start with a letter
+     *    or underscore and continue with letters, digits or underscores.
+     *    A name that cannot be a legal identifier is omitted rather than
+     *    handed to YOOtheme's schema builder to fail on later.
+     *
+     * 2. COLLISION. `composeSubTypeName()` is NOT injective: it splits on
+     *    `[_-]+` and discards the separators, so `key_figures`, `key-figures`
+     *    and `keyFigures` all compose to the same name. Emitting either one
+     *    is unsafe, because YOOtheme MERGES duplicate object types silently
+     *    rather than erroring — `SchemaBuilder::objectType()` appends to
+     *    `$this->configs[$name][]` and `loadType()` applies every queued
+     *    config through `extendType()` (packages/graphql/src/SchemaBuilder
+     *    .php:220-239, :265-269). So a collision would give one repeater's
+     *    rows the other repeater's fields, builder-bindable, with no error
+     *    anywhere. Both partners are omitted: visibly-absent beats
+     *    invisibly-merged, the same doctrine as omit-don't-default.
+     *
+     * @param array<string, mixed> $schema
+     */
+    private static function isEligibleSubTypeName(
+        string $composed,
+        array $schema,
+        string $typeName,
+    ): bool {
+        if (preg_match('/^[_A-Za-z][_0-9A-Za-z]*$/', $composed) !== 1) {
+            return false;
+        }
+
+        $timesComposed = 0;
+
+        foreach (array_keys($schema) as $candidate) {
+            if (self::composeSubTypeName($typeName, (string) $candidate) === $composed) {
+                ++$timesComposed;
+            }
+        }
+
+        return $timesComposed === 1;
     }
 
     /**
@@ -208,6 +266,11 @@ final class SchemaMapper
      * be a dangling type name T07 tries to register.
      *
      * @param  array<string, mixed>  $config
+     * @param  array<string, mixed>  $schema  The FULL sibling schema, needed
+     *                                        only so the collision half of
+     *                                        isEligibleSubTypeName() can see
+     *                                        every field that competes for
+     *                                        the same composed type name.
      * @return array<string, mixed>|null
      */
     private static function toRepeaterFieldDefinition(
@@ -215,6 +278,7 @@ final class SchemaMapper
         string $prefix,
         string $typeName,
         string $field,
+        array $schema,
     ): ?array {
         if ($typeName === '') {
             return null;
@@ -230,8 +294,19 @@ final class SchemaMapper
             return null;
         }
 
+        $composed = self::composeSubTypeName($typeName, $field);
+
+        // The SAME eligibility rule toSubObjectTypes() applies before
+        // emitting a definition. Both sides ask one helper, so a reference
+        // can never be emitted for a name whose definition was denied (or
+        // vice versa) — see isEligibleSubTypeName() for why that desync is
+        // the highest-consequence bug available in this class.
+        if (! self::isEligibleSubTypeName($composed, $schema, $typeName)) {
+            return null;
+        }
+
         $definition = [
-            'type' => ['listOf' => self::composeSubTypeName($typeName, $field)],
+            'type' => ['listOf' => $composed],
         ];
 
         if (isset($config['label'])) {
