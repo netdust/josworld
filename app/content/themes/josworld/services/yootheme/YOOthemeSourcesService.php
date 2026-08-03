@@ -89,12 +89,62 @@ final class YOOthemeSourcesService
     private const JW_PREFIX = '_jw_';
 
     /**
-     * Accepted models, keyed by the DERIVED type name (`case` -> `Case`).
-     * Accumulating, not snapshotting — see collect()'s docblock.
+     * The VETTED registry: `typeName => ['schema' => …, 'prefix' => …]`,
+     * keyed by the DERIVED type name (`case` -> `Case`). Accumulating, not
+     * snapshotting — see collect()'s docblock.
+     *
+     * STATIC by necessity, and the reason is the whole security design
+     * (Cluster B2 review, finding C-1). `resolve_jw_field()` must be a
+     * standalone function referenced by a literal string — YOOtheme
+     * serialises `func` as a `Type::string()`, so it can never be a method
+     * on an instance. That function therefore has no `$this` through which
+     * to reach an instance registry, and the ONLY alternatives are:
+     *
+     *   (a) ship the schema and prefix in the serialised `args` — which is
+     *       what the original design did, and it meant a caller supplied
+     *       its own allow-list. Reproduced: forged args read `_edit_lock`,
+     *       an unrelated plugin's `secret_api_key`, and undeclared `_jw_`
+     *       meta. Reachable from a SAVED BUILDER LAYOUT, because
+     *       `SourceQuery::queryField()` copies arbitrary directives with
+     *       arbitrary arguments out of the layout (gated only by
+     *       `edit_post`), so an Editor gained an arbitrary-post-meta read.
+     *   (b) this: a class-level registry the resolver looks INTO, keyed by
+     *       a type name that is itself meaningless unless `collect()` put
+     *       it there.
+     *
+     * With (b) the wire carries only `type` + `field`. Both boundaries —
+     * threat 4's `_jw_` gate and threat 2's `exclude_fields` filter — run in
+     * `collect()` BEFORE anything lands here, so a forged `type` finds no
+     * entry and a forged `field` is not in the vetted schema. Supplying a
+     * schema becomes unrepresentable rather than merely discouraged.
      *
      * @var array<string, array{schema: array<string, mixed>, prefix: string}>
      */
-    private array $models = [];
+    private static array $registry = [];
+
+    /**
+     * Reset the vetted registry.
+     *
+     * Test-facing: the registry is static, so it would otherwise leak across
+     * test methods and classes in a single PHPUnit process. Production never
+     * needs this — `collect()` is idempotent per type name and a request
+     * builds the registry once.
+     */
+    public static function flushRegistry(): void
+    {
+        self::$registry = [];
+    }
+
+    /**
+     * Look up a vetted registry entry, or null when the type was never
+     * collected. The resolver's only door into the schema.
+     *
+     * @return array{schema: array<string, mixed>, prefix: string}|null
+     */
+    public static function registryEntry(string $typeName): ?array
+    {
+        return self::$registry[$typeName] ?? null;
+    }
 
     /**
      * Collect one registered ntdst model.
@@ -144,7 +194,7 @@ final class YOOthemeSourcesService
 
         $typeName = ucfirst($name);
 
-        $this->models[$typeName] = [
+        self::$registry[$typeName] = [
             'schema' => $schema,
             'prefix' => $prefix,
         ];
@@ -234,26 +284,32 @@ final class YOOthemeSourcesService
     {
         $types = [];
 
-        foreach ($this->models as $typeName => $model) {
+        foreach (self::$registry as $typeName => $model) {
             $fields = SchemaMapper::toObjectType($model['schema'], $model['prefix'], $typeName);
 
             if ($fields !== []) {
                 $types[$typeName] = [
-                    'fields' => self::withResolvers($fields, $model['schema'], $model['prefix']),
+                    'fields' => self::withResolvers($fields, $typeName),
                 ];
             }
         }
 
-        foreach ($this->models as $typeName => $model) {
+        foreach (self::$registry as $typeName => $model) {
             $schema = $model['schema'];
             $prefix = $model['prefix'];
 
             foreach (SchemaMapper::toSubObjectTypes($schema, $prefix, $typeName) as $subTypeName => $subConfig) {
                 $subFields = is_array($subConfig['fields'] ?? null) ? $subConfig['fields'] : [];
-                $subSchema = self::subSchemaFor($schema, $typeName, $subTypeName);
 
+                // Row resolvers need NO schema: a row's values are already in
+                // hand, so there is no meta lookup to gate. That is also why
+                // `subSchemaFor()` no longer exists — it re-implemented
+                // SchemaMapper's private sub-type naming rule purely to
+                // recover an allow-list this path no longer needs (finding
+                // I-3: a silent desync waiting for the mapper's rule to
+                // change).
                 $types[$subTypeName] = [
-                    'fields' => self::withResolvers($subFields, $subSchema, $prefix),
+                    'fields' => self::withRowResolvers($subFields),
                 ];
             }
         }
@@ -272,19 +328,25 @@ final class YOOthemeSourcesService
      * register().
      *
      * @param  array<string, array<string, mixed>>  $fields
-     * @param  array<string, mixed>  $schema
+     * @param  string  $typeName  The registry key the resolver will look the
+     *                            vetted schema/prefix up by — deliberately
+     *                            the ONLY thing besides the field name that
+     *                            crosses the wire (finding C-1).
      * @return array<string, array<string, mixed>>
      */
-    private static function withResolvers(array $fields, array $schema, string $prefix): array
+    private static function withResolvers(array $fields, string $typeName): array
     {
         foreach ($fields as $field => $definition) {
             $definition['extensions'] = [
                 'call' => [
                     'func' => resolve_jw_field_reference(),
+                    // ONLY the type name and the field name cross the wire.
+                    // The schema and the meta prefix are looked up from the
+                    // vetted registry by the resolver — see $registry's
+                    // docblock for why shipping them here was finding C-1.
                     'args' => [
+                        'type' => $typeName,
                         'field' => (string) $field,
-                        'schema' => $schema,
-                        'prefix' => $prefix,
                     ],
                 ],
             ];
@@ -296,56 +358,34 @@ final class YOOthemeSourcesService
     }
 
     /**
-     * Recover the sub_fields schema for a repeater's composed sub-type name,
-     * so its resolvers can be composed with the SAME schema/prefix pair the
-     * parent repeater declared — FieldResolver::resolve()'s allow-list
-     * argument must be the sub-schema, not the parent's.
+     * Attach ROW resolvers to a repeater sub-type's fields.
      *
-     * @param  array<string, mixed>  $schema
+     * A sub-type field's `$root` is the repeater ROW — a plain associative
+     * array like `['figure' => '+7 mio']` — NOT a `WP_Post`. Its value is
+     * therefore already in hand and must be read FROM THE ROW; re-reading
+     * post meta for it is what produced finding C-2 (every grid cell blank,
+     * because a row has no `ID` so the lookup fell to post 0) and finding
+     * I-1 (a row carrying `ID => 999` redirected the read to that post).
+     *
+     * @param  array<string, mixed>  $fields
      * @return array<string, mixed>
      */
-    private static function subSchemaFor(array $schema, string $typeName, string $subTypeName): array
+    private static function withRowResolvers(array $fields): array
     {
-        foreach ($schema as $field => $config) {
-            if (! is_array($config) || ($config['type'] ?? null) !== 'repeater') {
-                continue;
-            }
+        foreach ($fields as $field => $definition) {
+            $definition['extensions'] = [
+                'call' => [
+                    'func' => resolve_jw_row_field_reference(),
+                    'args' => [
+                        'field' => (string) $field,
+                    ],
+                ],
+            ];
 
-            $subFields = $config['sub_fields'] ?? null;
-
-            if (! is_array($subFields)) {
-                continue;
-            }
-
-            // Mirrors SchemaMapper's own composition — the mapper is the
-            // single source of truth for the name, but it exposes no public
-            // lookup, so the candidate name is recomputed with the same
-            // <TypeName><Field>Item rule and matched against what was
-            // actually emitted for this schema.
-            $candidate = $typeName . self::upperCamelCase((string) $field) . 'Item';
-
-            if ($candidate === $subTypeName) {
-                return $subFields;
-            }
+            $fields[$field] = $definition;
         }
 
-        return [];
-    }
-
-    /**
-     * UpperCamelCase a snake_case/kebab-case field name — mirrors
-     * SchemaMapper::upperCamelCase() exactly (private there, so duplicated
-     * rather than exposed solely to serve this lookup).
-     */
-    private static function upperCamelCase(string $value): string
-    {
-        $words = preg_split('/[_\-]+/', $value, -1, PREG_SPLIT_NO_EMPTY);
-
-        if ($words === false) {
-            $words = [];
-        }
-
-        return implode('', array_map('ucfirst', $words));
+        return $fields;
     }
 
     /**
@@ -417,15 +457,89 @@ function resolve_jw_field_reference(): string
  */
 function resolve_jw_field(mixed $root, array $args = []): mixed
 {
+    // THE POST ID COMES ONLY FROM AN OBJECT ROOT — never from an array
+    // (finding I-1). Previously any array carrying an `ID` key was trusted,
+    // and a repeater ROW is exactly that: editor-authored array content.
+    // Reproduced pre-fix: a row `['ID' => 999, …]` redirected the read to
+    // post 999 and returned its meta, with no post_status and no capability
+    // check anywhere in the bridge.
+    //
+    // `WP_Post` is what YOOtheme actually hands a post-scoped resolver, so
+    // that is the shape checked first. The `is_object` fallback exists
+    // because `WP_Post` is a WordPress class that does not exist at the unit
+    // tier (verified: `class_exists('WP_Post')` is false under
+    // phpunit.unit.xml), and a rule that can only be exercised where the
+    // whole CMS is booted is a rule this suite could not hold. The security
+    // property is unchanged either way: the ARRAY branch is gone, and an
+    // array root is what an attacker-influenceable row is.
     $postId = is_object($root) && isset($root->ID) ? (int) $root->ID : 0;
 
-    if (is_array($root) && isset($root['ID'])) {
-        $postId = (int) $root['ID'];
+    if ($postId <= 0) {
+        // Fail CLOSED (finding C-2). A root with no derivable post — an
+        // archive with no current item, the builder previewing with nothing
+        // selected — must resolve empty WITHOUT spending a meta read on
+        // post 0.
+        return '';
+    }
+
+    // THE SCHEMA AND PREFIX ARE NEVER TAKEN FROM $args (finding C-1).
+    // They are looked up from the service's own vetted registry, which
+    // `collect()` populates only after threat 4's `_jw_` gate and threat 2's
+    // exclude_fields filter have both run. A forged `type` finds no entry;
+    // a forged `field` is not in the vetted schema. Any `schema`/`prefix`
+    // key a caller puts in $args is ignored outright.
+    $entry = YOOthemeSourcesService::registryEntry((string) ($args['type'] ?? ''));
+
+    if ($entry === null) {
+        return '';
+    }
+
+    return FieldResolver::resolve(
+        $postId,
+        (string) ($args['field'] ?? ''),
+        $entry['schema'],
+        $entry['prefix'],
+    );
+}
+
+/**
+ * The literal, fully-qualified name of the repeater-ROW resolver.
+ *
+ * Same white-page discipline as `resolve_jw_field_reference()`: a hardcoded
+ * string constant expression, never composed from `__NAMESPACE__`.
+ */
+function resolve_jw_row_field_reference(): string
+{
+    return 'josworld\\services\\yootheme\\resolve_jw_row_field';
+}
+
+/**
+ * Resolve one sub-field of a repeater ROW.
+ *
+ * The counterpart to `resolve_jw_field()`, and the fix for finding C-2. A
+ * sub-type field's `$root` is the ROW — a plain associative array keyed by
+ * sub-field name, e.g. `['figure' => '+7 mio']` — produced by
+ * `FieldResolver`'s repeater handling, which already applied the parent's
+ * schema allow-list and prefix when it read the rows off the post.
+ *
+ * So the value is ALREADY VETTED and already in hand: this function performs
+ * no meta read at all. That is what makes it safe to take the field name
+ * from `$args` here — there is no lookup to widen, no post to redirect to,
+ * and nothing outside `$root` is reachable.
+ *
+ * Returns `''` (never null, never a notice) for a row that is not an array
+ * or is missing the key — the same denial the rest of the bridge uses, so a
+ * malformed stored repeater degrades to empty cells rather than a fatal.
+ *
+ * @param  array<string, mixed>  $args
+ */
+function resolve_jw_row_field(mixed $root, array $args = []): mixed
+{
+    if (! is_array($root)) {
+        return '';
     }
 
     $field = (string) ($args['field'] ?? '');
-    $schema = is_array($args['schema'] ?? null) ? $args['schema'] : [];
-    $prefix = (string) ($args['prefix'] ?? '');
 
-    return \josworld\services\yootheme\FieldResolver::resolve($postId, $field, $schema, $prefix);
+    return $root[$field] ?? '';
 }

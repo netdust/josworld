@@ -6,6 +6,7 @@ namespace NtdstTests\Unit;
 
 use Brain\Monkey;
 use josworld\services\yootheme\FieldResolver;
+use josworld\services\yootheme\YOOthemeSourcesService;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 
@@ -40,6 +41,19 @@ abstract class TestCase extends PHPUnitTestCase
         // dependency on the theme for every OTHER unit test.
         if (class_exists(FieldResolver::class, false)) {
             FieldResolver::flush();
+        }
+
+        // YOOthemeSourcesService (T07) holds its VETTED registry statically —
+        // not a convenience, a requirement: `resolve_jw_field()` must be a
+        // standalone function (the white-page rule), so it has no `$this`
+        // through which to reach an instance registry, and the alternative
+        // was shipping the schema on the wire, which was security finding
+        // C-1. Same consequence as the memo above: with no process isolation
+        // the registry would otherwise leak across test methods and classes,
+        // and it DID — three threat-4 boundary tests passed alone and failed
+        // in-suite until this was wired.
+        if (class_exists(YOOthemeSourcesService::class, false)) {
+            YOOthemeSourcesService::flushRegistry();
         }
 
         Monkey\tearDown();
