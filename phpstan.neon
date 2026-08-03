@@ -31,6 +31,17 @@ parameters:
         - vendor/wp-phpunit/wp-phpunit/includes/phpunit-adapter-testcase.php
         - vendor/wp-phpunit/wp-phpunit/includes/abstract-testcase.php
         - vendor/wp-phpunit/wp-phpunit/includes/testcase.php
+        # T05's cached-meta seam
+        # (app/content/themes/josworld/services/yootheme/ntdst-cached-meta-
+        # accessor.php) declares `ntdst_get_post_meta_from_cache()` guarded by
+        # `function_exists()` and lazily `require_once`d from inside
+        # FieldResolver::resolve() — required so Brain Monkey/Patchwork can
+        # intercept it at the unit tier (see that file's docblock). PHPStan
+        # does not reflect conditionally-declared functions and does not
+        # follow a require inside a method body, so this signature-only stub
+        # makes the symbol analysable without changing the guarded, lazily-
+        # loaded runtime shape.
+        - tests/phpstan-stubs/ntdst_get_post_meta_from_cache.stub.php
     paths:
         - app/content/mu-plugins
         - app/content/themes
@@ -49,3 +60,8 @@ parameters:
         # beneath it (surfaced by flatted/php/flatted.php inside npm deps).
         - app/content/themes/*/node_modules/* (?)
         - app/content/themes/*/dist/* (?)
+        # Signature-only PHPStan stub, loaded above via scanFiles for
+        # DISCOVERY only — its intentionally-empty body (no return
+        # statement) would otherwise fail its own analysis as a real file
+        # under the `tests` path.
+        - tests/phpstan-stubs/* (?)
