@@ -61,6 +61,25 @@
  * editor-facing Dutch UI per FR-1), never hardcoded outside a translation
  * call.
  *
+ * DIENST TAXONOMY (T08 / FR-5): registered against `case` ONLY (spec
+ * assumptions section — no service filter on the archive, the design shows a
+ * flat tile grid). ARCHITECTURE INVARIANT (plan.md "Architecture invariants
+ * touched"): no direct `register_taxonomy()` call anywhere in josworld-core
+ * — registration converges on the framework's own convergence point,
+ * `NTDST_Theme::taxonomy()` (ntdst-core/core/Theme.php), which merges
+ * sensible defaults and calls `register_taxonomy()` internally. Resolved
+ * lazily via `ntdst_get(\NTDST_Theme::class)` (the same container-access
+ * pattern the framework's own NTDST_RelationField uses) rather than
+ * constructor-injected, so this class's existing `(NTDST_Data_Manager)`
+ * constructor signature — and every test that calls `new CaseService(...)`
+ * with just that one argument — stays unchanged.
+ *
+ * Non-hierarchical (tag-like): the design shows a comma-joined FLAT service
+ * list per case, never a parent/child grouping, and there is no service
+ * filter UI anywhere in the design to hang a hierarchy off of — a flat set
+ * of terms is the honest match, and it is also NTDST_Theme::taxonomy()'s own
+ * default.
+ *
  * A service file by nature both declares a symbol (the class below) and
  * executes a side effect (the ABSPATH guard) — exempt from the PSR-1
  * side-effects rule, same posture as AdminUIService.php.
@@ -85,6 +104,7 @@ final class CaseService
     private function init(): void
     {
         $this->registerDataModel();
+        $this->registerDienstTaxonomy();
     }
 
     /**
@@ -303,6 +323,31 @@ final class CaseService
             'tabs_priority' => 'high',
             'metabox_title' => __('Case-gegevens', JOSWORLD_CORE_TEXTDOMAIN),
             'field_groups' => $this->getFieldGroups(),
+        ]);
+    }
+
+    /**
+     * FR-5 / T08 — the `dienst` taxonomy, `case`-only (see class docblock:
+     * no direct register_taxonomy() call, converges on NTDST_Theme::taxonomy()).
+     */
+    private function registerDienstTaxonomy(): void
+    {
+        ntdst_get(\NTDST_Theme::class)->taxonomy('dienst', 'case', [
+            'hierarchical' => false,
+            'labels' => [
+                'name' => __('Diensten', JOSWORLD_CORE_TEXTDOMAIN),
+                'singular_name' => __('Dienst', JOSWORLD_CORE_TEXTDOMAIN),
+                'search_items' => __('Diensten zoeken', JOSWORLD_CORE_TEXTDOMAIN),
+                'all_items' => __('Alle diensten', JOSWORLD_CORE_TEXTDOMAIN),
+                'edit_item' => __('Dienst bewerken', JOSWORLD_CORE_TEXTDOMAIN),
+                'update_item' => __('Dienst bijwerken', JOSWORLD_CORE_TEXTDOMAIN),
+                'add_new_item' => __('Nieuwe dienst toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
+                'new_item_name' => __('Nieuwe dienstnaam', JOSWORLD_CORE_TEXTDOMAIN),
+                'menu_name' => __('Diensten', JOSWORLD_CORE_TEXTDOMAIN),
+            ],
+            'show_admin_column' => true,
+            'show_in_rest' => true,
+            'rewrite' => ['slug' => 'dienst'],
         ]);
     }
 }
