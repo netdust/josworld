@@ -3,20 +3,39 @@
     <description>Lint gate: PSR-12 base + WordPress security/DB sniffs + PHP 8.3 compatibility.</description>
 
     <!--
-        GATE SCOPE: tests/ only.
+        GATE SCOPE: tests/ + app/content/mu-plugins.
 
         The full intended surface mirrors phpstan.neon:
         app/content/mu-plugins + app/content/themes + tests. phpcs has no baseline
         mechanism, and pre-existing framework/theme debt is not fixed as part
         of gate introduction — so the gate scans only what is green today.
-        Add mu-plugins/themes back as their debt is paid.
+        Add themes back as their debt is paid.
         Full-surface check by hand: vendor/bin/phpcs app/content/mu-plugins app/content/themes
+
+        mu-plugins was added 2026-08-03 (josworld-core Cluster A gate, CB-3).
+        Rationale: the josworld-core plugin lands here, and T01's plan evidence
+        rung claims "machine gate — composer gate (phpcs + phpstan)" — which was
+        only half-true while phpcs skipped this directory (phpstan already covers
+        it via phpstan.neon `paths:`). Every josworld-core file was already clean
+        under a manual run, so widening cost 3 auto-fixable formatting errors in
+        one pre-existing 2-line file (__error_reporting.php: CRLF + missing final
+        newline), fixed in the same commit.
+
+        ntdst-core is EXCLUDED below, not fixed: it is the shared framework,
+        used by other sites, and is not this project's to reformat.
     -->
     <file>tests</file>
+    <file>app/content/mu-plugins</file>
 
     <!-- Third-party / not our code (applies when wider paths are passed manually) -->
     <exclude-pattern>*/app/content/themes/twentytwentyfive/*</exclude-pattern>
     <exclude-pattern>*/app/content/mu-plugins/bedrock-disallow-indexing/*</exclude-pattern>
+    <!--
+        Shared framework, vendored per-site and updated upstream — reformatting it
+        here would diverge josworld from every other ntdst site and be overwritten
+        on the next sync. phpstan still analyses it; phpcs does not lint it.
+    -->
+    <exclude-pattern>*/app/content/mu-plugins/ntdst-core/*</exclude-pattern>
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>*/app/wp/*</exclude-pattern>
     <exclude-pattern>*/node_modules/*</exclude-pattern>
@@ -42,6 +61,26 @@
     </rule>
     <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
         <exclude-pattern>*/tests/*</exclude-pattern>
+    </rule>
+
+    <!--
+        mu-plugin carve-outs, added with the mu-plugins scope widening
+        (2026-08-03, CB-3). Both are narrow and file-specific — the sniffs stay
+        fully active everywhere else, including all of josworld-core.
+
+        - index.php is WordPress's standard empty "silence is golden" guard
+          file. It contains no PHP by design, which is exactly what
+          Internal.NoCodeFound reports.
+        - ntdst-coreloader.php is a plugin entrypoint: it necessarily defines
+          constants AND executes side effects (the require). That is the same
+          PSR1.Files.SideEffects exemption josworld-core.php already declares
+          inline for itself.
+    -->
+    <rule ref="Internal.NoCodeFound">
+        <exclude-pattern>*/app/content/mu-plugins/index.php</exclude-pattern>
+    </rule>
+    <rule ref="PSR1.Files.SideEffects">
+        <exclude-pattern>*/app/content/mu-plugins/ntdst-coreloader.php</exclude-pattern>
     </rule>
 
     <!-- WordPress security + database sniff groups only -->

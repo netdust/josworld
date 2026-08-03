@@ -187,14 +187,30 @@
 			return;
 		}
 
+		// title is escaped for TEXT context (correct — escapeHtml serialises a
+		// text node), but fieldName and id land in ATTRIBUTE values, where
+		// escapeHtml would not help: it escapes & < > and not the double quote.
+		// Both are built through the DOM API instead, which cannot be broken
+		// out of. Lower risk than the gallery path (id is a numeric WP id,
+		// fieldName is server-supplied) but the same shape, so it gets the same
+		// treatment rather than a per-value risk judgement.
 		const tag = document.createElement('span');
 		tag.className = 'ntdst-relation-tag';
 		tag.dataset.id = id;
-		tag.innerHTML = `
-			${escapeHtml(title)}
-			<button type="button" class="ntdst-relation-remove" aria-label="Remove">&times;</button>
-			<input type="hidden" name="ntdst_fields[${fieldName}][]" value="${id}">
-		`;
+		tag.textContent = title;
+
+		const removeButton = document.createElement('button');
+		removeButton.type = 'button';
+		removeButton.className = 'ntdst-relation-remove';
+		removeButton.setAttribute('aria-label', 'Remove');
+		removeButton.innerHTML = '&times;';
+
+		const hiddenInput = document.createElement('input');
+		hiddenInput.type = 'hidden';
+		hiddenInput.name = 'ntdst_fields[' + fieldName + '][]';
+		hiddenInput.value = id;
+
+		tag.append(removeButton, hiddenInput);
 
 		selectedContainer.appendChild(tag);
 	}
@@ -269,13 +285,32 @@
 						? attachment.sizes.thumbnail.url
 						: attachment.url;
 
+					// attachment.title is the Media Library title — editor-settable
+					// to arbitrary text, so it is untrusted. Built as an HTML
+					// string, a title of `" onerror=alert(1) x="` breaks out of
+					// the alt attribute and executes against any admin viewing
+					// this field (stored XSS, wp-admin surface).
+					//
+					// escapeHtml() is NOT sufficient here: it serialises a text
+					// node, which escapes & < > but NOT the double quote — safe
+					// in text context, unsafe in an attribute. So these nodes are
+					// built via jQuery's element/attr API instead, which sets
+					// attributes through the DOM and cannot be broken out of by
+					// any value. No HTML string is concatenated at all.
 					const item = $('<div>')
 						.addClass('ntdst-gallery-item')
 						.attr('data-id', attachment.id)
-						.html(
-							'<img src="' + thumbUrl + '" alt="' + attachment.title + '">' +
-							'<button type="button" class="ntdst-gallery-remove" aria-label="Remove">&times;</button>' +
-							'<input type="hidden" name="ntdst_fields[' + fieldName + '][]" value="' + attachment.id + '">'
+						.append(
+							$('<img>').attr({ src: thumbUrl, alt: attachment.title }),
+							$('<button>')
+								.attr({ type: 'button', 'aria-label': 'Remove' })
+								.addClass('ntdst-gallery-remove')
+								.html('&times;'),
+							$('<input>').attr({
+								type: 'hidden',
+								name: 'ntdst_fields[' + fieldName + '][]',
+								value: attachment.id,
+							})
 						);
 
 					preview.append(item);
