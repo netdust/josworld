@@ -160,6 +160,16 @@ app/content/themes/*
 # Never the theme's deps/build residue (must FOLLOW the whitelist above)
 app/content/themes/josworld/node_modules/
 app/content/themes/josworld/dist/
+
+# Track project memory (STATE.md/ARCHIVE.md/lessons.md) and docs — both are
+# project deliverables per CLAUDE.md, not scratch. Pre-existing gap: this
+# whitelist entry was missing even though `memory/.stop-hook-state.json`
+# below already assumed memory/ was partly trackable (T12).
+!memory/
+!memory/**
+!docs/
+!docs/**
+
 # Re-assert (must stay last so it wins over whitelists)
 **/*:Zone.Identifier
 memory/.stop-hook-state.json
