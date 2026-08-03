@@ -14,5 +14,7 @@
 
 defined('ABSPATH') || exit;
 
-// Load the actual plugin (only if the framework is present).
+// Load the actual plugin entrypoint (unconditional require — the
+// framework-presence check happens inside josworld-core.php's own
+// plugins_loaded callback, not here).
 require_once __DIR__ . '/josworld-core/josworld-core.php';
