@@ -82,14 +82,22 @@ Type: Flat
 @jw-lemon-hover:     darken(@jw-lemon, 6%);
 
 // ---------- Typography ----------
-// Fraunces = display/serif (headings, buttons). Inter = UI/body.
-// Instrument Sans = disclaimers only.
+// Fraunces = display/serif (headings, buttons). Inter = everything else.
 //
 // LOADING: the font FILES are not requested here. They are picked in
 // Customizer → Theme → Style → Fonts, which is YOOtheme's own font selector —
 // it downloads and self-hosts the woff2 files (StyleFontLoader) and writes the
 // family into the style. The stacks below only name what to render with, and
 // carry the fallbacks for before/if a face loads.
+//
+// FOUR faces to select, two families:
+//   Fraunces — 300 (h1/h2) + 400 (h3, buttons, blockquote)
+//   Inter    — 400 (body, intro, nav, disclaimers) + 600 (h4)
+// No italics: nothing in the design system uses one, and UIkit's italic
+// blockquote is overridden to `normal` in section 2. A 700 appears in the
+// compiled CSS from UIkit's own <strong>/<b> rule — it is NOT a design token;
+// add Inter 700 in the selector if you want real bold instead of a synthesised
+// faux-bold on bold body copy.
 //
 // NAMING: Figma reports these as "Fraunces 72pt SuperSoft" and "Inter 18pt" —
 // those are the OPTICAL-SIZE cuts of two variable fonts, not separate families.
@@ -100,7 +108,13 @@ Type: Flat
 @jw-font-display:    "Fraunces", Georgia, "Times New Roman", serif;
 @jw-font-body:       "Inter", system-ui, -apple-system, sans-serif;
 @jw-font-ui:         "Inter", system-ui, -apple-system, sans-serif;
-@jw-font-disclaimer: "Instrument Sans", system-ui, -apple-system, sans-serif;
+// DEVIATION from Figma (decided 2026-08-03): the design sets disclaimers in
+// Instrument Sans, but that face has exactly ONE job in the whole system — the
+// 12px "Disclaimer" style — and it is a neutral grotesque, near-indistinguishable
+// from Inter at that size. Pointing it at Inter drops a fifth font file for a
+// footnote. Restore "Instrument Sans" here (and load it as a third family) if
+// the distinction ever turns out to matter.
+@jw-font-disclaimer: @jw-font-body;
 
 // Type scale — DESKTOP values, exactly as published in Figma.
 // Every Figma variable is suffixed "desktop" and the file ships no mobile
@@ -122,8 +136,9 @@ Type: Flat
 @jw-t-button:        18px;   // Figma "Button text desktop" — Fraunces Regular
 @jw-t-nav:           16px;   // Figma "Navigation desktop"  — Inter Regular
 @jw-t-nav-2:         12px;   // Figma "Navigation 2nd level desktop"
-@jw-t-disclaimer:    12px;   // Figma "Disclaimer" — Instrument Sans (no
-                             // "desktop" suffix: one size at every breakpoint)
+@jw-t-disclaimer:    12px;   // Figma "Disclaimer" — Instrument Sans in Figma,
+                             // rendered in Inter here (see @jw-font-disclaimer).
+                             // No "desktop" suffix: one size at every breakpoint.
 
 // Line heights, as unitless ratios derived from Figma's px lineHeight / size.
 @jw-lh-t1:           1;      // 76/76
