@@ -122,4 +122,67 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
             );
         }
     }
+
+    /**
+     * The FORWARD direction — the half CB-4 actually needs (review finding
+     * CB-4-1, T05 task review).
+     *
+     * Every other assertion in this file reads
+     * POST_TYPES -> registry: "is the slug I expect registered?" That
+     * direction cannot see a slug nobody expected. The exact CB-4 scenario —
+     * T07 registering `vacatures` (plural) while POST_TYPES still says
+     * `vacature` — passes all of them, because `vacature` genuinely IS still
+     * unregistered. True statement, wrong reason, silent bug: the field JS
+     * never enqueues on that screen and nothing goes red.
+     *
+     * Proven, not assumed: registering a `vacatures` fixture against the suite
+     * as it stood before this test left it green at 21/21.
+     *
+     * So this reads registry -> POST_TYPES instead. Any josworld-owned model
+     * that registers under a slug POST_TYPES does not carry fails HERE, the
+     * moment it lands, rather than waiting for a human to notice the fixture
+     * above never got updated.
+     *
+     * Scoped by META PREFIX, not merely by "registered through ntdst_data()".
+     * Other suites register their own throwaway models through the same Data
+     * API (DataLayerRoundTripTest's `gate_item`, meta_prefix `gate_`), and in
+     * a shared test process those leak into the registry — an `isRegistered()`
+     * filter alone flags them and this assertion fails on a fixture rather
+     * than on a real defect. Verified: the unscoped version failed on
+     * `gate_item`.
+     *
+     * `_jw_` is what makes a model josworld's (FR-12/SC-5), so it is also the
+     * honest boundary for "a model this constant is responsible for".
+     * WordPress core's own types and third-party CPTs are likewise excluded.
+     */
+    public function test_no_ntdst_registered_post_type_is_missing_from_the_post_types_constant(): void
+    {
+        $ours = array_filter(
+            get_post_types(['public' => true], 'names'),
+            static function (string $slug): bool {
+                if (! ntdst_data()->isRegistered($slug)) {
+                    return false;
+                }
+
+                return ntdst_data()->get($slug)->getMetaPrefix() === JOSWORLD_CORE_META_PREFIX;
+            },
+        );
+
+        $this->assertNotEmpty(
+            $ours,
+            'precondition: at least one josworld model must be registered, or this '
+            . 'assertion passes vacuously over an empty set',
+        );
+
+        foreach ($ours as $slug) {
+            $this->assertContains(
+                $slug,
+                AdminUIService::POST_TYPES,
+                "post type '{$slug}' is registered through ntdst_data() but is NOT in "
+                . 'AdminUIService::POST_TYPES — either the slug is a typo, or POST_TYPES '
+                . 'needs it. Left as-is, the metabox field JS silently never enqueues on '
+                . "the '{$slug}' edit screen (CB-4).",
+            );
+        }
+    }
 }
