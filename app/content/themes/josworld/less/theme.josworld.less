@@ -1,0 +1,568 @@
+/*
+
+Name: Josworld
+Background: Light
+Color: Brown
+Type: Flat
+
+*/
+
+// ========================================================================
+// Josworld — YOOtheme style
+//
+// Maps the Josworld design system onto YOOtheme / UIkit theme variables, so
+// every element built in the YOOtheme builder inherits the correct font,
+// colour, spacing and radius automatically.
+//
+// Select it in: Customizer → Theme → Style → "Josworld".
+//
+// SOURCE OF TRUTH for section 1 is the Figma file's published VARIABLES:
+//   https://www.figma.com/design/bwFc8dsfRNScrQgOwUcXKW/Jos-website
+// Extracted 2026-08-03. The variable collection is global to the file — the
+// same set resolved identically from the Homepage, "Voor overheden" and
+// "Contact" frames — so it is not page-specific.
+//
+// SCOPE: sections 1–3 only (tokens → UIkit mapping → CSS custom properties).
+// Bespoke per-section component CSS is deliberately NOT here; sections get
+// designed and added one at a time on the section page.
+//
+// ⚠ THIS FILE IS THE SOURCE OF TRUTH FOR THE TOKENS — NOT THE CUSTOMIZER.
+// The Customizer exposes variables by PATTERN whitelist (config/styler.php), so
+// the two halves of this file behave DIFFERENTLY there:
+//   - section 2's mappings (`@global-*`, `@base-*`, `@button-*`, `@card-*`,
+//     `@navbar-*`, `@inverse-*`) DO appear as editable fields — 139 of them;
+//   - section 1's `@jw-*` tokens match no pattern and never appear.
+// That asymmetry is the trap: editing a colour under Customizer → Global →
+// Colors overrides the MAPPED `@global-*` value while the `@jw-*` token it was
+// derived FROM still reads the old value. The two silently diverge, the DB copy
+// wins at runtime, and this file — the one that looks authoritative — is stale.
+// So: change brand values HERE, in section 1. Use the Customizer for fonts and
+// per-page work. If a value ever DOES need to be client-editable, rename that
+// token to match an exposed pattern deliberately — and note that its source of
+// truth then moves into the DB, outside git, and stops travelling with the theme.
+// ========================================================================
+
+// NOTE: this style lives in the CHILD theme (josworld/less/). YOOtheme discovers
+// it by globbing {rootDir,childDir}/less/theme.*.less (see packages/styler/src/
+// Styler.php), and resolves @import paths relative to THIS file's directory —
+// so every import below reaches the parent (yootheme/) via ../../yootheme/…
+// The parent owns platform.less, theme.less, and the UIkit/vendor assets.
+
+// Platform
+@import "../../yootheme/less/platform.less";
+
+// UIkit Core
+@import "../../yootheme/vendor/assets/uikit/src/less/uikit.less";
+
+// UIkit Theme (neutral master base — no preset-specific look layered on)
+@import "../../yootheme/vendor/assets/uikit-themes/master/_import.less";
+
+// Theme
+@import "../../yootheme/less/theme.less";
+
+
+// ========================================================================
+// 1. JOSWORLD TOKENS  (mirror of the Figma variable collection)
+//
+// The Figma variable name is quoted next to each value so a future session can
+// diff this file against Figma without guessing which token maps to which.
+// ========================================================================
+
+// ---------- Brand palette ----------
+// A warm, editorial palette: near-black brown ink, soft beige page, with
+// lemon and raspberry as the two accents.
+@jw-brown:           #35070c;   // Figma "Jos Brown"      — ink / primary
+@jw-brown-60:        #866a6d;   // Figma "JOS Brown 60%"  — muted text
+@jw-brown-10:        #ebe6e7;   // Figma "Jos Brown 10%"  — borders / dividers
+@jw-beige:           #fcfcf7;   // Figma "Jos Beige"      — page background
+@jw-lemon:           #fff794;   // Figma "Jos Lemon"      — accent / highlight
+@jw-raspberry:       #e60b66;   // Figma "Jos Raspberry"  — accent / CTA
+@jw-white:           #ffffff;   // Figma "White"
+
+// Semantic aliases — section 2 maps THESE, so a palette tweak is a one-line
+// change here and never a hunt through the mapping below.
+@jw-primary:         @jw-brown;
+@jw-accent:          @jw-raspberry;
+@jw-highlight:       @jw-lemon;
+@jw-text:            @jw-brown;
+@jw-text-muted:      @jw-brown-60;
+@jw-line:            @jw-brown-10;
+@jw-bg:              @jw-beige;
+@jw-bg-alt:          @jw-white;
+
+// Derived states. Brown is already near-black, so it darkens poorly — hover on
+// a brown surface LIGHTENS instead, which is the readable direction here.
+@jw-brown-hover:     lighten(@jw-brown, 8%);
+@jw-raspberry-hover: darken(@jw-raspberry, 8%);
+@jw-lemon-hover:     darken(@jw-lemon, 6%);
+
+// ---------- Typography ----------
+// Fraunces = display/serif (headings, buttons). Inter = everything else.
+//
+// LOADING: the font FILES are not requested here. They are picked in
+// Customizer → Theme → Style → Fonts, which is YOOtheme's own font selector —
+// it downloads and self-hosts the woff2 files (StyleFontLoader) and writes the
+// family into the style. The stacks below only name what to render with, and
+// carry the fallbacks for before/if a face loads.
+//
+// FOUR faces to select, two families:
+//   Fraunces — 300 (h1/h2) + 400 (h3, buttons, blockquote)
+//   Inter    — 400 (body, intro, nav, disclaimers) + 600 (h4)
+// No italics: nothing in the design system uses one, and UIkit's italic
+// blockquote is overridden to `normal` in section 2. A 700 appears in the
+// compiled CSS from UIkit's own <strong>/<b> rule — it is NOT a design token;
+// add Inter 700 in the selector if you want real bold instead of a synthesised
+// faux-bold on bold body copy.
+//
+// NAMING: Figma reports these as "Fraunces 72pt SuperSoft" and "Inter 18pt" —
+// those are the OPTICAL-SIZE cuts of two variable fonts, not separate families.
+// Google Fonts serves them under the plain family names below, with the optical
+// size selected by the `opsz` axis, so the CSS family name must be "Fraunces" /
+// "Inter". Pick those two in the font selector; the Figma names are kept in the
+// comments only, so a future session can still map them back.
+@jw-font-display:    "Fraunces", Georgia, "Times New Roman", serif;
+@jw-font-body:       "Inter", system-ui, -apple-system, sans-serif;
+@jw-font-ui:         "Inter", system-ui, -apple-system, sans-serif;
+// DEVIATION from Figma (decided 2026-08-03): the design sets disclaimers in
+// Instrument Sans, but that face has exactly ONE job in the whole system — the
+// 12px "Disclaimer" style — and it is a neutral grotesque, near-indistinguishable
+// from Inter at that size. Pointing it at Inter drops a fifth font file for a
+// footnote. Restore "Instrument Sans" here (and load it as a third family) if
+// the distinction ever turns out to matter.
+@jw-font-disclaimer: @jw-font-body;
+
+// Type scale — DESKTOP values, exactly as published in Figma.
+// Every Figma variable is suffixed "desktop" and the file ships no mobile
+// frames, so no mobile scale was designed. Rather than invent one, the desktop
+// sizes are treated as the TOP end and UIkit's own `-m` breakpoint variables
+// carry the smaller screens (see section 2) — that is UIkit's native
+// responsive-heading mechanism, so nothing bespoke is needed.
+@jw-t1:              76px;   // Figma "T1 desktop"     — Fraunces Light 300
+@jw-t2:              56px;   // DERIVED: no "T2 desktop" variable is published.
+                             // Interpolated between T1 (76) and T3 (40) on the
+                             // scale's own ratio. Replace if Figma publishes one.
+@jw-t3:              40px;   // Figma "T3 desktop"     — Fraunces Regular 400
+@jw-t4:              22px;   // Figma "T4 desktop"     — Inter SemiBold 600
+                             // (Figma's "Inter 18pt" / "Fraunces 72pt
+                             //  SuperSoft" are opsz cuts — see @jw-font-*)
+@jw-t-intro:         32px;   // Figma "Intro desktop"  — Inter Regular
+@jw-t-body-lg:       24px;   // Figma "Body bigger desktop"
+@jw-t-body:          18px;   // Figma "Body desktop"
+@jw-t-button:        18px;   // Figma "Button text desktop" — Fraunces Regular
+@jw-t-nav:           16px;   // Figma "Navigation desktop"  — Inter Regular
+@jw-t-nav-2:         12px;   // Figma "Navigation 2nd level desktop"
+@jw-t-disclaimer:    12px;   // Figma "Disclaimer" — Instrument Sans in Figma,
+                             // rendered in Inter here (see @jw-font-disclaimer).
+                             // No "desktop" suffix: one size at every breakpoint.
+
+// Line heights, as unitless ratios derived from Figma's px lineHeight / size.
+@jw-lh-t1:           1;      // 76/76
+@jw-lh-t2:           1.1;    // derived with T2
+@jw-lh-t3:           1.1;    // 44/40
+@jw-lh-t4:           1.18;   // 26/22
+@jw-lh-intro:        1.25;   // 40/32
+@jw-lh-body-lg:      1.33;   // 32/24
+@jw-lh-body:         1.33;   // 24/18
+@jw-lh-button:       1.22;   // 22/18
+@jw-lh-nav:          1.375;  // 22/16
+
+// Weights (from the Figma font styles).
+@jw-fw-light:        300;    // T1
+@jw-fw-regular:      400;    // T3, Intro, Body, Button, Nav
+@jw-fw-semibold:     600;    // T4
+
+// Letter-spacing. Figma reports these in PERCENT (its letterSpacing unit here),
+// so -5 = -0.05em. Fraunces at display sizes is tightened hard; nav/buttons sit
+// at 0.
+@jw-ls-t1:           -0.05em;   // Figma T1 letterSpacing -5
+@jw-ls-t3:           -0.02em;   // Figma T3 letterSpacing -2
+@jw-ls-t4:           -0.03em;   // Figma T4 letterSpacing -3
+@jw-ls-intro:        -0.05em;   // Figma Intro letterSpacing -5
+@jw-ls-body:         -0.02em;   // Figma Body letterSpacing -2
+@jw-ls-none:         0;         // Button, Navigation, Disclaimer
+
+// ---------- Spacing ----------
+// NOT published as Figma variables. An 8px base is used, which matches the
+// design's observed rhythm (32px frame padding, 80px page gutter).
+// TODO(figma): confirm against node 625:2790 geometry when MCP access returns.
+@jw-s-1:             4px;
+@jw-s-2:             8px;
+@jw-s-3:             12px;
+@jw-s-4:             16px;
+@jw-s-6:             24px;
+@jw-s-8:             32px;
+@jw-s-12:            48px;
+@jw-s-16:            64px;
+@jw-s-20:            80px;
+@jw-s-24:            96px;
+
+// ---------- Radii ----------
+// TODO(figma): confirm against real layer geometry.
+@jw-r-sm:            4px;
+@jw-r-md:            8px;
+@jw-r-lg:            16px;
+@jw-r-pill:          999px;
+
+// ---------- Shadows ----------
+// Wrapped in ~"..." so LESS emits them verbatim. Tinted with the brand brown
+// rather than pure black, so elevation reads warm instead of grey.
+@jw-shadow-sm:       ~"0 1px 2px rgba(53, 7, 12, 0.05)";
+@jw-shadow-md:       ~"0 4px 12px -2px rgba(53, 7, 12, 0.08)";
+@jw-shadow-lg:       ~"0 12px 32px -6px rgba(53, 7, 12, 0.12)";
+
+// ---------- Layout ----------
+// The Figma page frames are 1440 wide with an 80px gutter each side → 1280
+// of content. That is the max width; the gutter feeds UIkit's grid.
+@jw-content-max:     1280px;
+@jw-gutter:          @jw-s-8;   // 32px
+
+
+// ========================================================================
+// 2. MAP ONTO YOOtheme / UIkit VARIABLES
+//    These are what make builder elements correct out of the box.
+//
+// Variable names below were each verified against this install's real source
+// (vendor/assets/uikit/src/less/components/*.less and the master theme), not
+// assumed — YOOtheme 5.0.35 / UIkit.
+// ========================================================================
+
+// ---------- Global base ----------
+@global-color:                      @jw-text;
+@global-emphasis-color:             @jw-brown;
+@global-muted-color:                @jw-text-muted;
+@global-inverse-color:              @jw-beige;    // text ON dark surfaces
+
+@global-background:                 @jw-bg;
+@global-muted-background:           @jw-brown-10;
+@global-primary-background:         @jw-brown;
+@global-secondary-background:       @jw-raspberry;
+
+@global-border:                     @jw-line;
+@global-border-width:               1px;
+
+@global-link-color:                 @jw-raspberry;
+@global-link-hover-color:           @jw-raspberry-hover;
+
+// ---------- Global typography ----------
+// UIkit derives most component sizes from this ladder, so setting it here is
+// what makes builder elements inherit the scale rather than each needing a rule.
+@global-font-family:                @jw-font-body;
+@global-font-size:                  @jw-t-body;      // 18px
+@global-line-height:                @jw-lh-body;     // 1.33
+
+@global-small-font-size:            @jw-t-disclaimer + 2;  // 14px
+@global-medium-font-size:           @jw-t4;                // 22px
+@global-large-font-size:            @jw-t3;                // 40px
+@global-xlarge-font-size:           @jw-t2;                // 56px
+@global-2xlarge-font-size:          @jw-t1;                // 76px
+
+// ---------- Global spacing ----------
+@global-margin:                     @jw-s-6;    // 24px
+@global-small-margin:               @jw-s-2;    // 8px
+@global-medium-margin:              @jw-s-8;    // 32px
+@global-large-margin:               @jw-s-16;   // 64px
+@global-xlarge-margin:              @jw-s-24;   // 96px
+
+@global-gutter:                     @jw-gutter;   // 32px
+@global-small-gutter:               @jw-s-4;      // 16px
+@global-medium-gutter:              @jw-s-8;      // 32px
+@global-large-gutter:               @jw-s-16;     // 64px
+
+@global-control-height:             48px;
+@global-control-small-height:       36px;
+@global-control-large-height:       56px;
+
+// ---------- Base elements: body + headings ----------
+@base-body-background:              @jw-bg;
+@base-body-font-family:             @jw-font-body;
+@base-body-font-size:               @jw-t-body;
+@base-body-line-height:             @jw-lh-body;
+@base-body-color:                   @jw-text;
+
+// Headings run on Fraunces. UIkit's `-m` pattern gives responsive sizes for
+// free: @base-hN-font-size-m is the desktop value and @base-hN-font-size the
+// smaller-screen one (UIkit's own default is `-m * 0.85`, kept deliberately).
+@base-heading-font-family:          @jw-font-display;
+@base-heading-font-weight:          @jw-fw-regular;
+@base-heading-color:                @jw-brown;
+@base-heading-margin-top:           @global-medium-margin;
+@base-heading-text-transform:       none;
+
+@base-h1-font-size-m:               @jw-t1;              // 76px
+@base-h1-font-size:                 @jw-t1 * 0.6;        // ~46px on small
+@base-h1-line-height:               @jw-lh-t1;
+
+@base-h2-font-size-m:               @jw-t2;              // 56px
+@base-h2-font-size:                 @jw-t2 * 0.65;       // ~36px on small
+@base-h2-line-height:               @jw-lh-t2;
+
+@base-h3-font-size:                 @jw-t3;              // 40px
+@base-h3-line-height:               @jw-lh-t3;
+
+// H4 switches to Inter SemiBold — in this system it is a UI label, not display.
+@base-h4-font-size:                 @jw-t4;              // 22px
+@base-h4-line-height:               @jw-lh-t4;
+
+@base-h5-font-size:                 @jw-t-body;          // 18px
+@base-h5-line-height:               @jw-lh-body;
+
+@base-h6-font-size:                 @global-small-font-size;
+@base-h6-line-height:               @jw-lh-body;
+
+@base-link-color:                   @jw-raspberry;
+@base-link-hover-color:             @jw-raspberry-hover;
+@base-link-text-decoration:         underline;
+
+@base-hr-border:                    @jw-line;
+@base-blockquote-font-family:       @jw-font-display;
+@base-blockquote-font-size:         @jw-t-body-lg;
+@base-blockquote-font-style:        normal;
+@base-blockquote-color:             @jw-brown;
+
+// H1/H2 carry Fraunces Light + the tight display tracking. These are the only
+// two rules in section 2 that are not pure variable assignment: UIkit exposes
+// no per-heading letter-spacing or font-weight variable.
+h1, .uk-h1 {
+    font-weight: @jw-fw-light;
+    letter-spacing: @jw-ls-t1;
+}
+
+h2, .uk-h2 {
+    font-weight: @jw-fw-light;
+    letter-spacing: @jw-ls-t1;
+}
+
+h3, .uk-h3 { letter-spacing: @jw-ls-t3; }
+
+h4, .uk-h4 {
+    font-family: @jw-font-body;
+    font-weight: @jw-fw-semibold;
+    letter-spacing: @jw-ls-t4;
+}
+
+// ---------- Buttons ----------
+// Fraunces Regular at 18px, pill-shaped. The master theme forces
+// `text-transform: uppercase` and a small font size on buttons; both are
+// overridden here, since Fraunces at 18px sentence-case is the design.
+@button-font-size:                  @jw-t-button;
+@button-large-font-size:            @jw-t-button;
+@button-line-height:                @global-control-height;
+@button-large-line-height:          @global-control-large-height;
+@button-small-line-height:          @global-control-small-height;
+@button-padding-horizontal:         @jw-s-8;
+@button-text-transform:             none;
+@button-border-width:               1px;
+
+@button-primary-background:         @jw-brown;
+@button-primary-color:              @jw-beige;
+@button-primary-hover-background:   @jw-brown-hover;
+@button-primary-hover-color:        @jw-beige;
+@button-primary-active-background:  @jw-brown-hover;
+@button-primary-active-color:       @jw-beige;
+
+@button-secondary-background:       @jw-raspberry;
+@button-secondary-color:            @jw-white;
+@button-secondary-hover-background: @jw-raspberry-hover;
+@button-secondary-hover-color:      @jw-white;
+@button-secondary-active-background:@jw-raspberry-hover;
+@button-secondary-active-color:     @jw-white;
+
+// The master theme makes .uk-button-default transparent with a border; keep
+// that shape but in brand brown.
+@button-default-background:         transparent;
+@button-default-color:              @jw-brown;
+@button-default-border:             @jw-brown;
+@button-default-hover-background:   @jw-brown;
+@button-default-hover-color:        @jw-beige;
+@button-default-hover-border:       @jw-brown;
+@button-default-active-background:  @jw-brown-hover;
+@button-default-active-color:       @jw-beige;
+@button-default-active-border:      @jw-brown-hover;
+
+@button-text-hover-color:           @jw-raspberry;
+
+// Pill radius — UIkit has no global button-radius variable, so it is a rule.
+.uk-button {
+    font-family: @jw-font-display;
+    border-radius: @jw-r-pill;
+    letter-spacing: @jw-ls-none;
+}
+
+// ---------- Cards ----------
+@card-default-background:           @jw-white;
+@card-default-color:                @jw-text;
+@card-default-title-color:          @jw-brown;
+@card-default-hover-background:     @jw-white;
+
+@card-primary-background:           @jw-brown;
+@card-primary-color:                @jw-beige;
+@card-primary-title-color:          @jw-beige;
+
+@card-secondary-background:         @jw-raspberry;
+@card-secondary-color:              @jw-white;
+@card-secondary-title-color:        @jw-white;
+
+@card-body-padding-horizontal:      @jw-s-8;
+@card-body-padding-vertical:        @jw-s-8;
+
+// ---------- Forms ----------
+@form-background:                   @jw-white;
+@form-color:                        @jw-text;
+@form-border:                       @jw-line;
+@form-focus-background:             @jw-white;
+@form-focus-color:                  @jw-text;
+@form-focus-border:                 @jw-brown;
+@form-placeholder-color:            @jw-text-muted;
+@form-height:                       @global-control-height;
+@form-padding-horizontal:           @jw-s-4;
+@form-label-color:                  @jw-brown;
+
+// ---------- Navbar ----------
+@navbar-background:                 transparent;
+@navbar-nav-item-font-family:       @jw-font-ui;
+@navbar-nav-item-font-size:         @jw-t-nav;
+@navbar-nav-item-line-height:       @global-control-height;
+@navbar-nav-item-text-transform:    none;
+@navbar-nav-item-color:             @jw-brown;
+@navbar-nav-item-hover-color:       @jw-raspberry;
+@navbar-nav-item-active-color:      @jw-raspberry;
+@navbar-dropdown-background:        @jw-white;
+@navbar-dropdown-color:             @jw-text;
+@navbar-dropdown-nav-item-color:    @jw-text;
+@navbar-dropdown-nav-item-hover-color: @jw-raspberry;
+@navbar-dropdown-nav-font-size:     @jw-t-nav-2;
+
+// ---------- Section backgrounds ----------
+@section-default-background:        @jw-bg;
+@section-muted-background:          @jw-brown-10;
+@section-primary-background:        @jw-brown;
+@section-secondary-background:      @jw-raspberry;
+
+// ---------- Containers ----------
+@container-max-width:               @jw-content-max;
+@container-padding-horizontal:      @jw-s-8;
+@container-padding-horizontal-s:    @jw-s-12;
+@container-padding-horizontal-m:    @jw-s-20;
+
+// ---------- Inverse (dark / brown sections) ----------
+// Drives every element placed in a section set to a dark background.
+@inverse-global-color:              fade(@jw-beige, 80%);
+@inverse-global-emphasis-color:     @jw-beige;
+@inverse-global-muted-color:        fade(@jw-beige, 60%);
+@inverse-global-inverse-color:      @jw-brown;
+@inverse-global-primary-background: @jw-lemon;
+@inverse-global-border:             fade(@jw-beige, 20%);
+
+@inverse-base-heading-color:        @jw-beige;
+@inverse-base-link-color:           @jw-lemon;
+@inverse-base-link-hover-color:     @jw-lemon-hover;
+
+// On a brown section the primary button flips to lemon with brown text —
+// the palette's highest-contrast pairing.
+@inverse-button-primary-background:       @jw-lemon;
+@inverse-button-primary-color:            @jw-brown;
+@inverse-button-primary-hover-background: @jw-lemon-hover;
+@inverse-button-primary-hover-color:      @jw-brown;
+
+@inverse-button-default-background:       transparent;
+@inverse-button-default-color:            @jw-beige;
+@inverse-button-default-border:           fade(@jw-beige, 40%);
+@inverse-button-default-hover-background: @jw-beige;
+@inverse-button-default-hover-color:      @jw-brown;
+@inverse-button-default-hover-border:     @jw-beige;
+
+@inverse-navbar-nav-item-color:           @jw-beige;
+@inverse-navbar-nav-item-hover-color:     @jw-lemon;
+@inverse-navbar-nav-item-active-color:    @jw-lemon;
+
+
+// ========================================================================
+// 3. EMIT JOSWORLD CUSTOM PROPERTIES
+//
+// The LESS variables above are compile-time only. Exposing them as CSS custom
+// properties lets builder Custom CSS, the Vite-built JS, and the section work
+// that follows reference one token vocabulary instead of re-typing hex values.
+// ========================================================================
+
+:root {
+    // Palette
+    --jw-brown:           @jw-brown;
+    --jw-brown-60:        @jw-brown-60;
+    --jw-brown-10:        @jw-brown-10;
+    --jw-beige:           @jw-beige;
+    --jw-lemon:           @jw-lemon;
+    --jw-raspberry:       @jw-raspberry;
+    --jw-white:           @jw-white;
+
+    // Semantic
+    --jw-text:            @jw-text;
+    --jw-text-muted:      @jw-text-muted;
+    --jw-line:            @jw-line;
+    --jw-bg:              @jw-bg;
+    --jw-bg-alt:          @jw-bg-alt;
+    --jw-accent:          @jw-accent;
+    --jw-highlight:       @jw-highlight;
+
+    // Fonts
+    --jw-font-display:    @jw-font-display;
+    --jw-font-body:       @jw-font-body;
+    --jw-font-ui:         @jw-font-ui;
+    --jw-font-disclaimer: @jw-font-disclaimer;
+
+    // Type scale
+    --jw-t1:              @jw-t1;
+    --jw-t2:              @jw-t2;
+    --jw-t3:              @jw-t3;
+    --jw-t4:              @jw-t4;
+    --jw-t-intro:         @jw-t-intro;
+    --jw-t-body-lg:       @jw-t-body-lg;
+    --jw-t-body:          @jw-t-body;
+    --jw-t-button:        @jw-t-button;
+    --jw-t-nav:           @jw-t-nav;
+    --jw-t-nav-2:         @jw-t-nav-2;
+    --jw-t-disclaimer:    @jw-t-disclaimer;
+
+    // Spacing
+    --jw-s-1:             @jw-s-1;
+    --jw-s-2:             @jw-s-2;
+    --jw-s-3:             @jw-s-3;
+    --jw-s-4:             @jw-s-4;
+    --jw-s-6:             @jw-s-6;
+    --jw-s-8:             @jw-s-8;
+    --jw-s-12:            @jw-s-12;
+    --jw-s-16:            @jw-s-16;
+    --jw-s-20:            @jw-s-20;
+    --jw-s-24:            @jw-s-24;
+
+    // Radii
+    --jw-r-sm:            @jw-r-sm;
+    --jw-r-md:            @jw-r-md;
+    --jw-r-lg:            @jw-r-lg;
+    --jw-r-pill:          @jw-r-pill;
+
+    // Shadows
+    --jw-shadow-sm:       @jw-shadow-sm;
+    --jw-shadow-md:       @jw-shadow-md;
+    --jw-shadow-lg:       @jw-shadow-lg;
+
+    // Layout
+    --jw-content-max:     @jw-content-max;
+    --jw-gutter:          @jw-gutter;
+}
+
+// Two text roles the design names but UIkit has no variable for. Kept as
+// utility classes so the builder can apply them without Custom CSS.
+.jw-intro {
+    font-family: @jw-font-body;
+    font-size: @jw-t-intro;
+    line-height: @jw-lh-intro;
+    letter-spacing: @jw-ls-intro;
+    font-weight: @jw-fw-regular;
+}
+
+.jw-disclaimer {
+    font-family: @jw-font-disclaimer;
+    font-size: @jw-t-disclaimer;
+    line-height: 1.33;
+    letter-spacing: @jw-ls-none;
+}

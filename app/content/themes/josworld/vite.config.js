@@ -3,7 +3,10 @@ import { resolve } from 'path';
 
 export default defineConfig({
   root: resolve(__dirname, 'src'),
-  base: '/app/themes/josworld/dist/',
+  // stackedWP layout: WP_CONTENT_URL is <home>/content (app/wp-config.php),
+  // so built assets are served from /content/themes/<slug>/dist/.
+  // (The Bedrock default would be /app/themes/<slug>/dist/ — wrong here.)
+  base: '/content/themes/josworld/dist/',
 
   build: {
     outDir: resolve(__dirname, 'dist'),

@@ -410,6 +410,24 @@ final class NTDST_Endpoints
                 'cache_time'      => 300,
             ];
 
+            // Attachments are stored with post_status 'inherit', never
+            // 'publish' — wp_insert_attachment() sets that, and the media
+            // library never promotes them. getPostsFast() defaults
+            // post_status to 'publish' (Data.php:1792), which is right for
+            // every ordinary content type and silently wrong here: a
+            // relation field scoped to post_type 'attachment' renders a
+            // working autocomplete that can never return a single result,
+            // so an editor simply cannot pick a file.
+            //
+            // Widened only when attachments are actually being searched, so
+            // no other post type's visibility rules change. 'inherit' is
+            // added alongside 'publish' rather than replacing it: a mixed
+            // search (e.g. ['tool', 'attachment']) must still find the
+            // published tools.
+            if (in_array('attachment', $post_types, true)) {
+                $args['post_status'] = ['publish', 'inherit'];
+            }
+
             return ['results' => ntdst_get_posts_fast($args)];
         }, 10, 2);
 

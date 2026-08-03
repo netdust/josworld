@@ -1811,8 +1811,32 @@ class NTDST_Data_Manager
             unset($args['p']);
         }
 
-        // Generate cache key using QueryCache (includes version for invalidation)
-        $post_type = $args['post_type'] ?? 'post';
+        // Generate cache key using QueryCache (includes version for invalidation).
+        //
+        // WP_Query accepts `post_type` as a string OR an array, and callers do
+        // pass arrays — `search_posts` (Endpoints.php) has always sent
+        // ['post', 'page'] by default. But generateKey()/getGroup() are both
+        // typed `string $post_type`, so every multi-type call fataled with
+        // "Argument #2 must be of type string, array given" before reaching
+        // the query. That made ntdst_get_posts_fast() unusable for ANY
+        // multi-type search — including the relation-field autocomplete,
+        // whose only UI is that endpoint.
+        //
+        // Collapsed to a single deterministic string for cache-keying only:
+        // sorted so ['post','page'] and ['page','post'] share a cache entry
+        // (same query, same results), and joined so two different type sets
+        // never collide. The query itself still receives the original array
+        // via $args — this normalisation is used ONLY for the cache key and
+        // group.
+        $post_type_arg = $args['post_type'] ?? 'post';
+        if (is_array($post_type_arg)) {
+            $sorted = array_map('strval', $post_type_arg);
+            sort($sorted);
+            $post_type = implode('+', $sorted);
+        } else {
+            $post_type = (string) $post_type_arg;
+        }
+
         $cache_args = $args;
         $cache_args['include_meta'] = $include_meta;
         $cache_args['include_terms'] = $include_terms;

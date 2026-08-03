@@ -6,8 +6,13 @@ namespace josworld\services\frontend\hooks;
 use NTDST_Theme;
 
 /**
- * Vite asset pipeline: dev-server fork in WP_DEBUG, manifest-driven enqueue
+ * Vite JS pipeline: dev-server fork in WP_DEBUG, manifest-driven enqueue
  * in production, and the inline `window.josworldConfig` payload.
+ *
+ * JAVASCRIPT ONLY. This theme is a YOOtheme child and carries no CSS build:
+ * all styling lives in `less/theme.josworld.less`, compiled by YOOtheme's
+ * builder. Do not reintroduce a CSS entry here — two style systems in one
+ * theme is the cascade conflict this split exists to avoid.
  *
  * Kept as a closure-wrapping class because the manifest dance and the
  * conditional `script_loader_tag` filter don't fit the data-driven
@@ -69,16 +74,9 @@ final class AssetHooks
 
         $entry = $manifest['main.js'];
 
-        if (!empty($entry['css'])) {
-            foreach ($entry['css'] as $index => $css_file) {
-                wp_enqueue_style(
-                    'josworld-' . $index,
-                    JOSWORLD_URI . '/dist/' . $css_file,
-                    [],
-                    JOSWORLD_VERSION
-                );
-            }
-        }
+        // No CSS branch: this bundle is JS-only. Styling comes from the
+        // YOOtheme LESS style (less/theme.josworld.less), compiled by the
+        // builder and enqueued by the parent theme — never from Vite.
 
         wp_enqueue_script(
             self::HANDLE,

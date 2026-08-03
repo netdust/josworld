@@ -1243,34 +1243,10 @@ parameters:
 			path: app/content/mu-plugins/ntdst-core/services/RelationField.php
 
 		-
-			message: '#^Parameter \#1 \$args of function wp_nav_menu expects array\{menu\?\: int\|string\|WP_Term, menu_class\?\: string, menu_id\?\: string, container\?\: string, container_class\?\: string, container_id\?\: string, container_aria_label\?\: string, fallback_cb\?\: \(callable\(\)\: mixed\)\|false, \.\.\.\}, array\{theme_location\: ''footer'', container\: false, menu_class\: ''space\-y\-2'', walker\: Ntdst_Nav_Walker\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/content/themes/josworld/footer.php
-
-		-
-			message: '#^Access to an undefined property WP_Post\:\:\$title\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/content/themes/josworld/functions.php
-
-		-
 			message: '#^Action callback returns NTDST_Bootstrap but should not return anything\.$#'
 			identifier: return.void
 			count: 2
 			path: app/content/themes/josworld/functions.php
-
-		-
-			message: '#^Parameter \#1 \$args of function wp_nav_menu expects array\{menu\?\: int\|string\|WP_Term, menu_class\?\: string, menu_id\?\: string, container\?\: string, container_class\?\: string, container_id\?\: string, container_aria_label\?\: string, fallback_cb\?\: \(callable\(\)\: mixed\)\|false, \.\.\.\}, array\{theme_location\: ''primary'', container\: false, menu_class\: ''flex items\-center…'', fallback_cb\: ''josworld_fallback…'', walker\: Ntdst_Nav_Walker\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/content/themes/josworld/header.php
-
-		-
-			message: '#^Parameter \#1 \$args of function wp_nav_menu expects array\{menu\?\: int\|string\|WP_Term, menu_class\?\: string, menu_id\?\: string, container\?\: string, container_class\?\: string, container_id\?\: string, container_aria_label\?\: string, fallback_cb\?\: \(callable\(\)\: mixed\)\|false, \.\.\.\}, array\{theme_location\: ''primary'', container\: false, menu_class\: ''space\-y\-1'', fallback_cb\: ''josworld_fallback…'', walker\: Ntdst_Nav_Walker\} given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/content/themes/josworld/header.php
 
 		-
 			message: '#^Function josworld_template_html\(\) has parameter \$args with no value type specified in iterable type array\.$#'
@@ -1293,5 +1269,5 @@ parameters:
 		-
 			message: '#^Constant JOSWORLD_URI not found\.$#'
 			identifier: constant.notFound
-			count: 2
+			count: 1
 			path: app/content/themes/josworld/services/frontend/hooks/AssetHooks.php
