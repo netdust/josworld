@@ -118,6 +118,65 @@ if (class_exists('NTDST_Theme')) {
 }
 
 // ========================================
+// YOOTHEME DYNAMIC-CONTENT BRIDGE
+// ========================================
+
+/**
+ * Wire the josworld models into YOOtheme's dynamic-content picker.
+ *
+ * WHY TOP-LEVEL AND NOT A BOOTSTRAP SERVICE — this is an ordering contract,
+ * not a style preference, and getting it wrong fails SILENTLY.
+ *
+ * `collect()` listens for `ntdst/model/registered`, which josworld-core
+ * fires while resolving the four content services on `after_setup_theme`
+ * PRIORITY 5 (josworld-core.php:81-103 -> each service constructor's
+ * registerDataModel() -> NTDST_Data_Manager::register() -> ntdst-core
+ * Data.php:1555). WordPress includes this file at wp-settings.php:739 and
+ * only then fires `after_setup_theme` at :749 — so a listener attached HERE,
+ * at top level, is provably in place before ANY registration fires.
+ *
+ * Attaching it later does NOT error, it just misses everything: the registry
+ * stays empty, `buildTypes()` returns `[]`, and the picker shows no josworld
+ * fields with nothing in the logs. Specifically ruled out:
+ *   - `bootFeatures()` (after_setup_theme:15) — unambiguously too late.
+ *   - `bootCore()` (after_setup_theme:5) — a RACE against josworld-core's
+ *     own priority-5 closure, decided by hook-registration order.
+ * Top-level attachment avoids both. Contract test:
+ * tests/Integration/YOOthemeSourcesBootWiringTest.php.
+ *
+ * These service files carry no autoloader (same as AssetHooks above), so
+ * they are required explicitly. `FieldResolver` is required because the
+ * standalone `resolve_jw_field()` calls `FieldResolver::resolve()` at
+ * request time, and `SchemaMapper` because `buildTypes()` calls it
+ * statically — a missing either one is a white page in the Customizer, not
+ * a notice. `ntdst-cached-meta-accessor.php` is deliberately NOT required
+ * here: `FieldResolver::resolve()` requires it lazily on first use, by
+ * design (see that file's docblock — an eager require breaks Brain Monkey's
+ * ability to intercept it at the unit tier).
+ */
+require_once __DIR__ . '/services/yootheme/SchemaMapper.php';
+require_once __DIR__ . '/services/yootheme/FieldResolver.php';
+require_once __DIR__ . '/services/yootheme/YOOthemeSourcesService.php';
+
+$josworld_yootheme_sources = new \josworld\services\yootheme\YOOthemeSourcesService();
+
+// Two args: `ntdst/model/registered` passes ($name, $config).
+add_action(
+    'ntdst/model/registered',
+    [$josworld_yootheme_sources, 'collect'],
+    10,
+    2,
+);
+
+// Safe to call unconditionally — register() carries its own
+// `function_exists('YOOtheme\app')` guard and returns before touching
+// `YOOtheme\Event` on a site without the licensed parent theme. Hooked on
+// `init` rather than called inline so the YOOtheme plugin/theme has loaded
+// and declared `YOOtheme\app` by the time the guard is evaluated; YOOtheme's
+// own `source.init` event fires later still, so this is comfortably early.
+add_action('init', [$josworld_yootheme_sources, 'register']);
+
+// ========================================
 // ntdst-core integration point
 // ========================================
 
