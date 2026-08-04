@@ -78,13 +78,27 @@ final class SchemaMapper
      *                            parameter is strictly additive. Two-arg calls
      *                            (no type name) omit any repeater entirely — see
      *                            `toSubObjectTypes()`'s denial path.
+     * @param  array<string, mixed>  $fieldGroups  The model's `field_groups` as
+     *                                             ntdst stores it (`key => ['title' => …,
+     *                                             'fields' => [...]]`). OPTIONAL and
+     *                                             strictly additive, same reason as
+     *                                             `$typeName`: T04/T06/T08's committed
+     *                                             contracts call this with two and three
+     *                                             arguments and must stay green. A field
+     *                                             claimed by no group falls back to
+     *                                             `$typeName` — see `toFieldMetadata()`.
      * @return array<string, array<string, mixed>> Field name => definition. Fields
      *                                             whose type has no mapping are
      *                                             OMITTED from this array entirely.
      */
-    public static function toObjectType(array $schema, string $prefix, string $typeName = ''): array
-    {
+    public static function toObjectType(
+        array $schema,
+        string $prefix,
+        string $typeName = '',
+        array $fieldGroups = [],
+    ): array {
         $mapped = [];
+        $groupTitles = self::toGroupTitleLookup($fieldGroups);
 
         foreach ($schema as $field => $config) {
             // Bare-string entries are framework-legal (setupSanitizers()'s
@@ -110,6 +124,7 @@ final class SchemaMapper
                     $typeName,
                     (string) $field,
                     $schema,
+                    $groupTitles,
                 );
 
                 if ($definition !== null) {
@@ -129,7 +144,7 @@ final class SchemaMapper
 
             $mapped[$field] = [
                 'type' => self::TYPE_MAP[$type],
-                'metadata' => self::toFieldMetadata($config, $typeName),
+                'metadata' => self::toFieldMetadata($config, $typeName, (string) $field, $groupTitles),
             ];
         }
 
@@ -266,6 +281,9 @@ final class SchemaMapper
      *                                        isEligibleSubTypeName() can see
      *                                        every field that competes for
      *                                        the same composed type name.
+     * @param  array<string, string>  $groupTitles  The inverted `field name => group
+     *                                              title` lookup, already normalised
+     *                                              by `toGroupTitleLookup()`.
      * @return array<string, mixed>|null
      */
     private static function toRepeaterFieldDefinition(
@@ -274,6 +292,7 @@ final class SchemaMapper
         string $typeName,
         string $field,
         array $schema,
+        array $groupTitles = [],
     ): ?array {
         if ($typeName === '') {
             return null;
@@ -302,7 +321,7 @@ final class SchemaMapper
 
         return [
             'type' => ['listOf' => $composed],
-            'metadata' => self::toFieldMetadata($config, $typeName),
+            'metadata' => self::toFieldMetadata($config, $typeName, $field, $groupTitles),
         ];
     }
 
@@ -346,21 +365,47 @@ final class SchemaMapper
      *    the identical distinction at `FieldsType.php:41`
      *    (`'group' => $isType ? $field['group']['title'] : null`).
      *
-     * The group value is the BARE parent type name (`Case`, `Tool`) so each
-     * model's fields collapse under their own heading — the per-type grouping
-     * this project chose. Bare rather than decorated ("Case velden") because
-     * every first-party group in the same dropdown is a bare noun (`Site`,
-     * `Page`, `Global`, `Custom`, `Single Post`, `Archive`) and ACF passes
-     * its group title through verbatim; a decorated value would read as a
+     * THE GROUP VALUE (T09, superseding T08's per-type rule). The heading is
+     * the field's own FIELD GROUP TITLE — the model's `field_groups` entry
+     * that lists this field, i.e. the wp-admin metabox tab the editor already
+     * knows it by (`Klant & intro`, `Impact`, `Testimonial`). Grouping the
+     * picker the way the edit screen is grouped means the builder's structure
+     * matches how editors think about the content, instead of collapsing 17
+     * Case fields under one undifferentiated `Case` heading.
+     *
+     * BARE, VERBATIM, NEVER DECORATED — the explicit product decision. Not
+     * `Case — Klant & intro`, not the group KEY (`intro`, an internal
+     * identifier). Every first-party group in the same dropdown is a bare
+     * noun (`Site`, `Page`, `Global`, `Custom`, `Single Post`, `Archive`) and
+     * YOOtheme's own ACF bridge passes `$field['group']['title']` through
+     * verbatim (`FieldsType.php:41`); a decorated value would read as a
      * foreign vocabulary in that list.
+     *
+     * FALLBACK TO THE TYPE NAME for a field no group claims. Omitting the key
+     * instead would render the field with NO heading at all, orphaned above
+     * the first subheader — strictly worse than a slightly coarse heading.
+     * (All four josworld models group 100% of their fields today, so this is
+     * defensive: it catches a field added to `getFields()` without being added
+     * to `getFieldGroups()`, and any model that declares no groups at all.)
+     *
+     * Rule 2 below is UNCHANGED and still decides the repeater-row case first:
+     * no type name means no group key at all, whatever the groups say.
      *
      * @param  array<string, mixed>  $config  The field's schema entry.
      * @param  string  $typeName  The parent object type name, or '' when the
      *                            fields are not emitted at type level.
+     * @param  string  $field  The field's own name — the key looked up in the
+     *                         inverted group map.
+     * @param  array<string, string>  $groupTitles  `field name => group title`,
+     *                                              already normalised.
      * @return array<string, mixed>
      */
-    private static function toFieldMetadata(array $config, string $typeName): array
-    {
+    private static function toFieldMetadata(
+        array $config,
+        string $typeName,
+        string $field = '',
+        array $groupTitles = [],
+    ): array {
         $metadata = [];
 
         if (isset($config['label'])) {
@@ -368,10 +413,73 @@ final class SchemaMapper
         }
 
         if ($typeName !== '') {
-            $metadata['group'] = $typeName;
+            // The group title when a group claims this field, else the parent
+            // type name. `$groupTitles` is pre-normalised, so anything present
+            // here is already a non-empty string.
+            $metadata['group'] = $groupTitles[$field] ?? $typeName;
         }
 
         return $metadata;
+    }
+
+    /**
+     * Invert a model's `field_groups` into a `field name => group title` map.
+     *
+     * FIRST DECLARATION WINS. `field_groups` does not forbid a field appearing
+     * in two groups, and a filter can introduce it. Declaration order is the
+     * only ordering the data carries and it matches the metabox tab the field
+     * renders in first, so the first group to claim a field keeps it — a
+     * stable rule, unlike a naive overwriting loop's implicit "last wins".
+     *
+     * EVERYTHING HERE IS UNTRUSTED. `field_groups` reaches this class from
+     * `apply_filters("ntdst/{$name}/field_groups", …)` (ntdst-core
+     * `Data.php`), so any plugin can rewrite it to any shape at all, and
+     * whatever survives is emitted into the builder's serialised schema
+     * config as a display string. So a title is kept ONLY if it is a
+     * non-blank string, and a field name only if it is a string or int key —
+     * anything else is dropped and the field falls back to the type name.
+     * Same doctrine as this class's omit-don't-default type handling: an
+     * unusable value falls back, it never propagates.
+     *
+     * @param  array<string, mixed>  $fieldGroups
+     * @return array<string, string>
+     */
+    private static function toGroupTitleLookup(array $fieldGroups): array
+    {
+        $lookup = [];
+
+        foreach ($fieldGroups as $group) {
+            if (! is_array($group)) {
+                continue;
+            }
+
+            $title = $group['title'] ?? null;
+
+            // Strictly a string: an array/object/number/bool title would be
+            // emitted into YOOtheme's schema config as a non-string group.
+            if (! is_string($title) || trim($title) === '') {
+                continue;
+            }
+
+            $fields = $group['fields'] ?? null;
+
+            if (! is_array($fields)) {
+                continue;
+            }
+
+            foreach ($fields as $field) {
+                if (! is_string($field) || $field === '') {
+                    continue;
+                }
+
+                // First declaration wins — never overwrite an earlier claim.
+                if (! isset($lookup[$field])) {
+                    $lookup[$field] = $title;
+                }
+            }
+        }
+
+        return $lookup;
     }
 
     /**

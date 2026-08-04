@@ -118,7 +118,12 @@ final class YOOthemeSourcesService
      * entry and a forged `field` is not in the vetted schema. Supplying a
      * schema becomes unrepresentable rather than merely discouraged.
      *
-     * @var array<string, array{schema: array<string, mixed>, prefix: string}>
+     * `field_groups` rides along as a THIRD member (T09) purely so the picker
+     * can group fields by the model's metabox tabs. It carries NO authority:
+     * it supplies a display TITLE for a field the vetted `schema` already
+     * contains, and is never itself a source of fields — see collect().
+     *
+     * @var array<string, array{schema: array<string, mixed>, prefix: string, field_groups: array<string, mixed>}>
      */
     private static array $registry = [];
 
@@ -139,7 +144,7 @@ final class YOOthemeSourcesService
      * Look up a vetted registry entry, or null when the type was never
      * collected. The resolver's only door into the schema.
      *
-     * @return array{schema: array<string, mixed>, prefix: string}|null
+     * @return array{schema: array<string, mixed>, prefix: string, field_groups: array<string, mixed>}|null
      */
     public static function registryEntry(string $typeName): ?array
     {
@@ -169,6 +174,17 @@ final class YOOthemeSourcesService
      *     exclusion structurally rather than by remembering to check twice.
      *     `SchemaMapper` stays pure and never calls `apply_filters()`.
      *
+     * FIELD GROUPS ARE DISPLAY-ONLY, AND CANNOT WIDEN THE EXCLUSION (T09).
+     * `field_groups` is stored so the picker can group fields by the model's
+     * metabox tabs, but it is NOT an allow-list and never becomes one: every
+     * emission path walks the vetted `$schema`, and a group entry only ever
+     * supplies a TITLE for a field already in it. A group listing a field the
+     * `exclude_fields` filter removed therefore contributes nothing — the
+     * field is gone from `$schema`, so no definition is emitted for it and
+     * its orphaned group entry is simply never looked up. The exclusion stays
+     * STRUCTURAL, exactly as this docblock's threat-2 note requires, rather
+     * than depending on a second check here.
+     *
      * @param  string  $name  The model / post-type slug (`case`, `team`).
      * @param  array<string, mixed>  $config  The registration config, carrying
      *                                        at least `fields` (the schema)
@@ -194,9 +210,15 @@ final class YOOthemeSourcesService
 
         $typeName = ucfirst($name);
 
+        // OPTIONAL: a model may register no field groups at all (or a filter
+        // may replace them with a non-array). Normalise to [] and let
+        // SchemaMapper fall every field back to the type name.
+        $fieldGroups = $config['field_groups'] ?? [];
+
         self::$registry[$typeName] = [
             'schema' => $schema,
             'prefix' => $prefix,
+            'field_groups' => is_array($fieldGroups) ? $fieldGroups : [],
         ];
     }
 
@@ -285,7 +307,14 @@ final class YOOthemeSourcesService
         $types = [];
 
         foreach (self::$registry as $typeName => $model) {
-            $fields = SchemaMapper::toObjectType($model['schema'], $model['prefix'], $typeName);
+            $fields = SchemaMapper::toObjectType(
+                $model['schema'],
+                $model['prefix'],
+                $typeName,
+                // Display-only grouping. Cannot reintroduce an excluded field:
+                // the mapper walks $schema, and these only supply titles.
+                $model['field_groups'] ?? [],
+            );
 
             if ($fields !== []) {
                 $types[$typeName] = [
