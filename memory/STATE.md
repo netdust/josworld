@@ -101,6 +101,42 @@ Customizer exposure, font-face gotchas, the DB-only site structure of 13
 pages + 2 menus) archived in `memory/ARCHIVE.md` — still true, just moved
 out to keep this file a snapshot.
 
+## Front-end build (2026-08-04/05) — header, footer, and 7 sections on a test page
+
+Everything below is **DB state** (YOOtheme config + page 64 layout) plus the LESS
+style. Nothing is committed yet.
+
+**Test page:** `/test-secties/` (page id 64, nl). Section order: hero text · hero
+image · logo scroll · lemon two-column · cases · tools CTA · simple CTA. The
+reproducible layout JSON is `.yoo-tools/hero.json` (gitignored working dir; also
+holds `footer.json` + copies of the skill's `yoo-config.php` / `yoo-content.php`).
+
+**Header + footer are live** — logo, toolbar with a Polylang NL switcher, navbar
+CTA as a Builder widget, mobile offcanvas; footer is a builder layout in
+`config.footer.content` with a `newsletter` element (Mailchimp keys NOT set).
+
+**Theme JS** (`src/`, Vite, 21 unit tests green): `logo-eye.js` (the mark's eye
+tracks the cursor, keeps its SMIL blink), `typewriter.js` (hero's rotating line),
+and the ported ntdst scroll effects in `src/effects/` + `less/components/
+animations.less`. Lenis is wired; **Barba is deliberately NOT ported** — it needs
+output-buffer rewriting to inject `data-barba`, which is on the drift list.
+
+**Working rule, learned the hard way:** build with SETTINGS first, then LESS
+VARIABLES, then a UIkit `.hook-*()` mixin, and only then a bespoke rule. The whole
+build needed just five rules. The traps that cost the most time are written up in
+the skill's `lessons.md` (pushed on branch `feat/yootheme-skill-lessons` in
+`netdust-plugins`) — most importantly that hand-authored layout JSON MUST carry a
+root `"version"` or every element migration silently rewrites props on save.
+
+**Style changes need a browser recompile, and it is automatable** — the Styler's
+"Recompile style" button, driven headlessly. The Customizer is at
+`admin-ajax.php?action=yootheme&yootheme=customizer`, NOT `customize.php`.
+
+**Open, needs Stefan:** Mailchimp client/list id · real partner logos (only 2
+exist, both with asset problems) · the tool-CTA white rectangle is a placeholder
+for the real tool shot · social + two credit link targets · whether the grey
+card's 16px radius should drop to the design's measured ~6px.
+
 ## Next
 
 - [ ] **Section-by-section page building** (the agreed next phase after the
