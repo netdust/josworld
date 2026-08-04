@@ -127,15 +127,10 @@ final class SchemaMapper
                 continue;
             }
 
-            $definition = [
+            $mapped[$field] = [
                 'type' => self::TYPE_MAP[$type],
+                'metadata' => self::toFieldMetadata($config, $typeName),
             ];
-
-            if (isset($config['label'])) {
-                $definition['label'] = $config['label'];
-            }
-
-            $mapped[$field] = $definition;
         }
 
         return $mapped;
@@ -305,15 +300,78 @@ final class SchemaMapper
             return null;
         }
 
-        $definition = [
+        return [
             'type' => ['listOf' => $composed],
+            'metadata' => self::toFieldMetadata($config, $typeName),
         ];
+    }
+
+    /**
+     * Build a field's YOOtheme `metadata` block — the ONLY place YOOtheme
+     * reads a field's editor-facing label and picker grouping from.
+     *
+     * GROUND TRUTH (the installed parent theme, not documentation):
+     *   - `packages/builder-source/src/Source.php:14-25` declares
+     *     `FieldConfig` as `{name?, type, args?, metadata?, extensions?}`.
+     *     There is NO top-level `label` member; the definitions this class
+     *     emitted before T08 put `label` at top level, where nothing reads
+     *     it, so the picker fell back to the raw meta key for every field.
+     *   - `builder-wordpress-source/src/Type/SiteQueryType.php:20-33` is the
+     *     canonical minimal field: `metadata => ['label' => …, 'group' => …]`
+     *     sitting ALONGSIDE `extensions`.
+     *   - `builder-wordpress-acf/src/Type/FieldsType.php:36-48` is the
+     *     closest analogue to this bridge and does the same thing for the
+     *     same reason.
+     *
+     * `metadata` is ADDITIVE — a sibling of `type` and `extensions`, never a
+     * replacement. The resolver wiring `withResolvers()` attaches under
+     * `extensions.call` (hardened in d03fe88, finding C-1: only `type` +
+     * `field` cross the wire) and is untouched by anything here.
+     *
+     * TWO OMISSION RULES, both the same doctrine as this class's
+     * omit-don't-default type handling — an empty-valued key is worse than an
+     * absent one, because it renders as a blank entry in the picker instead
+     * of falling back to something legible:
+     *
+     * 1. NO LABEL IN THE SCHEMA => NO `label` KEY. Bare-string schema entries
+     *    (`'title' => 'text'`, framework-legal per `setupSanitizers()`) carry
+     *    no label at all.
+     *
+     * 2. NO PARENT TYPE NAME => NO `group` KEY. An empty `$typeName` means
+     *    the fields are not being emitted at type level — which is exactly
+     *    the repeater-row case, since `toSubObjectTypes()` calls
+     *    `toObjectType($subFields, $prefix)` with no type name. A row's
+     *    fields render in the row's own context, where a heading repeating
+     *    the parent type would be noise. YOOtheme's own ACF bridge encodes
+     *    the identical distinction at `FieldsType.php:41`
+     *    (`'group' => $isType ? $field['group']['title'] : null`).
+     *
+     * The group value is the BARE parent type name (`Case`, `Tool`) so each
+     * model's fields collapse under their own heading — the per-type grouping
+     * this project chose. Bare rather than decorated ("Case velden") because
+     * every first-party group in the same dropdown is a bare noun (`Site`,
+     * `Page`, `Global`, `Custom`, `Single Post`, `Archive`) and ACF passes
+     * its group title through verbatim; a decorated value would read as a
+     * foreign vocabulary in that list.
+     *
+     * @param  array<string, mixed>  $config  The field's schema entry.
+     * @param  string  $typeName  The parent object type name, or '' when the
+     *                            fields are not emitted at type level.
+     * @return array<string, mixed>
+     */
+    private static function toFieldMetadata(array $config, string $typeName): array
+    {
+        $metadata = [];
 
         if (isset($config['label'])) {
-            $definition['label'] = $config['label'];
+            $metadata['label'] = $config['label'];
         }
 
-        return $definition;
+        if ($typeName !== '') {
+            $metadata['group'] = $typeName;
+        }
+
+        return $metadata;
     }
 
     /**

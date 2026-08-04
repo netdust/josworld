@@ -54,6 +54,11 @@
  *
  * (d) SUB-FIELD `label` CARRIES THROUGH, same as T04's rule 5 — the editor
  *     picks `figure`/`description` by label in the builder's grid mapping.
+ *     T08 CORRECTION: as `metadata.label`, the only nesting YOOtheme reads
+ *     (`packages/builder-source/src/Source.php:14-25`). This rule and T04's
+ *     rule 5 shared one wrong assumption — a top-level `label` key — so
+ *     labels never rendered in the picker at all. The rule stands; the shape
+ *     is corrected. Sub-fields carry no `metadata.group` by design.
  *
  * (e) A REPEATER WITH NO / EMPTY `sub_fields` IS OMITTED ENTIRELY — the same
  *     denial as an unknown type, and for the same reason (threat 2). A
@@ -200,6 +205,16 @@ final class RepeaterMappingTest extends TestCase
     /**
      * 2. The repeater's editor-facing label carries through, same as T04's
      * rule 5. Without it the builder's field picker shows the raw meta key.
+     *
+     * T08 — SHAPE CORRECTED AGAINST GROUND TRUTH, NOT WEAKENED. This
+     * originally asserted a TOP-LEVEL `label`, mirroring T04's rule 5, which
+     * had the same defect: YOOtheme reads a field's label from
+     * `metadata.label` only (`packages/builder-source/src/Source.php:14-25`
+     * declares `FieldConfig` with a `metadata?` member and no top-level
+     * `label`; see `builder-wordpress-source/src/Type/SiteQueryType.php:20-33`
+     * and `builder-wordpress-acf/src/Type/FieldsType.php:36-48`). The
+     * requirement in the docblock above is unchanged — only the lookup path
+     * is corrected to the one that actually renders.
      */
     public function test_the_repeater_label_carries_through_to_the_output_metadata(): void
     {
@@ -209,7 +224,7 @@ final class RepeaterMappingTest extends TestCase
             self::CASE_TYPE,
         );
 
-        $this->assertSame('Impact', $mapped['impact']['label']);
+        $this->assertSame('Impact', $mapped['impact']['metadata']['label']);
     }
 
     /**
@@ -278,8 +293,16 @@ final class RepeaterMappingTest extends TestCase
             'a boolean sub-field maps to Boolean, NOT String — same rule as top level',
         );
 
-        $this->assertSame('Titel', $fields['title']['label'], 'sub-field labels carry through');
-        $this->assertSame('Tekst', $fields['body']['label']);
+        // T08 — SHAPE CORRECTED AGAINST GROUND TRUTH, NOT WEAKENED. Was
+        // `$fields['title']['label']`; YOOtheme reads a field label from
+        // `metadata.label` only (Source.php:14-25's FieldConfig has no
+        // top-level `label`; SiteQueryType.php:20-33, FieldsType.php:36-48).
+        // Rule (d) in this file's header is unchanged — sub-field labels
+        // still must carry through; they now carry through where the picker
+        // actually looks. Sub-fields deliberately carry NO `metadata.group`
+        // (a row renders in its own context) — pinned in FieldMetadataTest.
+        $this->assertSame('Titel', $fields['title']['metadata']['label'], 'sub-field labels carry through');
+        $this->assertSame('Tekst', $fields['body']['metadata']['label']);
     }
 
     /**

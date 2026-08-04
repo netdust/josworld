@@ -12,7 +12,10 @@
  *   3. relation and group -> OMITTED entirely (assertArrayNotHasKey, not null)
  *   4. an unknown/garbage type -> OMITTED, no throw, no notice, and the rest
  *      of the model still maps (FR-6: one bad field must not poison the map)
- *   5. field `label` carries through into the output metadata
+ *   5. field `label` carries through into the output metadata — as
+ *      `metadata.label`, the only nesting YOOtheme reads (corrected in T08
+ *      against `packages/builder-source/src/Source.php:14-25`; the original
+ *      assertion pinned a top-level `label` that never rendered)
  *   6. a BARE-STRING schema entry is handled without fatal
  *
  * ON (6) — GROUND-TRUTHED, not invented. ntdst-core's
@@ -211,6 +214,19 @@ final class SchemaMapperTest extends TestCase
      * Asserted as a SUBSET (`assertSame` on the label value, not on the whole
      * definition array) so the implementer stays free to add metadata keys
      * this test does not know about.
+     *
+     * T08 — SHAPE CORRECTED AGAINST GROUND TRUTH, NOT WEAKENED. This test's
+     * PROSE was always right ("carries through into the output metadata") but
+     * its assertion read a TOP-LEVEL `label` key. YOOtheme never reads that:
+     * `packages/builder-source/src/Source.php:14-25` declares `FieldConfig`
+     * as `{name?, type, args?, metadata?, extensions?}` with no top-level
+     * `label` member, and every first-party type puts the label at
+     * `metadata.label` (`builder-wordpress-source/src/Type/SiteQueryType.php
+     * :20-33`; the ACF bridge at `builder-wordpress-acf/src/Type/FieldsType
+     * .php:36-48`). So the original assertion pinned a shape that could never
+     * have rendered a label in the picker — the editor saw raw meta keys.
+     * The requirement is unchanged and the assertion is strictly no weaker;
+     * only the path it looks up is corrected. Full contract: FieldMetadataTest.
      */
     public function test_field_labels_carry_through_to_the_output_metadata(): void
     {
@@ -221,8 +237,8 @@ final class SchemaMapperTest extends TestCase
 
         $mapped = SchemaMapper::toObjectType($schema, self::PREFIX);
 
-        $this->assertSame('Functie', $mapped['role']['label']);
-        $this->assertSame('Toon testimonial', $mapped['show_testimonial']['label']);
+        $this->assertSame('Functie', $mapped['role']['metadata']['label']);
+        $this->assertSame('Toon testimonial', $mapped['show_testimonial']['metadata']['label']);
     }
 
     /**
