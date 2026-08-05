@@ -115,7 +115,7 @@ the same order as the page:
 |---|---|
 | ▸ HEADERS | `H1 · Hero — tekst` · `H2 · Hero — beeld` · `H3 · Header — pagina` |
 | ▸ LOGO'S | `L1 · Logo scroll` |
-| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` |
+| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` · `C4 · USP's — kolommen` |
 | ▸ CASES | `W1 · Cases` |
 | ▸ CTA'S | `A1 · Tools CTA` · `A2 · CTA — tekst` · `A3 · Contact CTA` |
 
@@ -150,6 +150,12 @@ are all per-item. Three settings carry the look and are easy to miss:
 left while the column's `text_align: center` centres the image, title and link.
 The 850px content width is a single `2-3` column plus row `alignment: center`;
 `uk-container-small` (900) is the near-miss you will otherwise reach for.
+
+**`C4 · USP's — kolommen`** is the same grid idea with no panel at all — title +
+content only, `grid_default/small/medium/large = 1/2/2/4`, so the column count is
+one dropdown (`grid_large`) and everything else follows. Needed ZERO LESS: the
+default `uk-grid` gutter at ≥1200 (40px) already reproduces the design's 326px
+column pitch, and the titles are `title_style: h4` = the T4 Inter-600 token.
 
 **Cards were flat until this section and are now variable-driven.** The master
 theme exposes `@card-border-radius` (border-radius/card.less) and
