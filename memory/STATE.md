@@ -101,15 +101,33 @@ Customizer exposure, font-face gotchas, the DB-only site structure of 13
 pages + 2 menus) archived in `memory/ARCHIVE.md` — still true, just moved
 out to keep this file a snapshot.
 
-## Front-end build (2026-08-04/05) — header, footer, and 7 sections on a test page
+## Front-end build (2026-08-04/05) — header, footer, and 9 sections on a test page
 
 Everything below is **DB state** (YOOtheme config + page 64 layout) plus the LESS
 style. Nothing is committed yet.
 
 **Test page:** `/test-secties/` (page id 64, nl). Section order: hero text · hero
-image · logo scroll · lemon two-column · cases · tools CTA · simple CTA. The
+image · logo scroll · lemon two-column · cases · tools CTA · simple CTA · **wie
+is Jos (foto+tekst)** · **contact CTA (lemon band, rounded bottom)**. The
 reproducible layout JSON is `.yoo-tools/hero.json` (gitignored working dir; also
 holds `footer.json` + copies of the skill's `yoo-config.php` / `yoo-content.php`).
+
+**The contact band's "laid over the footer" look is one class.** Section takes
+`background_color` + `class: jw-band-round-bottom`; the class rounds only the
+bottom corners and paints a `::before` at `z-index: -1` behind the section's own
+background, so the notch that opens in each corner shows the FOOTER colour
+(`@global-primary-background`, tracked — not `@jw-brown` hardcoded) instead of
+the beige page. No wrapper section, no second element in the builder.
+
+**Design screenshots are 1440-frame Figma exports, not 1:1.** The 2026-08-05
+screenshot measured 964px of content — scale **0.669**. Confirmed independently:
+body line-pitch measured 16px against the known `@jw-t-body` 18/24, and the
+container padding measured 53px against the known 80px gutter. Divide every
+measurement by 0.669 before treating it as a CSS value. On that basis the
+contact band's bottom radius is ~51px (shipped as `@jw-r-xl: 48px`) and the
+white card's is ~12px — which is the same signal as the still-open "grey card
+16px vs the design's smaller radius" question, now pinned to ONE variable
+(`@border-rounded-border-radius`, mapped to `@jw-r-lg`) so both move together.
 
 **Header + footer are live** — logo, toolbar with a Polylang NL switcher, navbar
 CTA as a Builder widget, mobile offcanvas; footer is a builder layout in
@@ -135,7 +153,10 @@ root `"version"` or every element migration silently rewrites props on save.
 **Open, needs Stefan:** Mailchimp client/list id · real partner logos (only 2
 exist, both with asset problems) · the tool-CTA white rectangle is a placeholder
 for the real tool shot · social + two credit link targets · whether the grey
-card's 16px radius should drop to the design's measured ~6px.
+card's 16px radius should drop to the design's measured ~12px (now one variable,
+`@border-rounded-border-radius`) · **the contact card's portrait is a crop out of
+`Team_Adobe RGB-31.jpg` (attachment 121) — the design uses a real Thijs portrait
+we don't have** · the contact card's email/phone are placeholders.
 
 ## Next
 
