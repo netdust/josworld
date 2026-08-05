@@ -264,16 +264,30 @@ cost the most time are written up in the skill's `lessons.md` — most important
 that hand-authored layout JSON MUST carry a root `"version"` or every element
 migration silently rewrites props on save.
 
-**CORRECTION (2026-08-05): the branch `feat/yootheme-skill-lessons` never
-existed.** Yesterday's skill work — the rewritten `SKILL.md`, all five reference
-files, `lessons.md`, and the `yoo-config.php` / `yoo-content.php` scripts this
-project drives the builder with — was written ONLY into the plugin CACHE
-(`~/.claude/plugins/cache/netdust-plugins/netdust-wp/0.6.0/`), which is not a git
-repository and is replaced wholesale on a plugin update. ~155 KB, nine files, one
-`claude plugin update` from gone. Rescued into
-`~/Projects/netdust-plugins/plugins/netdust-wp/skills/ntdst-yootheme/` on
-2026-08-05 (uncommitted — see the evaluation notes). **Edit skills in the source
-repo and reinstall; never edit the cache and assume it persists.**
+**THERE ARE TWO CLONES OF `netdust-plugins`, AND ONLY ONE IS REAL.**
+
+| path | what it is |
+|---|---|
+| `~/.claude/plugins/marketplaces/netdust-plugins` | **the working clone** — has the `origin` remote, sits on `feat/yootheme-skill-lessons`, netdust-wp 0.7.0. Edit skills HERE. |
+| `~/Projects/netdust-plugins` | a stale second clone — `main`, netdust-wp **0.4.1**, yootheme untouched since 2026-06-09. Looks authoritative and is not. |
+
+Reading only the `~/Projects` clone on 2026-08-05 produced a confident, wrong
+conclusion that a session's skill work had been lost. It had not — it was
+committed on the branch in the marketplace clone all along. **Check which clone
+has the remote before concluding anything about the plugins.**
+
+Genuinely cache-only and now committed (`1cdcf36`, pushed): the
+`getMeta()` 8 KB limit + `Style:` variant blocks in
+`references/yootheme-less.md`, plus this session's lessons additions.
+
+**Live risk — two in-use caches, the higher one regressed.** Both
+`cache/netdust-plugins/netdust-wp/0.6.0/` and `0.7.0/` carry `.in_use`. 0.6.0
+holds the good yootheme skill (17 KB SKILL.md, 25 KB lessons.md) and is what
+loaded this session; **0.7.0 holds the pre-recovery skill — 8.9 KB SKILL.md, an
+EMPTY lessons.md, two reference files instead of six.** If a resolve prefers the
+higher version, the skill silently reverts to the June content. Fix by merging
+the branch and reinstalling so a fresh cache is built from good source; do not
+hand-edit cache directories.
 
 **Style changes need a browser recompile, and it is automatable** — the Styler's
 "Recompile style" button, driven headlessly. The Customizer is at
