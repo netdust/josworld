@@ -115,7 +115,7 @@ the same order as the page:
 |---|---|
 | ▸ HEADERS | `H1 · Hero — tekst` · `H2 · Hero — beeld` · `H3 · Header — pagina` |
 | ▸ LOGO'S | `L1 · Logo scroll` |
-| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` · `C4 · USP's — kolommen` |
+| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` · `C4 · USP's — kolommen` · `C5 · Reviews — slider` · `C6 · Waarom Jos — beeld + cijfers` |
 | ▸ CASES | `W1 · Cases` |
 | ▸ CTA'S | `A1 · Tools CTA` · `A2 · CTA — tekst` · `A3 · Contact CTA` |
 
@@ -156,6 +156,60 @@ content only, `grid_default/small/medium/large = 1/2/2/4`, so the column count i
 one dropdown (`grid_large`) and everything else follows. Needed ZERO LESS: the
 default `uk-grid` gutter at ≥1200 (40px) already reproduces the design's 326px
 column pitch, and the titles are `title_style: h4` = the T4 Inter-600 token.
+
+**`C6 · Waarom Jos — beeld + cijfers`** — muted band, image + text row, then a
+3-up stat grid whose items each open with a rule. Two traps:
+
+- **`@jw-line` is invisible on a muted section.** `@jw-line` IS `@jw-brown-10`,
+  which is also `@global-muted-background` — so the obvious border colour is
+  exactly the band it sits on. Un-blending the design's antialiased 1px rule
+  gives ~`#35070c`, i.e. full `@jw-primary`. Check the two before reaching for
+  `@jw-line` on any muted band.
+- **`grid_divider` is not this.** It reads like the setting for a rule per stat
+  and draws VERTICAL lines BETWEEN columns instead. A `border-top` on `.el-item`
+  is the whole of it (`.jw-stat`).
+- The stat rules sit FLUSH with the photo's bottom edge in the design (measured
+  675 vs 674), so the second row is `margin_top: remove`, not a spacing value.
+  Number = `meta` at `meta_style: h3`; label = `title` at `h4` with the size
+  pulled back to body, since `h5` is the right 18px but reverts to Fraunces.
+
+**`C5 · Reviews — slider` is the ONE section so far that genuinely needed CSS**,
+and the two things it needed are worth knowing:
+
+1. **A YOOtheme panel cannot put the image beside the title while the content
+   runs full width.** `image_align: left` moves the CONTENT into the right column
+   too. The fix is to KEEP `image_align: top` — that is the setting which leaves
+   image/title/meta/content as SIBLINGS of `.el-item` — and re-lay them out with
+   `display: grid` in `.jw-review`. Switching that dropdown to "left" wraps them
+   in YOOtheme's own grid and silently breaks the rule. The image child is a
+   `<picture>`, not the `<img>`; `.el-image` is on the inner element.
+2. **The right-bleed needs THREE settings that only work together**: section
+   `width: ""` (no container at all), row `width: "default"` +
+   `width_expand: "right"`, and on the slider element
+   `container_padding_remove: true`. With the section container left in place you
+   get a NESTED container — UIkit zeroes the inner one's padding, `expand-right`
+   computes its max-width off the wrong 50%, and the whole row shifts ~70px
+   right while still not bleeding. That failure looks like "expand-right is
+   broken"; it is the nesting.
+
+3. **UIkit's margin utilities are `!important`.** The builder puts
+   `uk-margin-top` on `.el-title`, `.el-meta` AND `.el-content`, and
+   `.uk-margin-top { margin-top: … !important }` — so a plain `margin: 0` loses
+   no matter how specific the selector is. That 24px is what held the role a
+   full line below the name. With it gone the pair sits flush and grid's equal
+   split of the avatar's leftover height centres the two lines as a unit. **Any
+   future `.el-*` margin override in this theme needs `!important` for the same
+   reason** — it is not a shortcut, it is the only thing that works.
+4. **The cut-off card fades into the lemon via a gradient on the TRACK WRAPPER**
+   (`.jw-review > .uk-position-relative::after`), not an opacity on the last
+   item — which item is cut changes as the slider moves, so `:last-child` would
+   fade the wrong card after one click. Gated to ≥960px: below that the slider
+   shows one full card and the fade would wash out the card being read.
+
+Also: `slidenav_breakpoint` defaults to `xl` (≥1600), so the arrows are simply
+absent at 1440 until you lower it. Set to `m`. And `slider_finite: true` greys
+the prev arrow on slide 1 and collapses the dotnav to 3 dots for 5 items —
+`false` is what matches the design.
 
 **Cards were flat until this section and are now variable-driven.** The master
 theme exposes `@card-border-radius` (border-radius/card.less) and
@@ -210,7 +264,10 @@ where the token says 16** (contact card ~12, service card ~13, and the earlier
 `@jw-r-lg` to 12px moves every rounded panel at once — cards, tiles and the
 column "Round corners" checkbox all resolve through it · **the contact card's portrait is a crop out of
 `Team_Adobe RGB-31.jpg` (attachment 121) — the design uses a real Thijs portrait
-we don't have** · the contact card's email/phone are placeholders.
+we don't have** · the contact card's email/phone are placeholders ·
+**the review slider's client logos are the existing `logo-*` attachments, which
+are photos, not logos** — the same asset gap as the logo wall, now visible in two
+places.
 
 ## Next
 
