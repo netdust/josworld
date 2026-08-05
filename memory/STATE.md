@@ -115,7 +115,7 @@ the same order as the page:
 |---|---|
 | ▸ HEADERS | `H1 · Hero — tekst` · `H2 · Hero — beeld` · `H3 · Header — pagina` |
 | ▸ LOGO'S | `L1 · Logo scroll` |
-| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` · `C4 · USP's — kolommen` · `C5 · Reviews — slider` · `C6 · Waarom Jos — beeld + cijfers` |
+| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` · `C4 · USP's — kolommen` · `C5 · Reviews — slider` · `C6 · Waarom Jos — beeld + cijfers` · `C7 · Ons team — beeld + label` |
 | ▸ CASES | `W1 · Cases` |
 | ▸ CTA'S | `A1 · Tools CTA` · `A2 · CTA — tekst` · `A3 · Contact CTA` |
 
@@ -156,6 +156,19 @@ content only, `grid_default/small/medium/large = 1/2/2/4`, so the column count i
 one dropdown (`grid_large`) and everything else follows. Needed ZERO LESS: the
 default `uk-grid` gutter at ≥1200 (40px) already reproduces the design's 326px
 column pitch, and the titles are `title_style: h4` = the T4 Inter-600 token.
+
+**`C7 · Ons team — beeld + label`** — container-width image, then a `3-4,1-4` row
+with the copy left and the Actiris label right. No LESS.
+
+- **`block_align` on an image is a NO-OP unless `maxwidth` is also set** — its
+  `enable` is literally `position != 'absolute' && maxwidth`, and it aligns the
+  element only "in case the container exceeds the element max-width". It writes
+  into the layout JSON regardless and silently does nothing, which reads as
+  "right-align is broken". Use the COLUMN's `text_align` instead; the image is
+  inline so it follows.
+- The label is one asset — mark AND the two caption lines are baked into
+  `actiris diversiteitslabel.png` (560×480, uploaded full-res as attachment 136;
+  the 350px `logo-actiris.png` used by the logo wall is the same art, smaller).
 
 **`C6 · Waarom Jos — beeld + cijfers`** — muted band, image + text row, then a
 3-up stat grid whose items each open with a rule. Two traps:
