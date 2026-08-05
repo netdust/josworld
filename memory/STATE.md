@@ -106,11 +106,26 @@ out to keep this file a snapshot.
 Everything below is **DB state** (YOOtheme config + page 64 layout) plus the LESS
 style. Nothing is committed yet.
 
-**Test page:** `/test-secties/` (page id 64, nl). Section order: hero text · hero
-image · logo scroll · lemon two-column · cases · tools CTA · simple CTA · **wie
-is Jos (foto+tekst)** · **contact CTA (lemon band, rounded bottom)**. The
-reproducible layout JSON is `.yoo-tools/hero.json` (gitignored working dir; also
-holds `footer.json` + copies of the skill's `yoo-config.php` / `yoo-content.php`).
+**Test page:** `/test-secties/` (page id 64, nl), **organised into labelled
+groups** — each group opens with a muted `▸ LABEL` band (a section, not CSS), and
+every section carries a group-prefixed builder name so the builder tree reads in
+the same order as the page:
+
+| Group | Sections |
+|---|---|
+| ▸ HEADERS | `H1 · Hero — tekst` · `H2 · Hero — beeld` · `H3 · Header — pagina` |
+| ▸ LOGO'S | `L1 · Logo scroll` |
+| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` |
+| ▸ CASES | `W1 · Cases` |
+| ▸ CTA'S | `A1 · Tools CTA` · `A2 · CTA — tekst` · `A3 · Contact CTA` |
+
+`A3 · Contact CTA` must stay LAST — it is designed to sit over the footer.
+New sections go at the end of their group; add a `▸ LABEL` band for a new group.
+
+The reproducible layout JSON is `.yoo-tools/hero.json` (gitignored working dir;
+also holds `footer.json` + copies of the skill's `yoo-config.php` /
+`yoo-content.php`). Keep it in sync after every `page set` — it is the only copy
+of the layout that is not DB-only.
 
 **The contact band's "laid over the footer" look is one class.** Section takes
 `background_color` + `class: jw-band-round-bottom`; the class rounds only the
@@ -119,7 +134,20 @@ background, so the notch that opens in each corner shows the FOOTER colour
 (`@global-primary-background`, tracked — not `@jw-brown` hardcoded) instead of
 the beige page. No wrapper section, no second element in the builder.
 
-**Design screenshots are 1440-frame Figma exports, not 1:1.** The 2026-08-05
+**`H3 · Header — pagina`** is the subpage header: eyebrow (body 18px, NOT the
+`small` eyebrow the other sections use) + `h1` at T1/76px on the left, a
+`.jw-intro` lead (32/40) on the right, both columns `vertical_align: bottom` so
+the lead's last line sits on the headline's last baseline — that bottom-align is
+the whole trick, and it is a column setting, not CSS. Below it a second row with
+a container-width image cropped 1280×442 (~2.9:1).
+
+**Design screenshot scale is NOT constant between screenshots.** The 09:44 one
+was a 1440 frame at 0.669; the 11:21 one was effectively **1:1** (1449px carrying
+1288px of content against the known 1280 container). Re-derive the scale on every
+screenshot from the container gutter (80px) and the body line-pitch (24px) before
+trusting a single measurement — see below.
+
+**Design screenshots are 1440-frame Figma exports, often not 1:1.** The 09:44
 screenshot measured 964px of content — scale **0.669**. Confirmed independently:
 body line-pitch measured 16px against the known `@jw-t-body` 18/24, and the
 container padding measured 53px against the known 80px gutter. Divide every
