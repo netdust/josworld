@@ -115,7 +115,7 @@ the same order as the page:
 |---|---|
 | ▸ HEADERS | `H1 · Hero — tekst` · `H2 · Hero — beeld` · `H3 · Header — pagina` |
 | ▸ LOGO'S | `L1 · Logo scroll` |
-| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` |
+| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` |
 | ▸ CASES | `W1 · Cases` |
 | ▸ CTA'S | `A1 · Tools CTA` · `A2 · CTA — tekst` · `A3 · Contact CTA` |
 
@@ -140,6 +140,23 @@ the beige page. No wrapper section, no second element in the builder.
 the lead's last line sits on the headline's last baseline — that bottom-align is
 the whole trick, and it is a column setting, not CSS. Below it a second row with
 a container-width image cropped 1280×442 (~2.9:1).
+
+**`C3 · Diensten — kaarten`** is the muted full-width band whose white blocks are a
+real `grid` (1 column at every breakpoint, `grid_row_gap: medium`) so the client
+adds a block by adding a `grid_item` — image, title, content, link and link text
+are all per-item. Three settings carry the look and are easy to miss:
+`panel_style: card-default` (the white panel), `panel_padding: large`, and
+`content_align: true` — "Force left alignment", which is what keeps the BODY copy
+left while the column's `text_align: center` centres the image, title and link.
+The 850px content width is a single `2-3` column plus row `alignment: center`;
+`uk-container-small` (900) is the near-miss you will otherwise reach for.
+
+**Cards were flat until this section and are now variable-driven.** The master
+theme exposes `@card-border-radius` (border-radius/card.less) and
+`@card-default-box-shadow` (box-shadow/card.less) — both were the UIkit defaults
+(0 / none). Set to `@jw-r-lg` + `@jw-shadow-md`, plus
+`@card-large-body-padding-{horizontal,vertical}-l: @jw-s-16` for the design's
+~60px card inset. All four are variables; no card rule exists.
 
 **Design screenshot scale is NOT constant between screenshots.** The 09:44 one
 was a 1440 frame at 0.669; the 11:21 one was effectively **1:1** (1449px carrying
@@ -180,9 +197,12 @@ root `"version"` or every element migration silently rewrites props on save.
 
 **Open, needs Stefan:** Mailchimp client/list id · real partner logos (only 2
 exist, both with asset problems) · the tool-CTA white rectangle is a placeholder
-for the real tool shot · social + two credit link targets · whether the grey
-card's 16px radius should drop to the design's measured ~12px (now one variable,
-`@border-rounded-border-radius`) · **the contact card's portrait is a crop out of
+for the real tool shot · social + two credit link targets · **the radius question
+now has three independent measurements and they agree: the design draws ~12–13px
+where the token says 16** (contact card ~12, service card ~13, and the earlier
+"~6px" reading was taken before the 0.669 scale was known, i.e. ~9). Dropping
+`@jw-r-lg` to 12px moves every rounded panel at once — cards, tiles and the
+column "Round corners" checkbox all resolve through it · **the contact card's portrait is a crop out of
 `Team_Adobe RGB-31.jpg` (attachment 121) — the design uses a real Thijs portrait
 we don't have** · the contact card's email/phone are placeholders.
 
