@@ -280,14 +280,31 @@ Genuinely cache-only and now committed (`1cdcf36`, pushed): the
 `getMeta()` 8 KB limit + `Style:` variant blocks in
 `references/yootheme-less.md`, plus this session's lessons additions.
 
-**Live risk — two in-use caches, the higher one regressed.** Both
-`cache/netdust-plugins/netdust-wp/0.6.0/` and `0.7.0/` carry `.in_use`. 0.6.0
-holds the good yootheme skill (17 KB SKILL.md, 25 KB lessons.md) and is what
-loaded this session; **0.7.0 holds the pre-recovery skill — 8.9 KB SKILL.md, an
-EMPTY lessons.md, two reference files instead of six.** If a resolve prefers the
-higher version, the skill silently reverts to the June content. Fix by merging
-the branch and reinstalling so a fresh cache is built from good source; do not
-hand-edit cache directories.
+**RESOLVED 2026-08-06 — the root cause was a version mismatch, now fixed on main.**
+
+`plugins/netdust-wp/.claude-plugin/plugin.json` said `0.7.0` while the repo's
+`.claude-plugin/marketplace.json` still said `0.6.0` — the only plugin of the four
+whose two declarations disagreed. That left several extracted cache snapshots, and
+they did not hold the same skill: `0.6.0` carried the recovered ntdst-yootheme
+(17 KB SKILL.md, 25 KB lessons.md, six references) while `0.7.0`, built from
+`main`, carried the pre-recovery one (8.9 KB SKILL.md, an **empty** lessons.md,
+two references).
+
+Fixed by merging `feat/yootheme-skill-lessons` into `main` (fast-forward, five
+commits) and bumping BOTH declarations to **0.7.1** (`f5f65aa`, pushed). `main`
+now carries the full skill and the two versions agree.
+
+**The risk was smaller than it first looked, and the reason is worth keeping:**
+resolution goes through `~/.claude/plugins/installed_plugins.json`, which pins an
+`installPath` — netdust-wp was pinned to `0.6.0`, so the regressed `0.7.0` tree
+was never actually served. Read `installed_plugins.json` before concluding
+anything from cache directory names; a version sitting in `cache/` is not
+necessarily a version in use.
+
+**Still to do (a `/plugin` action, not scriptable):** update netdust-wp to 0.7.1
+so the install stops pointing at the 0.6.0 snapshot. Do NOT hand-delete cache
+directories — several are marked `.in_use` by live `claude` PIDs, and Claude Code
+orphans and GCs them itself (`.orphaned_at`).
 
 **Style changes need a browser recompile, and it is automatable** — the Styler's
 "Recompile style" button, driven headlessly. The Customizer is at
