@@ -259,10 +259,21 @@ output-buffer rewriting to inject `data-barba`, which is on the drift list.
 
 **Working rule, learned the hard way:** build with SETTINGS first, then LESS
 VARIABLES, then a UIkit `.hook-*()` mixin, and only then a bespoke rule. The whole
-build needed just five rules. The traps that cost the most time are written up in
-the skill's `lessons.md` (pushed on branch `feat/yootheme-skill-lessons` in
-`netdust-plugins`) — most importantly that hand-authored layout JSON MUST carry a
-root `"version"` or every element migration silently rewrites props on save.
+build needed just five rules (nine by the end of the section run). The traps that
+cost the most time are written up in the skill's `lessons.md` — most importantly
+that hand-authored layout JSON MUST carry a root `"version"` or every element
+migration silently rewrites props on save.
+
+**CORRECTION (2026-08-05): the branch `feat/yootheme-skill-lessons` never
+existed.** Yesterday's skill work — the rewritten `SKILL.md`, all five reference
+files, `lessons.md`, and the `yoo-config.php` / `yoo-content.php` scripts this
+project drives the builder with — was written ONLY into the plugin CACHE
+(`~/.claude/plugins/cache/netdust-plugins/netdust-wp/0.6.0/`), which is not a git
+repository and is replaced wholesale on a plugin update. ~155 KB, nine files, one
+`claude plugin update` from gone. Rescued into
+`~/Projects/netdust-plugins/plugins/netdust-wp/skills/ntdst-yootheme/` on
+2026-08-05 (uncommitted — see the evaluation notes). **Edit skills in the source
+repo and reinstall; never edit the cache and assume it persists.**
 
 **Style changes need a browser recompile, and it is automatable** — the Styler's
 "Recompile style" button, driven headlessly. The Customizer is at
