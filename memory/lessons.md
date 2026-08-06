@@ -278,3 +278,17 @@ deployed to **11 sites**. Facts worth keeping:
   `get_the_term_list()` output. `panel_link: true` (which requires
   `show_link: true`) strips them, because the card becomes one `<a>` and nested
   anchors are invalid. That is a settings answer to what looks like a CSS problem.
+- **Turn the class dial before reaching for ceremony — over-calling it is the
+  expensive failure.** 2026-08-06: Stefan asked why a YOOtheme layout tweak
+  needed a threat model. Because I classified "add a taxonomy + a small resolver
+  + flip a JSON prop" as harnessed-development **Class A** (new feature) instead
+  of **Class E** (small self-contained change), and Class A mandates spec.md +
+  plan.md + tasks.md + the six gate headings — so a `## Threat model` section
+  got written whose honest content was `N/A`. The harness's own red-flag table
+  names this: "a tweak is Class E — route it light. Ceremony is scaled by class,
+  not by mood." His words: "this is why you spin out of control every time and we
+  lose enormous amounts of time."
+  **Test before invoking the harness at all:** could this be one red/green cycle?
+  Then it is C/D/E and there is no plan artifact. Class A is for work with open
+  design questions and several days of surface — not for three files with an
+  existing pattern to copy.

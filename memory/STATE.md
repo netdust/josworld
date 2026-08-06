@@ -374,17 +374,24 @@ offsets a stable sequence.
 honours `offset` and the cumulative sequence is unchanged. Card meta also moved
 from body 18 to the `text-small` role (14) — it read too large.
 
-**THE PILL IS BLOCKED BY A REAL CONSTRAINT, not by a missing value.** A
-`grid_item` / `panel` exposes exactly THREE text slots — meta, title, content —
-and the design's card carries FOUR values: client, title, domain-pill, services.
-On top of that, `panel_link` (what makes the whole card clickable) runs
-`striptags()` over all three, so a `<span class="uk-label">` inside `content` is
-deleted before it renders. So the pill costs either the client line, the
-whole-card link, or a custom source field that returns the pill + services as one
-pre-rendered HTML string (the ntdst-yootheme golden path) with `title_link` +
-`image_link` replacing `panel_link`. Awaiting Stefan's call on both the mechanism
-and what the pill actually holds — there is no "domain" field on the case model,
-and `dienst` is already the services text.
+**THE DOMAIN PILL IS DROPPED — decided 2026-08-06, do not re-propose it.**
+Stefan: "i don't want any code written for this." The card ships as client +
+title + plain services.
+
+Why it would have needed code, so the question is not reopened by accident: a
+`grid_item` / `panel` exposes exactly THREE text slots (meta, title, content)
+and the design's card carries FOUR values — client, title, domain-pill,
+services. There is no domain field on the case model either. And `panel_link`,
+which makes the whole card clickable, runs `striptags()` over all three slots,
+so `<span class="uk-label">` inside `content` is deleted before it renders. Every
+route to the pill therefore costs either the client line, the whole-card link, or
+a taxonomy + a custom source field.
+
+**The process lesson matters more than the pill** (`memory/lessons.md`): this was
+mis-classified as harnessed-development Class A, which mandates spec + plan +
+tasks + six gate headings — so a `## Threat model` got authored for a layout
+change, with `N/A` as its honest content. It is Class E work at most. Turn the
+class dial before reaching for ceremony.
 
 The logo wall, contact band and newsletter below the grids are not built (Stefan
 asked for header + grid).
