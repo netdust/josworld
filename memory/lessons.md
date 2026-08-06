@@ -308,3 +308,22 @@ deployed to **11 sites**. Facts worth keeping:
   width. Symptom: `uk-width-1-2@m` sits correctly in the DOM and the column still
   measures full width. Fix: set the row's `alignment` (even `left`). This is why
   C3's 850px measure works — its row carries `alignment: center`.
+- **An SVG that colours itself with an internal `<style>` class is immune to
+  UIkit's recolouring.** `jos-sun.svg` ships `.cls-1 { fill: #fff794 }` in a
+  `<defs><style>` block. UIkit's rule is
+  `.uk-svg :not(.uk-preserve)[fill*="#"]`, which matches the fill ATTRIBUTE — a
+  fill coming from a class inside the SVG is never touched, and `fill:
+  currentcolor` on the root loses to it. Symptom on the tools CTA: the sun sat
+  in the DOM at the right size and position with `fill: rgb(255,255,255)`
+  computed on the `<svg>` element, and rendered lemon-on-lemon, i.e. invisible.
+  Fix: target the paths (`.jw-sun-white svg path { fill: … }`). Check
+  `getComputedStyle(svg.querySelector('path')).fill`, not the `<svg>`'s.
+  `A1 · Tools CTA` uses the same asset with `image_svg_color: emphasis` and is
+  probably lemon too — unverified.
+- **A `template get` → patch → `template set` cycle silently loses whatever the
+  human saved in the builder meanwhile.** 2026-08-06: Stefan added a section and
+  re-saved while a patch was in flight; his save dropped the class and element
+  the patch had just added, and the next patch (built on a stale fetch) found
+  nothing to update. Always re-fetch immediately before writing, patch the LIVE
+  copy, and make the script FAIL LOUDLY when its target node is missing instead
+  of writing a no-op.
