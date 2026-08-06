@@ -368,11 +368,26 @@ command; the file documents it. Only five real case photos exist, so images
 repeat. Dates are spread one day apart because `order: date` is what makes the
 offsets a stable sequence.
 
-**Still open on this page:** the design's grey PILL next to the services line has
-no source — there is no "domain" field on the case model and `dienst` is already
-the services text, so it needs a data-model decision, not a layout one. The logo
-wall, contact band and newsletter below the grids are not built (Stefan asked for
-header + grid).
+**A one-item grid is a PANEL** (Stefan, 2026-08-06 — "more transparent"). The two
+1-ups are `panel` elements now: same bindings, but the single query
+`cases.customCase`, whose resolver is `getPosts(['limit' => 1] + $args)` — so it
+honours `offset` and the cumulative sequence is unchanged. Card meta also moved
+from body 18 to the `text-small` role (14) — it read too large.
+
+**THE PILL IS BLOCKED BY A REAL CONSTRAINT, not by a missing value.** A
+`grid_item` / `panel` exposes exactly THREE text slots — meta, title, content —
+and the design's card carries FOUR values: client, title, domain-pill, services.
+On top of that, `panel_link` (what makes the whole card clickable) runs
+`striptags()` over all three, so a `<span class="uk-label">` inside `content` is
+deleted before it renders. So the pill costs either the client line, the
+whole-card link, or a custom source field that returns the pill + services as one
+pre-rendered HTML string (the ntdst-yootheme golden path) with `title_link` +
+`image_link` replacing `panel_link`. Awaiting Stefan's call on both the mechanism
+and what the pill actually holds — there is no "domain" field on the case model,
+and `dienst` is already the services text.
+
+The logo wall, contact band and newsletter below the grids are not built (Stefan
+asked for header + grid).
 
 Design export scale for `jos.png` was **1.7195** (2475px frame; gutter 137 → 80,
 content 2201 → 1280 — the two knowns agreed).
