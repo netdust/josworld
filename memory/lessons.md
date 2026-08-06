@@ -292,3 +292,19 @@ deployed to **11 sites**. Facts worth keeping:
   Then it is C/D/E and there is no plan artifact. Class A is for work with open
   design questions and several days of surface — not for three files with an
   existing pattern to copy.
+- **Type sizes are a FIXED vocabulary — never derive one per design.** Stefan,
+  2026-08-06: "type sizes should be fixed in yootheme, don't invent size every
+  page, we get into rhythm troubles… there [are] lead, text, meta, small for text
+  sizes." The scale is `lead` / `text` (default) / `meta` / `small` for body
+  copy, and `h1`–`h6` for headings. I had measured each design and picked the
+  nearest number, which put three page headers on three sizes — 76 (test page),
+  32 (cases, via the non-vocabulary `text-large`), 56 (tools). Map the element to
+  its ROLE and use the same role for the same element on every page; if a role's
+  size is wrong, change the variable once, not the page.
+- **A lone column fills its row no matter what `uk-width-*` you give it.**
+  `row/templates/template.php:26` emits `tm-grid-expand {!alignment}`, and
+  `.tm-grid-expand > * { flex-grow: 1 }` — so the class exists only while the row
+  has NO `alignment`, and while it exists it expands a single column past its own
+  width. Symptom: `uk-width-1-2@m` sits correctly in the DOM and the column still
+  measures full width. Fix: set the row's `alignment` (even `left`). This is why
+  C3's 850px measure works — its row carries `alignment: center`.

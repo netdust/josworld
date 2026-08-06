@@ -399,6 +399,38 @@ asked for header + grid).
 Design export scale for `jos.png` was **1.7195** (2475px frame; gutter 137 → 80,
 content 2201 → 1280 — the two knowns agreed).
 
+## The tools archive (2026-08-06) — template `oK_cwk04`, type `archive-tool`
+
+Lives at **`/tools/`**. No slug collision here (the CPT's rewrite slug is `tools`
+and the page is `gratis-aanbod`), so this is a template because an archive
+belongs in one — not because a page was blocked. One 3-up grid bound to
+`tools.customTools`, no offsets: the design shows a single grid with no CTA
+splitting it, so there is nothing for cumulative slices to solve.
+
+**`tool` supports only title + editor — there is NO featured image.** That is why
+the design draws checkerboard placeholders, and why the grid ships
+`show_image: false`: turning the slot on renders an empty box on every card.
+Giving tools an image means adding thumbnail support to the model — code, which
+Stefan has ruled out for now.
+
+Six sample tools seeded by `.yoo-tools/seed-tools.php` (same `_jw_sample = 1`
+contract as the cases seeder), using the design's own titles and subtitles so the
+comparison against the screenshot is meaningful. A seventh card, `testDraft`
+(post 44), is a real pre-existing published tool, not seed data.
+
+Not built: the decorative lemon shape in the CTA (no asset supplied).
+
+## A LONE COLUMN FILLS ITS ROW — `alignment` is what releases it
+
+`row/templates/template.php:26` emits `tm-grid-expand {!alignment}`, and
+`.tm-grid-expand > * { flex-grow: 1 }`. So the class is present only while the
+row has NO `alignment`, and while present it expands a single column past its own
+`uk-width-*`. The symptom is nasty because the markup looks right:
+`uk-width-1-2@m` sits on the column in the DOM and the column still measures full
+width. Setting the row's `alignment` — even `left` — removes the class and the
+width binds. C3's 850px measure works for exactly this reason (`alignment:
+center`), so the note above about `2-3` was always half the story.
+
 ## TEXT SIZES GO THROUGH THE FOUR NATIVE ROLES — never a bespoke class
 
 **Corrected 2026-08-06 after Stefan asked twice for smaller type.** UIkit ships
