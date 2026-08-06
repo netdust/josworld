@@ -115,7 +115,7 @@ the same order as the page:
 |---|---|
 | ▸ HEADERS | `H1 · Hero — tekst` · `H2 · Hero — beeld` · `H3 · Header — pagina` |
 | ▸ LOGO'S | `L1 · Logo scroll` |
-| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` · `C4 · USP's — kolommen` · `C5 · Reviews — slider` · `C6 · Waarom Jos — beeld + cijfers` · `C7 · Ons team — beeld + label` |
+| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` · `C4 · USP's — kolommen` · `C5 · Reviews — slider` · `C6 · Waarom Jos — beeld + cijfers` · `C7 · Ons team — beeld + label` · `C8 · FAQ` |
 | ▸ CASES | `W1 · Cases` |
 | ▸ CTA'S | `A1 · Tools CTA` · `A2 · CTA — tekst` · `A3 · Contact CTA` |
 
@@ -185,6 +185,38 @@ with the copy left and the Actiris label right. No LESS.
   675 vs 674), so the second row is `margin_top: remove`, not a spacing value.
   Number = `meta` at `meta_style: h3`; label = `title` at `h4` with the size
   pulled back to body, since `h5` is the right 18px but reverts to Fraunces.
+
+**`C8 · FAQ` cost ONE rule, and the reason is worth keeping: the "rule between
+items, none above the first or below the last" look IS the master theme's
+default accordion.** `@accordion-default-item-mode` already defaults to
+`divider`, whose hook is literally `&:nth-child(n+2) { padding-top: …;
+border-top: … }` — so the whole list is four variables
+(`@accordion-default-item-border-width/-border/-item-margin-top` + the title
+type). Do NOT reach for a bespoke `.el-item { border-bottom }`; that is the
+shape people rebuild in CSS here. The single rule needed is the ICON: UIkit
+injects a hardcoded `<svg width="13" height="13">` for `uk-accordion-icon` (a
+plus whose bars rotate into a minus on open — exactly the design's behaviour,
+just a third of the size) and there is no size variable. Sized `1em` so it
+tracks `@accordion-default-title-font-size` instead of needing a paired edit.
+
+Three more things from that section:
+
+- **The divider spends the rhythm as `margin-top` + rule + `padding-top`**, both
+  from the SAME variable, so `@accordion-default-item-margin-top` is HALF the
+  gap between two questions. Item pitch = 2 × that + 1 + one title line.
+- **The design's divider is FULL ink, not `@jw-line`.** Un-blending the
+  antialiased 1px rule gives `#320610` — same finding as C6's stat rules, now
+  seen twice. On this beige band the light tint would have been nearly invisible.
+- **The design draws the question at 24px; it ships at 22 (T4).** Stefan asked
+  for smaller titles and a smaller left button after seeing the first pass —
+  the button is `button_size: "small"` (14/36, the same size W1 · Cases uses),
+  not a LESS change. So this section deliberately departs from the measurement.
+
+Layout: `2-5,3-5` at `column_gap: large`. The design's split is 464 / 80 / 736,
+and UIkit's gutters here are 16/32/64 — no 80 — but `large` (64) lands the right
+column at 733 rendered against 736 measured. Bumping `@global-large-gutter` to
+80 to be exact would silently move the TEN other rows already using
+`column_gap: large`; 3px is not worth that.
 
 **`C5 · Reviews — slider` is the ONE section so far that genuinely needed CSS**,
 and the two things it needed are worth knowing:
@@ -310,7 +342,8 @@ orphans and GCs them itself (`.orphaned_at`).
 "Recompile style" button, driven headlessly. The Customizer is at
 `admin-ajax.php?action=yootheme&yootheme=customizer`, NOT `customize.php`.
 
-**Open, needs Stefan:** Mailchimp client/list id · real partner logos (only 2
+**Open, needs Stefan:** the C8 FAQ copy — five questions + answers are written
+placeholders (plausible Dutch, not client-supplied) · Mailchimp client/list id · real partner logos (only 2
 exist, both with asset problems) · the tool-CTA white rectangle is a placeholder
 for the real tool shot · social + two credit link targets · **the radius question
 now has three independent measurements and they agree: the design draws ~12–13px
