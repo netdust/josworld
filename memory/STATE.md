@@ -318,6 +318,65 @@ and the ported ntdst scroll effects in `src/effects/` + `less/components/
 animations.less`. Lenis is wired; **Barba is deliberately NOT ported** — it needs
 output-buffer rewriting to inject `data-barba`, which is on the drift list.
 
+## The cases archive (2026-08-06) — first DYNAMIC page, and it is a TEMPLATE
+
+`/ons-werk/` is the `case` post type's ARCHIVE, not page 15. The CPT registers
+`rewrite.slug => 'ons-werk'` and `has_archive => true`, which is the *same slug*
+as the existing "Ons werk" page — and the archive wins the rewrite. Building the
+layout on page 15 produced a page that renders nowhere. It lives in a YOOtheme
+template instead: **id `Hhoi7Wz0`, type `archive-case`** (the first template on
+this site; `template list` was empty before). Page 15 was left empty, as it was.
+
+**Seven grids split by two CTA bands, each grid a different SLICE of one query.**
+The binding lives on the single `grid_item` — NOT on the grid — and the item then
+repeats over the query. Shape lifted from the Oakville demo package rather than
+guessed:
+
+```json
+{"type":"grid_item","source":{
+  "query":{"name":"cases.customCases","arguments":{"offset":1,"limit":2,"order":"date","order_direction":"DESC"}},
+  "props":{"title":{"name":"title"},"meta":{"name":"client"},
+           "image":{"name":"featuredImage.url"},"link":{"name":"link"},
+           "content":{"name":"dienstString"}}}}
+```
+
+Query name = `<rest_base>.custom<RestBase>` → `cases.customCases` (confirmed by
+introspecting the live schema, not inferred). Offsets are CUMULATIVE — 0/1/3/5/6/
+8/10 against limits 1/2/2/1/2/2/2 — so changing any grid's `limit` shifts every
+later `offset`. Source of truth: the generator, `.yoo-tools/` + the build script.
+
+**`panel_link` is the setting that solves two problems at once.** It needs
+`show_link: true` to be enabled at all (`'enable' => 'show_link'` on the field),
+and then `template-link.php` runs `striptags()` over title/meta/content because
+nested `<a>` is invalid HTML. That is what flattens `dienstString` — which is
+WP's `get_the_term_list()`, i.e. `<a rel="tag">` LINKS — into the plain
+"Dienst, dienst & dienst" line the design draws, while making the whole card a
+link to the case. Blank `link_text` to suppress the "Read more" button
+(`template-link.php` only emits it `if ($link && ($props['link_text'] ||
+$element['link_text']))`). No CSS, no field change.
+
+**The page header is Inter 32/40 — the Intro role, NOT a Fraunces heading.**
+Measured off the export (cap 23.8 and x-height 18.0 both resolve to ~32px, line
+pitch 40). Built as `title_element: "h1"` + `title_style: "text-large"`, which is
+a real option on the headline element — so the archive keeps a true `<h1>` while
+taking the Intro type. This only works because `@text-large-*` now sets the
+family (see below); without it the class lands on an `<h1>` and Fraunces wins.
+
+**12 SAMPLE cases are seeded and they are throwaway.** `.yoo-tools/seed-cases.php`
+creates them with `_jw_sample = 1` so the whole set comes back out in one
+command; the file documents it. Only five real case photos exist, so images
+repeat. Dates are spread one day apart because `order: date` is what makes the
+offsets a stable sequence.
+
+**Still open on this page:** the design's grey PILL next to the services line has
+no source — there is no "domain" field on the case model and `dienst` is already
+the services text, so it needs a data-model decision, not a layout one. The logo
+wall, contact band and newsletter below the grids are not built (Stefan asked for
+header + grid).
+
+Design export scale for `jos.png` was **1.7195** (2475px frame; gutter 137 → 80,
+content 2201 → 1280 — the two knowns agreed).
+
 ## TEXT SIZES GO THROUGH THE FOUR NATIVE ROLES — never a bespoke class
 
 **Corrected 2026-08-06 after Stefan asked twice for smaller type.** UIkit ships

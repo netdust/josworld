@@ -262,3 +262,19 @@ deployed to **11 sites**. Facts worth keeping:
   is not painting: `await img.decode()` on every image before capturing is what
   fixed it. This is on top of the lazy-loading trap already in the skill's
   lessons (forcing `loading="eager"` is necessary but NOT sufficient).
+- **A CPT archive beats a same-slug page.** `case` registers
+  `rewrite.slug => 'ons-werk'` + `has_archive`, and there is also an "Ons werk"
+  PAGE at that slug. The archive wins, so a layout built on the page renders
+  nowhere and the symptom is a correct-looking save followed by the stock archive
+  on screen. Check `get_post_type_object(...)->rewrite['slug']` before deciding
+  whether an archive layout belongs on a page or in a template.
+- **Dynamic list bindings go on the `grid_item`, not the grid.** One item +
+  `source.query` = the item repeats over the query. Query name is
+  `<rest_base>.custom<RestBase>`. Verify against a demo package
+  (`unzip -p <demo>.zip 'wp-content/sample_yootheme.json'`) instead of inventing
+  the shape — and introspect the live schema for field names
+  (`app(Source::class)->getSchema()->getType('Case')->getFields()`).
+- **`<taxonomy>String` fields are LINKED term lists**, not plain text — they are
+  `get_the_term_list()` output. `panel_link: true` (which requires
+  `show_link: true`) strips them, because the card becomes one `<a>` and nested
+  anchors are invalid. That is a settings answer to what looks like a CSS problem.
