@@ -127,6 +127,32 @@ also holds `footer.json` + copies of the skill's `yoo-config.php` /
 `yoo-content.php`). Keep it in sync after every `page set` — it is the only copy
 of the layout that is not DB-only.
 
+**`A3 · Contact CTA` was REBUILT (2026-08-06) around a booking tool.** It was
+headline-left / contact-card-right in one row; it is now three stacked rows:
+centred T1 headline + body subline → the booking card → `Liever bellen?` (T2)
+beside the existing contact card. Still last on the page, still
+`.jw-band-round-bottom`.
+
+- **The booking tool is FluentBooking** (Stefan's pick; he installs it). The card
+  is a `2-3` column centred — the same 850-wide shape as C3 — holding ONE `text`
+  element whose content is a placeholder string. **That element is the entire
+  swap surface**: YOOtheme runs `do_shortcode` over builder text content
+  (`Builder\Wordpress\Listener\ApplyContentFilter`), so when the plugin lands the
+  placeholder becomes the shortcode and nothing else changes. No html element,
+  no PHP.
+- `.jw-booking-embed > .uk-tile { min-height: 560px }` is the section's one rule
+  and is NOT scaffolding — a booking calendar sizes itself after its iframe
+  loads, and this band sits directly on the footer, so without a floor the page
+  jumps ~560px late. Note the selector: the `class` prop lands on the column
+  WRAPPER, the visible white box is the inner panel div that carries `uk-tile`.
+- `block_align: right` on the card portrait was replaced by `text_align: right`
+  on its COLUMN — the old prop was inert (no `maxwidth`), i.e. the trap already
+  written up under C7 was live in this section.
+- **This design could NOT be measured** — it was pasted from the clipboard, so no
+  file reached `/mnt/c/Users/stefa/Pictures/Screenshots/`. Built from the
+  established patterns instead and corrected off the render. Ask for the file if
+  a section needs real numbers.
+
 **The contact band's "laid over the footer" look is one class.** Section takes
 `background_color` + `class: jw-band-round-bottom`; the class rounds only the
 bottom corners and paints a `::before` at `z-index: -1` behind the section's own
@@ -343,7 +369,12 @@ orphans and GCs them itself (`.orphaned_at`).
 `admin-ajax.php?action=yootheme&yootheme=customizer`, NOT `customize.php`.
 
 **Open, needs Stefan:** the C8 FAQ copy — five questions + answers are written
-placeholders (plausible Dutch, not client-supplied) · Mailchimp client/list id · real partner logos (only 2
+placeholders (plausible Dutch, not client-supplied) · **Thijs's role in the A3
+card is a literal `[functie]` placeholder** (it should eventually bind to the
+`team` CPT's `role` field rather than be typed) · **A3's email/phone links render
+underlined where the design draws them plain raspberry** — that is
+`@base-link-text-decoration`, a global call, so it was NOT changed for one
+section · Mailchimp client/list id · real partner logos (only 2
 exist, both with asset problems) · the tool-CTA white rectangle is a placeholder
 for the real tool shot · social + two credit link targets · **the radius question
 now has three independent measurements and they agree: the design draws ~12–13px
