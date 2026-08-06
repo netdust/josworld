@@ -233,3 +233,25 @@ deployed to **11 sites**. Facts worth keeping:
   query/sitemap/search. `team` is unauthenticated-readable at
   `/wp-json/wp/v2/team`; email/phone are unexposed **only** because nothing
   calls `register_meta()` with `show_in_rest`.
+
+## Front-end / YOOtheme
+
+- **Never put a font-size in a class in content HTML.** Stefan had to ask twice
+  for smaller type before asking the real question — "are you using the styler
+  font system or custom sizes in less?" — and the answer was custom
+  (`.jw-lead` / `.jw-intro`, typed into element content). UIkit ships FOUR named
+  text roles (`lead`, `large`, `small`, `meta`), each one BOTH a "Text Style"
+  dropdown on the element AND a Styler-exposed variable family. They default to
+  40px for lead/large, which is what makes them look unusable on this design and
+  tempts the bespoke class. Map `@text-lead-*` / `@text-large-*` instead. The
+  cost of getting this wrong is not the pixel value — it is that the size stops
+  being changeable by a dropdown or by the client, so every tweak becomes a LESS
+  edit + browser recompile + a round trip.
+- `packages/styler/config/styler.php` is the authority on what the Customizer
+  exposes. Check it before concluding a value has to be bespoke — it lists
+  `@text-*`, `@accordion-default-*`, `@base-h1..h6-*`, `@button-*`, `@card-*`
+  and many more.
+- Two design sizes in a row shipped one step too big (accordion titles 24→22,
+  contact card 24→18). When a screenshot cannot be measured (clipboard paste, no
+  file on disk), say so and prefer the SMALLER of two candidate tokens rather
+  than the larger.

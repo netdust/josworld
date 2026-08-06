@@ -162,7 +162,7 @@ the beige page. No wrapper section, no second element in the builder.
 
 **`H3 · Header — pagina`** is the subpage header: eyebrow (body 18px, NOT the
 `small` eyebrow the other sections use) + `h1` at T1/76px on the left, a
-`.jw-intro` lead (32/40) on the right, both columns `vertical_align: bottom` so
+`text_style: large` lead (32/40) on the right, both columns `vertical_align: bottom` so
 the lead's last line sits on the headline's last baseline — that bottom-align is
 the whole trick, and it is a column setting, not CSS. Below it a second row with
 a container-width image cropped 1280×442 (~2.9:1).
@@ -314,6 +314,36 @@ tracks the cursor, keeps its SMIL blink), `typewriter.js` (hero's rotating line)
 and the ported ntdst scroll effects in `src/effects/` + `less/components/
 animations.less`. Lenis is wired; **Barba is deliberately NOT ported** — it needs
 output-buffer rewriting to inject `data-barba`, which is on the drift list.
+
+## TEXT SIZES GO THROUGH THE FOUR NATIVE ROLES — never a bespoke class
+
+**Corrected 2026-08-06 after Stefan asked twice for smaller type.** UIkit ships
+FOUR named text roles — `lead`, `large`, `small`, `meta` — and each one is BOTH a
+"Text Style" dropdown on the text element AND a Styler-exposed variable family
+(`@text-lead-*`, `@text-large-*`, … — see `packages/styler/config/styler.php`,
+which also exposes `@accordion-default-title-*`, `@base-h*`, `@button-*`).
+
+Out of the box `lead` and `large` BOTH resolve to `@global-large-font-size`
+(40px), nowhere near the design's 24 and 32 — and this build had answered that by
+writing `.jw-lead` / `.jw-intro` classes into the CONTENT HTML. That is the wrong
+fix and it is why a size tweak kept costing a LESS edit + browser recompile + a
+round trip: **a class typed into content is invisible to the builder and to the
+Customizer**, so the client can't change it and neither can a dropdown.
+
+Both classes are now DELETED. `@text-lead-*` maps to 24/1.33/-0.02em and
+`@text-large-*` to 32/1.25/-0.05em (the latter's letter-spacing via
+`.hook-text-large()`, since `large` has only size + line-height as variables
+while `lead` carries a full typo surface). Verified identical computed output to
+the classes they replaced. The three usages migrated: hero → `uk-text-lead` in
+its raw markup (it is an `html` element, so no dropdown exists), H3 header →
+`text_style: "large"`, A3 card → plain body.
+
+`small` (14) and `meta` are deliberately left at UIkit defaults — several built
+sections already use `text_style: "small"` against that value.
+
+**The rule going forward:** if a text size needs changing, it must be reachable
+as an element dropdown or a Styler field. Reach for a class only when no role
+fits (`.jw-disclaimer` at 12px is the one survivor), and say so out loud.
 
 **Working rule, learned the hard way:** build with SETTINGS first, then LESS
 VARIABLES, then a UIkit `.hook-*()` mixin, and only then a bespoke rule. The whole
