@@ -207,8 +207,11 @@ with the copy left and the Actiris label right. No LESS.
 - **`grid_divider` is not this.** It reads like the setting for a rule per stat
   and draws VERTICAL lines BETWEEN columns instead. A `border-top` on `.el-item`
   is the whole of it (`.jw-stat`).
-- The stat rules sit FLUSH with the photo's bottom edge in the design (measured
-  675 vs 674), so the second row is `margin_top: remove`, not a spacing value.
+- The design draws the stat rules FLUSH with the photo's bottom edge (measured
+  675 vs 674) and it was built that way — **Stefan overrode it on 2026-08-06**:
+  the rules touching the photo read as a mistake on screen even though it is
+  what the design shows. The stat row is now `margin_top: "default"` (24px).
+  Don't "restore" the flush version from the measurement.
   Number = `meta` at `meta_style: h3`; label = `title` at `h4` with the size
   pulled back to body, since `h5` is the right 18px but reverts to Fraunces.
 

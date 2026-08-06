@@ -255,3 +255,10 @@ deployed to **11 sites**. Facts worth keeping:
   contact card 24→18). When a screenshot cannot be measured (clipboard paste, no
   file on disk), say so and prefer the SMALLER of two candidate tokens rather
   than the larger.
+- **A fullpage CDP screenshot can come back with images blank even when they are
+  fully loaded.** `img.complete` was true, `naturalWidth` 1152, opacity 1, no
+  clip — and the photo still painted as empty grey in the capture, which reads as
+  "the image is broken" and nearly sent me debugging a working section. Loading
+  is not painting: `await img.decode()` on every image before capturing is what
+  fixed it. This is on top of the lazy-loading trap already in the skill's
+  lessons (forcing `loading="eager"` is necessary but NOT sufficient).
