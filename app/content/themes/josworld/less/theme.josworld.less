@@ -1064,6 +1064,14 @@ h4, .uk-h4 {
     fill: @jw-white;
 }
 
+// The Team page's jobs CTA draws the same sun in the page CREAM, not white —
+// measured (252,252,247) off the frame, i.e. @jw-beige. Its own rule for the
+// reason given above: the fill arrives from a class INSIDE the svg, so no
+// amount of `color` on an ancestor reaches it.
+.jw-sun-cream svg path {
+    fill: @jw-beige;
+}
+
 // ---------- Case card tags ----------
 // The services row on a case card is the `dienst` taxonomy, which WordPress
 // renders as one `<a rel="tag">` per term. The design draws them as filled
