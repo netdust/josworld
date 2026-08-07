@@ -569,11 +569,25 @@ places.
       `logo-actiris` exist, so they alternate ~6× across the band. The design
       shows 7 distinct client logos. Same asset gap already noted for the
       review slider.
+- [x] **TRAP — a row's column COUNT must match its `layout` string.** Cost a
+      wrong build on the team header. A `layout: "1-2,1-2"` row with only ONE
+      column makes YOOtheme stamp `tm-grid-expand`, and
+      `.uk-grid.tm-grid-expand > * { flex-grow: 1 }` beats the column's own
+      `uk-width-1-2@m` — it stretches to the full width and the design's
+      half-width column runs edge to edge. Dropping the `layout` prop is NOT
+      the fix: the row then defaults to `uk-child-width-1-1` and stays full
+      width. Supply the empty second column. An empty column is meaningful.
+- [x] **Every section needs a `name`.** Sections authored without one list as
+      a bare "SECTION" in the builder and cannot be told apart. The library
+      ones all carry `C8 · FAQ`-style names; new ones must too.
 - [x] **The team archive is a TEMPLATE, not a page** (2026-08-07).
       `archive-team` (id `RMMlzZVy`, "Team — archief"), 5 sections: header ·
       dynamic 3-col grid · jobs CTA · `C8 · FAQ` · `A4 · Contact CTA`.
-      Nothing was added to page 64 — the grid is data-driven, so there is no
-      reusable static section.
+      Its two STATIC sections DO live on page 64 — `H5 · Header — tekst`
+      (eyebrow + H1 + intro at half width, distinct from `H3 · Header —
+      pagina`, which is a 3-5/2-5 split with an image beneath) and
+      `A6 · Jobs CTA`. Page 64 is at 30 sections. Only the grid stays out,
+      because only it is data-driven.
       **The pattern to copy for any future archive:** an empty page holds the
       slug, the CPT rewrites to that same slug, and the archive shadows the
       page. `url_to_postid('/team/')` and `('/ons-werk/')` both return 0.
