@@ -884,6 +884,44 @@ h4, .uk-h4 {
     }
 }
 
+// ---------- Vacancy rows (title | type | link, ruled) ----------
+// The Jobs & stages list is a table-shaped row: title left, employment type
+// mid, link right, with a rule above every row and below the last. The builder
+// has no three-across row — a panel stacks meta/title/link vertically — so the
+// three parts are re-placed by CSS grid, the same technique (and the same
+// `title_align: top` precondition) as the review slider and jw-stat-inline.
+//
+// DOM order is meta, title, link; the design's reading order is title, type,
+// link. Explicit grid-column on each part reorders them without touching the
+// markup.
+.jw-vacature-row {
+
+    .el-item {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        align-items: center;
+        column-gap: @jw-s-6;
+        border-top: 1px solid @jw-primary;
+        padding: @jw-s-6 0;
+    }
+
+    // The last row closes the table — the design draws a rule under it too.
+    .el-item:last-child { border-bottom: 1px solid @jw-primary; }
+
+    .el-title { grid-column: 1; grid-row: 1; margin: 0 !important; }
+    .el-meta  { grid-column: 2; grid-row: 1; margin: 0 !important; }
+
+    // The link has no class of its own — YOOtheme wraps it in a bare div and
+    // only the <a> inside carries `.el-link`. `:last-child` is safe here
+    // because show_content is off, so the link wrapper is always last.
+    .el-item > div:last-child {
+        grid-column: 3;
+        grid-row: 1;
+        margin: 0 !important;
+        text-align: right;
+    }
+}
+
 // ---------- Review slider ----------
 // The one card on the site whose layout the builder genuinely cannot express.
 // A YOOtheme panel is either a flat stack (image · title · meta · content) or,

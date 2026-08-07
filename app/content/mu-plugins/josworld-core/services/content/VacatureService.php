@@ -155,7 +155,14 @@ final class VacatureService
             'hierarchical' => false,
             'supports' => ['title', 'editor'],
             'menu_icon' => 'dashicons-businessman',
-            'rewrite' => ['slug' => 'vacatures'],
+            // `jobs-stages`, not `vacatures`: the archive IS the designed
+            // "Jobs & stages" page (frame 625:12258), the nav and footer both
+            // link to /jobs-stages/, and page 21 is an empty slug-holder the
+            // archive shadows — the same arrangement `case` has with page 15
+            // (`ons-werk`) and `team` with page 16. `rest_base` deliberately
+            // stays `vacatures`: it is an API name, not a front-end URL, and
+            // renaming it would break any consumer for no benefit.
+            'rewrite' => ['slug' => 'jobs-stages'],
             'show_in_rest' => true,
             'rest_base' => 'vacatures',
             'capability_type' => 'post',
