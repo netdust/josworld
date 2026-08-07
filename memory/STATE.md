@@ -577,6 +577,13 @@ places.
       half-width column runs edge to edge. Dropping the `layout` prop is NOT
       the fix: the row then defaults to `uk-child-width-1-1` and stays full
       width. Supply the empty second column. An empty column is meaningful.
+- [x] **TRAP — a percentage `position_top` on an absolutely-placed element
+      silently does nothing.** Its containing block is a `.uk-panel` with
+      height ZERO, so `top: -18%` and `top: -83%` both compute to `top: 0px`
+      and the element never moves. `position_left` DOES work, because width
+      is non-zero. Use px for the vertical. Cost two wasted rounds on A6's
+      sun; the tell is the computed `top` reading `0px` while the authored
+      value is a percentage.
 - [x] **Every section needs a `name`.** Sections authored without one list as
       a bare "SECTION" in the builder and cannot be told apart. The library
       ones all carry `C8 · FAQ`-style names; new ones must too.
@@ -586,7 +593,9 @@ places.
       Its two STATIC sections DO live on page 64 — `H5 · Header — tekst`
       (eyebrow + H1 + intro at half width, distinct from `H3 · Header —
       pagina`, which is a 3-5/2-5 split with an image beneath) and
-      `A6 · Jobs CTA`. Page 64 is at 30 sections. Only the grid stays out,
+      `A6 · Jobs CTA`. Page 64 is at 30 sections and the **YOOtheme Library
+      at 8 items** — both new sections are saved there too, not only on the
+      test page. Only the grid stays out,
       because only it is data-driven.
       **The pattern to copy for any future archive:** an empty page holds the
       slug, the CPT rewrites to that same slug, and the archive shadows the
