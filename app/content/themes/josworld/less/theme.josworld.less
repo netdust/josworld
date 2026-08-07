@@ -197,10 +197,16 @@ Type: Flat
 @jw-s-24:            96px;
 
 // ---------- Radii ----------
-// TODO(figma): confirm against real layer geometry.
+// @jw-r-lg is the ONE token behind every rounded panel on the site: it feeds
+// @card-border-radius (cards), @border-rounded-border-radius (the column
+// "Round corners" checkbox) and .hook-tile-muted() (muted tiles). Moving it
+// moves all three together, which is exactly what the design wants — three
+// independent measurements off the frames agree on ~12-13px (contact card ~12,
+// service card ~13), so 12px is measured, not guessed. @jw-r-xl and @jw-r-pill
+// resolve independently and must NOT track it.
 @jw-r-sm:            4px;
 @jw-r-md:            8px;
-@jw-r-lg:            16px;
+@jw-r-lg:            12px;   // measured off the card + tile corners (was 16px)
 @jw-r-xl:            48px;   // measured off the contact band's bottom corners
 @jw-r-pill:          999px;
 
