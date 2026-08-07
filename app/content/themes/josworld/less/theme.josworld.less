@@ -22,9 +22,11 @@ Type: Flat
 // same set resolved identically from the Homepage, "Voor overheden" and
 // "Contact" frames — so it is not page-specific.
 //
-// SCOPE: sections 1–3 only (tokens → UIkit mapping → CSS custom properties).
-// Bespoke per-section component CSS is deliberately NOT here; sections get
-// designed and added one at a time on the section page.
+// SCOPE: sections 1–3 are tokens → UIkit mapping → CSS custom properties, and
+// they stay pure variable assignment. Section 4 holds the bespoke component CSS
+// for the handful of looks the builder genuinely cannot express — each one
+// added when its section gets designed on the section page, and each carrying
+// the reason no setting would do.
 //
 // ⚠ THIS FILE IS THE SOURCE OF TRUTH FOR THE TOKENS — NOT THE CUSTOMIZER.
 // The Customizer exposes variables by PATTERN whitelist (config/styler.php), so
@@ -810,6 +812,75 @@ h4, .uk-h4 {
     .el-title {
         font-size: @jw-t-body;
         line-height: @jw-lh-body;
+    }
+}
+
+// ---------- Stat rows (the number BESIDE its label) ----------
+// The "Waarom Jos?" cijfers band stacks its three stats in ONE column and sets
+// the number to the LEFT of the label rather than above it. That is not a
+// variant of `.jw-stat` and must not inherit from it — `.jw-stat` draws a rule
+// above every item, and this band draws none.
+//
+// It is also the one thing here the builder cannot express. A panel offers
+// `meta_align: above-title | below-title | above-content | below-content` — a
+// vertical vocabulary only; there is no "beside". What makes the re-placement
+// possible is that with `title_align: top` the three parts render as DIRECT
+// children of `.el-item` (grid_item/templates/template.php: with no image, no
+// link and no panel style, every intermediate wrapper — $content_container,
+// $link_container, $cell_content, $grid — is skipped). Switching `title_align`
+// to `left` would wrap meta+title in YOOtheme's own uk-grid and push the
+// description into a SECOND COLUMN beside them, which is the opposite of what
+// the design draws. So `top` is load-bearing, exactly as `image_align: top` is
+// for the review slider above.
+//
+//   [ 235+ | organisaties geholpen ]   <- row 1, label centred on the number
+//   [ Stad Leuven, Onze energie, … ]   <- row 2, spans both columns
+//
+.jw-stat-inline {
+
+    .el-item {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        // 12px, measured identically on all three tiles: the label's left edge
+        // sits 12px past the number's right edge whether the number is "235+"
+        // (146px wide), "8,7/10" (179px) or "20" (83px).
+        column-gap: @jw-s-3;
+    }
+
+    // The number. `meta_style: h1` already gives Fraunces Light at @jw-t1
+    // (76px / line-height 1) — the design's number box is 76px tall, so the
+    // role is exact and needs no size override here.
+    .el-meta {
+        grid-column: 1;
+        grid-row: 1;
+        margin: 0 !important;
+    }
+
+    // The label rides the number's vertical centre. Both texts share row 1 and
+    // the number is the taller box, so `center` parks the single label line on
+    // its midline — the design has the label's centre and the number's centre
+    // on the same axis (both at 38px within a 76px box).
+    .el-title {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+        // Same override as `.jw-stat`: the design sets the label at body size in
+        // the h4 face, and `title_style: h4` is the only preset carrying the
+        // right family and weight (h5 is the right 18px but reverts to Fraunces).
+        font-size: @jw-t-body;
+        line-height: @jw-lh-body;
+        margin: 0 !important;
+    }
+
+    // The description spans both columns beneath. `!important` is not a
+    // shortcut: the builder stamps `uk-margin-top` on `.el-content`, and UIkit's
+    // margin utilities are themselves `!important` (margin.less), so nothing at
+    // any specificity beats them without it.
+    .el-content {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        margin: @jw-s-6 0 0 !important;
     }
 }
 
