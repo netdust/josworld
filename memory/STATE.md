@@ -543,13 +543,30 @@ places.
       component CSS since 2026-08-04 (it was uncommitted, now committed),
       and "Josworld" **is** selected in the Customizer — `theme.1.css` had
       already been compiled in the browser on 2026-08-06.
+- [x] **Voor overheden (17) and Voor social profit (18) are built too**
+      (2026-08-07). Both Figma frames are structurally identical — 1440×10904,
+      the same 13 bands, only the copy differs — so both assemble from the
+      same section list: `H3 · L1 · C3 · C4 · W1 · A5 · C4 · C5 · C4 · C6 ·
+      C7 · C8 · A3`. `C4` appears three times per page at different column
+      counts (overheden 4/3/3, social profit 3/3/2) — a `grid_large` setting
+      on each copy, not three sections. `H3` turned out to be already written
+      for the overheden page; only its right-hand column was lorem.
 - [ ] **Next pages** assemble the same way. The **YOOtheme Library**
-      (`wp_options.yootheme` → `library`) now holds 5 items: `A3 · Contact
-      CTA`, `C7 · Ons team`, `C10 · Cijfers — band`, `C11 · Kaartenstapel`,
-      `H4 · Hero — gelaagd`. **Inserting a library item COPIES it** — there
-      is no back-reference, so fixing an item never reaches pages already
-      built from it. Get a section right BEFORE saving it. Saving whole
-      PAGES as library items is the agreed next step, not done yet.
+      (`wp_options.yootheme` → `library`) now holds 6 items: `A3 · Contact
+      CTA`, `A5 · Gratis aanbod — download`, `C7 · Ons team`, `C10 · Cijfers
+      — band`, `C11 · Kaartenstapel`, `H4 · Hero — gelaagd`. **Inserting a
+      library item COPIES it** — there is no back-reference, so fixing an
+      item never reaches pages already built from it. Get a section right
+      BEFORE saving it. Saving whole PAGES as library items is the agreed
+      next step, not done yet.
+- [ ] **The download gate on both doelgroep pages is a PLACEHOLDER.**
+      `A5 · Gratis aanbod — download` is A1's tile shell (sun + tool card)
+      with the design's 4-field form (Voornaam / Naam / Organisatie /
+      E-mail + Download) rendered as a marked text block, exactly how `A3`
+      handles its FluentBooking agenda. **No form plugin is installed** —
+      only `fluent-booking`, `fluent-booking-pro` and `fluent-smtp` are
+      active; FluentForms is absent and `fluent-crm` is inactive. Wiring it
+      needs a form plugin + file delivery + probably CRM tagging.
 - [ ] Build the actual builder templates/pages that consume the content
       model (`case`/`team`/`vacature`/`tool` — the data layer is done, the
       front-end rendering is not).
