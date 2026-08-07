@@ -551,6 +551,24 @@ places.
       counts (overheden 4/3/3, social profit 3/3/2) — a `grid_large` setting
       on each copy, not three sections. `H3` turned out to be already written
       for the overheden page; only its right-hand column was lorem.
+- [x] **The homepage (page 11, `page_on_front`) is built too** (2026-08-07).
+      Nine bands, every one an existing section: `H1 · H2 · L1 · C1 · W1 ·
+      A1 · A2 · C2 · A4`. Two things worth knowing next time: the Figma layer
+      called "Free offer" on the HOMEPAGE frame is **not** the download gate
+      the doelgroep pages use — its copy is "Bekijk onze gratis tools &
+      downloads", i.e. `A1 · Tools CTA` verbatim. And `H1`'s library version
+      is a viewport-height text hero; on the homepage the text band is only
+      ~190px and the photo band below carries the height, so the viewport
+      lock is dropped on the page copy.
+- [x] **Fixed a real bug in `C1 · Voor wie`**: BOTH columns linked to
+      `/voor-overheden/`. The social-profit column now points at
+      `/voor-social-profit/` on the homepage copy. **The library section
+      still has the bug** — fix it there before `C1` is reused again.
+- [ ] **The logo wall repeats 2 logos.** `L1` renders correctly (grayscaled,
+      parallax marquee, verified in-browser) but only `logo-nrc` and
+      `logo-actiris` exist, so they alternate ~6× across the band. The design
+      shows 7 distinct client logos. Same asset gap already noted for the
+      review slider.
 - [ ] **Next pages** assemble the same way. The **YOOtheme Library**
       (`wp_options.yootheme` → `library`) now holds 6 items: `A3 · Contact
       CTA`, `A5 · Gratis aanbod — download`, `C7 · Ons team`, `C10 · Cijfers
