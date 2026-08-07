@@ -72,9 +72,15 @@ final class VacatureService
      *
      * @var array<string, string>
      */
+    // Key === label on purpose. The stored value is what the front end
+    // RENDERS: the Jobs & stages archive binds this meta straight into the
+    // vacancy row, and YOOtheme's binding exposes the stored value, not the
+    // option label — so a `full_time` key printed literally as "full_time".
+    // Making the key the label fixes that with no computed source field and
+    // no new code path. The list stays closed; `validate` still enforces it.
     private const EMPLOYMENT_TYPES = [
-        'full_time' => 'Voltijds',
-        'freelance' => 'Freelance',
+        'Voltijds' => 'Voltijds',
+        'Freelance' => 'Freelance',
     ];
 
     public function __construct(private readonly NTDST_Data_Manager $dataManager)

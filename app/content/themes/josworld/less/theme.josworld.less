@@ -898,7 +898,9 @@ h4, .uk-h4 {
 
     .el-item {
         display: grid;
-        grid-template-columns: 1fr 1fr auto;
+        // 45/55, not an even split: the design puts the type column at x623 of
+        // a 1280 container, which an even split overshoots by ~50px.
+        grid-template-columns: 45fr 55fr auto;
         align-items: center;
         column-gap: @jw-s-6;
         border-top: 1px solid @jw-primary;
