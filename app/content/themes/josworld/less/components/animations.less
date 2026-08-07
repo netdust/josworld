@@ -1,0 +1,303 @@
+/* ============================================
+   FILE: css/text-scroll-effects.css
+   Scroll-linked text animations
+   ============================================ */
+
+/* Hide text effects until JS initializes (prevents FOUC) */
+.text-scroll-effect:not(.js-ready) {
+  visibility: hidden;
+}
+
+.text-scroll-effect {
+  overflow: visible;
+}
+
+/* Word by Word Fade */
+.text-scroll-effect[data-effect="word-fade"] .word {
+  display: inline-block;
+  opacity: 0.2;
+  transition: opacity 0.2s ease;
+}
+
+.text-scroll-effect[data-effect="word-fade"] .word.active {
+  opacity: 1;
+}
+
+/* Letter by Letter Reveal */
+.text-scroll-effect[data-effect="letter-reveal"] .letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.text-scroll-effect[data-effect="letter-reveal"] .letter.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Blur to Focus */
+.text-scroll-effect[data-effect="blur"] .blur-word {
+  display: inline-block;
+  filter: blur(8px);
+  opacity: 0.3;
+  transition: filter 0.3s ease, opacity 0.3s ease;
+  will-change: filter, opacity;
+}
+
+.text-scroll-effect[data-effect="blur"] .blur-word.active {
+  filter: blur(0);
+  opacity: 1;
+}
+
+/* Mobile: Use opacity-only for blur effect (filter is GPU-expensive) */
+@media (max-width: 959px) {
+  .text-scroll-effect[data-effect="blur"] .blur-word {
+    filter: none;
+    opacity: 0.15;
+    transition: opacity 0.2s ease;
+    will-change: opacity;
+  }
+
+  .text-scroll-effect[data-effect="blur"] .blur-word.active {
+    filter: none;
+    opacity: 1;
+  }
+}
+
+/* Color Wave */
+.text-scroll-effect[data-effect="color-wave"] .color-word {
+  display: inline-block;
+  color: #666;
+  transition: color 0.25s ease;
+}
+
+.text-scroll-effect[data-effect="color-wave"] .color-word.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Scale Pop */
+.text-scroll-effect[data-effect="scale"] .scale-word {
+  display: inline-block;
+  transform: scale(0.8);
+  opacity: 0.3;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.text-scroll-effect[data-effect="scale"] .scale-word.active {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Slide In */
+.text-scroll-effect[data-effect="slide"] .slide-word {
+  display: inline-block;
+  transform: translateX(-30px);
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.text-scroll-effect[data-effect="slide"] .slide-word.active {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* 3D Rotate In */
+.text-scroll-effect[data-effect="rotate"] {
+  perspective: 1000px;
+}
+
+.text-scroll-effect[data-effect="rotate"] .rotate-word {
+  display: inline-block;
+  transform: rotateX(-90deg);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  transform-origin: bottom;
+}
+
+.text-scroll-effect[data-effect="rotate"] .rotate-word.active {
+  transform: rotateX(0deg);
+  opacity: 1;
+}
+
+/* Typewriter */
+.text-scroll-effect[data-effect="typewriter"] .type-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.text-scroll-effect[data-effect="typewriter"] .type-word.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Highlight Sweep */
+.text-scroll-effect[data-effect="highlight"] .highlight-word {
+  display: inline-block;
+  position: relative;
+  color: #666;
+  transition: color 0.2s ease;
+}
+
+.text-scroll-effect[data-effect="highlight"] .highlight-word::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0.3;
+  transition: width 0.25s ease;
+  z-index: -1;
+}
+
+.text-scroll-effect[data-effect="highlight"] .highlight-word.active {
+  color: inherit;
+}
+
+.text-scroll-effect[data-effect="highlight"] .highlight-word.active::after {
+  width: 100%;
+}
+
+/* 3D Flip */
+.text-scroll-effect[data-effect="flip"] {
+  perspective: 1000px;
+}
+
+.text-scroll-effect[data-effect="flip"] .flip-word {
+  display: inline-block;
+  transform: rotateY(90deg);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.text-scroll-effect[data-effect="flip"] .flip-word.active {
+  transform: rotateY(0deg);
+  opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .text-scroll-effect {
+    font-size: 1.2rem !important;
+  }
+}
+
+/* ============================================
+   FILE: css/image-scroll-effects.css
+   Scroll-linked image animations
+   ============================================ */
+
+/* Hide image effects until JS initializes (prevents FOUC) */
+.image-scroll-effect:not(.js-ready) {
+  visibility: hidden;
+}
+
+.image-scroll-effect {
+  overflow: hidden;
+  position: relative;
+  will-change: transform, opacity;
+}
+
+.image-scroll-effect img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* All effects - no transitions, directly controlled by JS */
+.image-scroll-effect[data-effect="fade"],
+.image-scroll-effect[data-effect="scale-up"],
+.image-scroll-effect[data-effect="scale-down"],
+.image-scroll-effect[data-effect="slide-up"],
+.image-scroll-effect[data-effect="slide-left"],
+.image-scroll-effect[data-effect="slide-right"],
+.image-scroll-effect[data-effect="blur"],
+.image-scroll-effect[data-effect="rotate"],
+.image-scroll-effect[data-effect="ken-burns"] {
+  opacity: 0;
+  /* No transitions - controlled by scroll position */
+}
+
+.image-scroll-effect[data-effect="clip-up"] img,
+.image-scroll-effect[data-effect="clip-right"] img,
+.image-scroll-effect[data-effect="clip-left"] img {
+  clip-path: inset(100% 0 0 0);
+  /* No transitions - controlled by scroll position */
+}
+
+.image-scroll-effect[data-effect="parallax"] img {
+  will-change: transform;
+}
+
+/* === STICKY EFFECTS === */
+
+/* Sticky Image Container */
+.image-scroll-sticky {
+  position: relative;
+  min-height: 200vh; /* Adjust based on how long you want sticky effect */
+}
+
+.image-scroll-sticky-content {
+  position: sticky;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sticky with Horizontal Slide */
+.image-scroll-sticky[data-effect="sticky-slide-left"] .image-scroll-sticky-content {
+  justify-content: flex-start;
+}
+
+.image-scroll-sticky[data-effect="sticky-slide-right"] .image-scroll-sticky-content {
+  justify-content: flex-end;
+}
+
+.image-scroll-sticky[data-effect="sticky-slide-left"] img,
+.image-scroll-sticky[data-effect="sticky-slide-right"] img {
+  transform: translateX(0);
+  transition: none;
+  will-change: transform;
+}
+
+/* Sticky with Scale */
+.image-scroll-sticky[data-effect="sticky-scale"] img {
+  transform: scale(1);
+  transition: none;
+  will-change: transform;
+}
+
+/* Sticky with Clip Reveal */
+.image-scroll-sticky[data-effect="sticky-clip"] img {
+  clip-path: inset(0 100% 0 0);
+  transition: none;
+  will-change: clip-path;
+}
+
+/* Sticky with Rotate */
+.image-scroll-sticky[data-effect="sticky-rotate"] img {
+  transform: rotate(0deg);
+  transition: none;
+  will-change: transform;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .image-scroll-sticky {
+    min-height: 150vh;
+  }
+
+  .image-scroll-sticky-content {
+    height: 60vh;
+  }
+}
