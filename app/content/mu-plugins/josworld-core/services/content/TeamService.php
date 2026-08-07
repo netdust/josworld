@@ -145,6 +145,44 @@ final class TeamService
     private function init(): void
     {
         $this->registerDataModel();
+        $this->closeSingleView();
+    }
+
+    /**
+     * Close the per-member single view, keeping the archive open.
+     *
+     * FR-2 asks for no public single view. It used to be expressed as
+     * `public => false` on the post type, which did not enforce it (REST
+     * still served name + photo unauthenticated) and did hide `team` from
+     * YOOtheme's source and template enumeration — see the block comment on
+     * the registration above.
+     *
+     * WordPress offers no flag for "archive yes, singles no":
+     * `WP::parse_request()` unsets the `post_type` query var for any type
+     * that is not `publicly_queryable`, so disabling singles with that flag
+     * disables the archive with them. The single view is therefore closed
+     * HERE, at the one place it is decided, rather than as a side effect of
+     * a registration flag that means something broader.
+     *
+     * 301 rather than 404: a member URL is not an error, it is a page that
+     * moved into the grid. A permanent redirect keeps any link that ever
+     * leaked (REST, a sitemap, a share) landing somewhere useful, and tells
+     * crawlers not to keep asking. `NTDST_Router::redirect()` routes through
+     * `wp_safe_redirect()`, so the target is host-restricted.
+     */
+    private function closeSingleView(): void
+    {
+        ntdst_router()->single('team', static function (): void {
+            $archive = get_post_type_archive_link('team');
+
+            // Fall back to the home page rather than returning: returning
+            // would let the single render, which is the one outcome this
+            // method exists to prevent.
+            ntdst_router()->redirect(
+                is_string($archive) && $archive !== '' ? $archive : home_url('/'),
+                301
+            );
+        });
     }
 
     /**
@@ -157,6 +195,20 @@ final class TeamService
                 'type' => 'text',
                 'label' => __('Functie', JOSWORLD_CORE_TEXTDOMAIN),
                 'required' => true,
+            ],
+            // The team-archive card carries a short bio, NOT the functie —
+            // see the Team frame in Figma (625:12240): photo, name, a
+            // three-line description, then the e-mail address. `role` is what
+            // the CONTACT card uses ("[functie]"), so both are needed and
+            // neither replaces the other.
+            //
+            // A field rather than post content because the post type declares
+            // `supports => ['title', 'thumbnail']` — there is no editor — and
+            // because fields are what the YOOtheme bridge exposes as bindable
+            // source properties.
+            'bio' => [
+                'type' => 'textarea',
+                'label' => __('Korte bio', JOSWORLD_CORE_TEXTDOMAIN),
             ],
             'email' => [
                 'type' => 'email',
@@ -177,7 +229,7 @@ final class TeamService
         return [
             'details' => [
                 'title' => __('Teamlid-gegevens', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['role', 'email', 'phone'],
+                'fields' => ['role', 'bio', 'email', 'phone'],
                 'context' => 'normal',
                 'priority' => 'high',
             ],
@@ -199,17 +251,48 @@ final class TeamService
                 'not_found' => __('Geen teamleden gevonden', JOSWORLD_CORE_TEXTDOMAIN),
                 'not_found_in_trash' => __('Geen teamleden gevonden in prullenbak', JOSWORLD_CORE_TEXTDOMAIN),
             ],
-            'public' => false,
-            'publicly_queryable' => false,
+            // PUBLIC, WITH THE SINGLE VIEW CLOSED BY A REDIRECT — not by a flag.
+            //
+            // `team` was registered `public => false` to express FR-2's "no
+            // public single view". That flag is the wrong instrument for the
+            // job, for two reasons found on 2026-08-07:
+            //
+            //   1. It never protected anything. `show_in_rest => true` already
+            //      publishes name + photo to an UNAUTHENTICATED REST reader —
+            //      this file's own header says so, verified live. So the flag
+            //      expressed an intent it did not enforce.
+            //   2. It hid the post type from every tool that asks WordPress
+            //      what types exist. YOOtheme enumerates sources AND template
+            //      types through `get_post_types(['public' => true,
+            //      'show_in_nav_menus' => true])` (builder-wordpress-source/
+            //      src/Helper.php:21-23, consumed by Listener/LoadSourceTypes
+            //      and Listener/LoadBuilderConfig). With `public => false`
+            //      there was no `team` source to bind a grid to and no
+            //      `archive-team` template type to build — which is why
+            //      `case`/`tool`/`vacature` all have archives and `team` could
+            //      not. The header already noted this bit us once before.
+            //
+            // There is NO core flag for "archive yes, singles no":
+            // `WP::parse_request()` drops the `post_type` query var for any
+            // type that is not `publicly_queryable`, so switching singles off
+            // that way switches the archive off too. The single view is
+            // therefore closed where it is actually decided — on
+            // `template_redirect`, see closeSingleView() below.
+            //
+            // Mirrors `case` exactly: the empty page holding the `/team/` slug
+            // (page 16) is shadowed by the archive, the same way page 15
+            // (`ons-werk`) is shadowed by the case archive.
+            'public' => true,
+            'publicly_queryable' => true,
             'exclude_from_search' => true,
             'show_ui' => true,
             'show_in_menu' => true,
-            'query_var' => false,
+            'query_var' => 'team',
             'has_archive' => true,
             'hierarchical' => false,
             'supports' => ['title', 'thumbnail'],
             'menu_icon' => 'dashicons-groups',
-            'rewrite' => false,
+            'rewrite' => ['slug' => 'team', 'with_front' => false],
             'show_in_rest' => true,
             'rest_base' => 'team',
             'capability_type' => 'post',
