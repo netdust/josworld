@@ -569,6 +569,35 @@ places.
       `logo-actiris` exist, so they alternate ~6× across the band. The design
       shows 7 distinct client logos. Same asset gap already noted for the
       review slider.
+- [x] **The team archive is a TEMPLATE, not a page** (2026-08-07).
+      `archive-team` (id `RMMlzZVy`, "Team — archief"), 5 sections: header ·
+      dynamic 3-col grid · jobs CTA · `C8 · FAQ` · `A4 · Contact CTA`.
+      Nothing was added to page 64 — the grid is data-driven, so there is no
+      reusable static section.
+      **The pattern to copy for any future archive:** an empty page holds the
+      slug, the CPT rewrites to that same slug, and the archive shadows the
+      page. `url_to_postid('/team/')` and `('/ons-werk/')` both return 0.
+      **Binding shapes, both verified against source rather than guessed:**
+      the plural query is `<base>.custom<Base>` — `teams.customTeams` — from
+      `CustomPostQueryType` (`custom{$base}`, `$base =
+      camelCase(Helper::getBase($type))`); and custom fields bind by BARE
+      schema key (`bio`, `email`), because `SchemaMapper` emits
+      `$mapped[$field]` at the object type's top level. A `mailto:` link
+      needs no computed field — `{"name":"email","filters":{"before":"mailto:"}}`.
+- [x] **`team` is now `public => true`** and its single view is closed by a
+      301 in `TeamService::closeSingleView()` (NTDST_Router). It was the only
+      CPT YOOtheme could not see; `case`/`tool`/`vacature` were all already
+      public. **There is no core flag for "archive yes, singles no"** —
+      `WP::parse_request()` drops the `post_type` query var for a
+      non-`publicly_queryable` type, taking the archive with it. Added a
+      `bio` field too: the archive card shows a bio, NOT the functie.
+- [ ] **8 team members are seeded with the DESIGN's copy** (names + bios
+      from frame 625:12239). Still placeholder: every `role` is `[functie]`,
+      every e-mail is `mail@jos.agency`, and 7 of 8 portraits are a
+      checkerboard `placeholder-portrait.png` (attachment 182) — only Thijs
+      has a real photo. **Two typos are reproduced verbatim from the design
+      and left uncorrected on purpose** — "tusen" (Thijs) and
+      "admistratieve" (Fatima). They are client copy; the fix is theirs.
 - [ ] **Next pages** assemble the same way. The **YOOtheme Library**
       (`wp_options.yootheme` → `library`) now holds 6 items: `A3 · Contact
       CTA`, `A5 · Gratis aanbod — download`, `C7 · Ons team`, `C10 · Cijfers
