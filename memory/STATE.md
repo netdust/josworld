@@ -536,21 +536,38 @@ places.
 
 ## Next
 
-- [ ] **Section-by-section page building** (the agreed next phase after the
-      content model): design each section on a section page, then assemble
-      pages from them. `less/theme.josworld.less` currently only has
-      sections 1–3 (tokens → UIkit mapping → CSS custom properties); no
-      per-section component CSS yet. Reference:
-      `todai-child/less/theme.todai.less` sections 4–9.
+- [x] **Section-by-section page building** — the workflow is running.
+      **Waarom Jos? (page 12) is the first assembled page**, built
+      2026-08-07 from five library sections. Two stale claims corrected
+      while doing it: `theme.josworld.less` has had a full **section 4** of
+      component CSS since 2026-08-04 (it was uncommitted, now committed),
+      and "Josworld" **is** selected in the Customizer — `theme.1.css` had
+      already been compiled in the browser on 2026-08-06.
+- [ ] **Next pages** assemble the same way. The **YOOtheme Library**
+      (`wp_options.yootheme` → `library`) now holds 5 items: `A3 · Contact
+      CTA`, `C7 · Ons team`, `C10 · Cijfers — band`, `C11 · Kaartenstapel`,
+      `H4 · Hero — gelaagd`. **Inserting a library item COPIES it** — there
+      is no back-reference, so fixing an item never reaches pages already
+      built from it. Get a section right BEFORE saving it. Saving whole
+      PAGES as library items is the agreed next step, not done yet.
 - [ ] Build the actual builder templates/pages that consume the content
       model (`case`/`team`/`vacature`/`tool` — the data layer is done, the
       front-end rendering is not).
 - [ ] Turn the DB-only site structure (13 pages, 2 menus, front-page
       options, the 7-step Polylang runbook) into a seed script before first
-      deploy — none of it currently travels via `git pull`.
-- [ ] Select "Josworld" in Customizer → Theme → Style and eyeball the
-      compiled LESS in a real browser (proven to compile via `lessc`, not
-      yet visually confirmed).
+      deploy — none of it currently travels via `git pull`. **Related:**
+      `specs/` is not whitelisted in `.gitignore` (the root rule is `/*`
+      plus 54 `!` lines), so the layout JSON under
+      `specs/waarom-jos-page/` is local-only. One `!/specs/` line would
+      track it — deliberately NOT added unilaterally.
+- [ ] **`composer gate` is RED at HEAD, and was before this page was
+      built** — 3 phpstan errors in the YOOtheme sources bridge, none of
+      them touched by the page work: `nullCoalesce.offset` and an
+      `arguments.count` in `YOOthemeSourcesService.php` (`:629` calls
+      `SchemaMapper::toSubObjectTypes()` with 4 args where it takes 2–3 —
+      a real bug), plus `method.alreadyNarrowedType` in
+      `tests/Unit/Yootheme/FieldMetadataTest.php`. Belongs to the
+      `yootheme-sources-baseline` spec, parked deliberately.
 - [ ] Set the real production domain + remote path in `site.yml`; fill
       Combell SSH aliases.
 - [ ] Merge `feat/yootheme-child` once page building + the seed script land.
