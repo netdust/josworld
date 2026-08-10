@@ -1,0 +1,57 @@
+# CLAUDE.md — josworld
+
+You are working on **josworld**, a Netdust WordPress project. Read this at the
+start of every session. Operational config (stack, hosting, deploy, risk): `site.yml`.
+
+@~/.claude/plugins/netdust-wp/CLAUDE.md
+
+## How to work here
+
+1. **Every code-changing request enters through `netdust-agent:harnessed-development`**
+   (Skill tool). It costs one sentence — a work Class (A–F, priced by open decisions,
+   not files) and Stakes — and routes the work: a tweak goes straight to one TDD cycle;
+   a feature runs `planning` → your approval at the seam → `building`. Superpowers does
+   the process work; the netdust overlays add the gates and this stack's environment.
+
+2. **Design uses the framework skills for the technical shape** —
+   `netdust-wp:ntdst-architecture` (services, DI, boundaries), `ntdst-data` (CPTs,
+   fields, queries, REST), `ntdst-patterns` (where files live). Intent questions still
+   go to the human via `superpowers:brainstorming` — every requirement in a spec quotes
+   the ask or is an approved invention (`Source:` lines, machine-checked).
+
+3. **ntdst-core is always the base** (daan's copy is HEAD — port from there, never fork
+   conventions here). Never reinvent what the framework or an existing module already
+   solves; the `invariant-auditor` and `ntdst-drift-reviewer` check for bypasses AND
+   second homes against `ARCHITECTURE-INVARIANTS.md` (author it via
+   `/architecture-invariants audit` if missing) and `docs/architecture/CODE-MAP.md`.
+
+4. **Plan gates on WP work**: `netdust-wp:wp-plan-requirements` injects the four-pillar
+   security line per data-flow and the ntdst-core layering checklist into every plan;
+   `netdust-agent:threat-modeling` fires on any untrusted-input / auth / capability /
+   outbound surface — including ad-hoc one-liners (Class D).
+
+5. **Tests run through this project's gate layer, always** — per-task:
+   `ddev composer test:unit` (Brain Monkey, seconds, no WP/DB); full gate:
+   `composer gate` (host-invoked) — its exit code is the single source of truth; tiers
+   in `README-testing.md` (the phpcs lint tier is currently scoped to `tests/`).
+   `composer format` (Pint) is editor-side, outside the gate. Feature tests are written
+   by the independent `test-author` after each task group.
+
+6. Commit atomically per task. Update `memory/STATE.md` and `tasks/todo.md` as you go;
+   at spec-close, `compounding` harvests what the session taught.
+
+## Conventions
+
+- WP rules: `~/.claude/plugins/netdust-wp/RULES.md` (sanitize/escape/nonce/cap,
+  `$wpdb->prepare()` always, prefix everything, i18n, never edit WP core or `app/wp/`).
+  Universal rules: `netdust-core/RULES.md`.
+- Deploy via `/deploy` — never to prod without explicit confirmation.
+
+## Project memory
+
+- `memory/STATE.md` — living snapshot; read at session start, update at session end
+  (archive history to `memory/ARCHIVE.md`; the hook warns past ~40 KB).
+- `memory/lessons.md` — after any correction, a rule that prevents the repeat.
+- `tasks/todo.md` — the active list for the current branch.
+
+**Next step:** open `memory/STATE.md`, then pick the next task.
