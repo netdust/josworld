@@ -19,7 +19,7 @@ use NTDST_Theme;
  * dev server; production with no manifest ships without theme JS. Neither
  * fatals.
  */
-final class AssetHooks implements \NTDST_Theme_Hooks
+final class AssetHooks
 {
     private const HANDLE = 'josworld-main';
 

@@ -9,17 +9,6 @@ defined('ABSPATH') || exit;
 // ========================================
 
 /**
- * The contract Theme::bind() accepts: a theme hook class receives the
- * facade and attaches its hooks through on()/filter(). Implemented by
- * theme-local classes (e.g. AssetHooks) — the interface lives here in the
- * framework so phpstan checks both sides of the contract statically.
- */
-interface NTDST_Theme_Hooks
-{
-    public function bind(NTDST_Theme $theme): void;
-}
-
-/**
  * The theme's wiring surface — a facade over exactly ONE subject: the theme's
  * own wiring (its config, assets, hooks, template paths, which template renders
  * which type, and the helpers templates call). The fluent, chainable style is
@@ -348,21 +337,6 @@ class NTDST_Theme
         }, $priority);
     }
 
-    /**
-     * Bind a theme hook class into the chain.
-     *
-     * The counterpart of style()/script(): those declare STATIC assets; a
-     * hook class owns anything with a runtime fork (a Vite manifest/dev
-     * server split, conditional payloads). It receives this instance and
-     * attaches its hooks through on()/filter(). The NTDST_Theme_Hooks hint
-     * makes both sides of the contract a static check.
-     */
-    public function bind(NTDST_Theme_Hooks $hooks): self
-    {
-        $hooks->bind($this);
-
-        return $this;
-    }
 
     /**
      * Conditional configuration based on context

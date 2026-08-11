@@ -99,9 +99,10 @@ if (class_exists('NTDST_Theme')) {
         ->on('ntdst/model/registered', [$josworld_yootheme_sources, 'collect'], 10, 2)
         // On `init` so YOOtheme has declared `YOOtheme\app` by the time
         // register()'s own guard runs; safe without the licensed parent.
-        ->on('init', [$josworld_yootheme_sources, 'register'])
-        // The Vite pipeline (manifest/dev-server fork + inline config) —
-        // runtime-conditional, so a hook class rather than static
-        // ->script() lines.
-        ->bind(new \josworld\services\frontend\hooks\AssetHooks());
+        ->on('init', [$josworld_yootheme_sources, 'register']);
+
+    // The Vite pipeline (manifest/dev-server fork + inline config) —
+    // runtime-conditional, so a hook class rather than static ->script()
+    // lines. It attaches through the facade it receives.
+    (new \josworld\services\frontend\hooks\AssetHooks())->bind($theme);
 }
