@@ -121,9 +121,6 @@ class NTDST_Theme
     {
         // Theme setup
         add_action('after_setup_theme', [$this, 'setup_theme']);
-        // Asset enqueueing
-        add_action('wp_enqueue_scripts', [$this, 'enqueue_assets'], 9999);
-        add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets'], 9999);
     }
 
     public function setup_theme(): void
@@ -194,110 +191,6 @@ class NTDST_Theme
         });
     }
 
-    public function enqueue_assets(): void
-    {
-        $this->enqueueAssetsFor('frontend');
-
-        // Localize script with secure data (use different variable name to avoid conflicts)
-        wp_localize_script('ntdst-theme', 'ntdstConfig', [
-            'ajax_url' => esc_url(admin_url('admin-ajax.php')),
-            'nonce' => wp_create_nonce('ntdst_nonce'),
-        ]);
-    }
-
-    public function enqueue_admin_assets(): void
-    {
-        $this->enqueueAssetsFor('admin');
-    }
-
-    /**
-     * Shared enqueue logic for frontend and admin contexts.
-     *
-     * Admin context requires assets to be marked `'admin' => true`; frontend
-     * picks up everything not disabled. Both branches collect attrs into
-     * script_loader_tag / style_loader_tag filters.
-     */
-    private function enqueueAssetsFor(string $context): void
-    {
-        $assets = apply_filters('ntdst_theme_assets', $this->config['assets']);
-        $isAdmin = $context === 'admin';
-
-        $script_attrs = [];
-        $style_attrs = [];
-
-        foreach ($assets['styles'] ?? [] as $handle => $asset) {
-            if ($isAdmin && empty($asset['admin'])) {
-                continue;
-            }
-            if (isset($asset['enabled']) && !$asset['enabled']) {
-                continue;
-            }
-
-            wp_enqueue_style(
-                sanitize_key($handle),
-                esc_url($asset['src']),
-                array_map('sanitize_key', $asset['deps'] ?? []),
-                esc_attr($asset['version'] ?? ''),
-                esc_attr($asset['media'] ?? 'all'),
-            );
-
-            if (!empty($asset['attrs'])) {
-                $style_attrs[sanitize_key($handle)] = $asset['attrs'];
-            }
-        }
-
-        foreach ($assets['scripts'] ?? [] as $handle => $asset) {
-            if ($isAdmin && empty($asset['admin'])) {
-                continue;
-            }
-            if (isset($asset['enabled']) && !$asset['enabled']) {
-                continue;
-            }
-
-            wp_enqueue_script(
-                sanitize_key($handle),
-                esc_url($asset['src']),
-                array_map('sanitize_key', $asset['deps'] ?? []),
-                esc_attr($asset['version'] ?? ''),
-                (bool) ($asset['in_footer'] ?? true),
-            );
-
-            if (!empty($asset['attrs'])) {
-                $script_attrs[sanitize_key($handle)] = $asset['attrs'];
-            }
-        }
-
-        if (!empty($script_attrs)) {
-            add_filter('script_loader_tag', function ($tag, $handle, $src) use ($script_attrs) {
-                if (isset($script_attrs[$handle])) {
-                    foreach ($script_attrs[$handle] as $attr => $value) {
-                        if ($value === true || $value === '') {
-                            $tag = str_replace(' src', ' ' . esc_attr($attr) . ' src', $tag);
-                        } else {
-                            $tag = str_replace(' src', ' ' . esc_attr($attr) . '="' . esc_attr($value) . '" src', $tag);
-                        }
-                    }
-                }
-                return $tag;
-            }, 10, 3);
-        }
-
-        if (!empty($style_attrs)) {
-            add_filter('style_loader_tag', function ($html, $handle, $href, $media) use ($style_attrs) {
-                if (isset($style_attrs[$handle])) {
-                    foreach ($style_attrs[$handle] as $attr => $value) {
-                        if ($value === true || $value === '') {
-                            $html = str_replace(' href', ' ' . esc_attr($attr) . ' href', $html);
-                        } else {
-                            $html = str_replace(' href', ' ' . esc_attr($attr) . '="' . esc_attr($value) . '" href', $html);
-                        }
-                    }
-                }
-                return $html;
-            }, 10, 4);
-        }
-    }
-
     /**
      * Validate configuration array
      *
@@ -314,7 +207,6 @@ class NTDST_Theme
             'menus' => [],
             'sidebars' => [],
             'excerpt' => ['length' => 55, 'more' => ''],
-            'assets' => ['styles' => [], 'scripts' => []],
         ];
 
         // Force expected shapes for keys we iterate later — fail upfront
@@ -327,20 +219,7 @@ class NTDST_Theme
             }
         }
 
-        // Merge config with defaults
-        $merged = array_merge($defaults, $config);
-
-        // Ensure assets has both styles and scripts keys
-        if (isset($merged['assets']) && is_array($merged['assets'])) {
-            $merged['assets'] = array_merge(
-                ['styles' => [], 'scripts' => []],
-                $merged['assets'],
-            );
-        } else {
-            $merged['assets'] = ['styles' => [], 'scripts' => []];
-        }
-
-        return $merged;
+        return array_merge($defaults, $config);
     }
 
 
@@ -405,6 +284,57 @@ class NTDST_Theme
     {
         add_filter($filter, $callback, $priority, $args);
         return $this;
+    }
+
+    /**
+     * Enqueue a stylesheet on `wp_enqueue_scripts` — a thin, explicit
+     * pass-through to wp_enqueue_style(), deferred to the hook. Arguments
+     * reach WordPress verbatim; compute versions and conditions at the call
+     * site. Call at theme load, before `wp_enqueue_scripts` fires.
+     *
+     * These two helpers replaced the config-driven asset loader (the
+     * `assets` config key, its `ntdst_theme_assets` filter and the attrs →
+     * loader-tag rewriting): ~120 lines of machinery with zero consumers
+     * across the fleet, running on every request to iterate empty arrays.
+     * An asset is one explicit line here instead.
+     *
+     * `$priority` orders this enqueue among `wp_enqueue_scripts` listeners —
+     * a child theme overriding its parent's CSS needs a late one (YOOtheme
+     * children use 20 to land after the parent's own enqueues).
+     *
+     * @param string[]         $deps
+     * @param string|bool|null $ver  false = WP version, null = no version
+     */
+    public function style(
+        string $handle,
+        string $src,
+        array $deps = [],
+        string|bool|null $ver = false,
+        string $media = 'all',
+        int $priority = 10,
+    ): self {
+        return $this->on('wp_enqueue_scripts', static function () use ($handle, $src, $deps, $ver, $media): void {
+            wp_enqueue_style($handle, $src, $deps, $ver, $media);
+        }, $priority);
+    }
+
+    /**
+     * Enqueue a script on `wp_enqueue_scripts` — same contract as style().
+     *
+     * @param string[]         $deps
+     * @param string|bool|null $ver  false = WP version, null = no version
+     */
+    public function script(
+        string $handle,
+        string $src,
+        array $deps = [],
+        string|bool|null $ver = false,
+        bool $in_footer = true,
+        int $priority = 10,
+    ): self {
+        return $this->on('wp_enqueue_scripts', static function () use ($handle, $src, $deps, $ver, $in_footer): void {
+            wp_enqueue_script($handle, $src, $deps, $ver, $in_footer);
+        }, $priority);
     }
 
     /**

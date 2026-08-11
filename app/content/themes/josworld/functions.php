@@ -63,8 +63,9 @@ if (class_exists('NTDST_Theme')) {
         'menus'         => $config['menus'] ?? [],
         'sidebars'      => $config['sidebars'] ?? [],
         'excerpt'       => $config['excerpt'] ?? ['length' => 55, 'more' => ''],
-        'assets'        => $config['assets'] ?? ['styles' => [], 'scripts' => []],
     ]);
+
+    $child_css = JOSWORLD_DIR . '/style.css';
 
     $theme
         // Parent (YOOtheme) stylesheet, then the child's hand-written
@@ -72,22 +73,22 @@ if (class_exists('NTDST_Theme')) {
         // The brand fonts are NOT enqueued here — YOOtheme's StyleFontLoader
         // self-hosts the woff2 files picked in the Customizer; enqueueing
         // the same families again would double-load them from Google.
-        ->on('wp_enqueue_scripts', static function (): void {
-            wp_enqueue_style(
-                'yootheme',
-                get_template_directory_uri() . '/style.css',
-                [],
-                wp_get_theme(get_template())->get('Version') ?: null,
-            );
-
-            $child_css = JOSWORLD_DIR . '/style.css';
-            wp_enqueue_style(
-                'josworld-child',
-                JOSWORLD_URI . '/style.css',
-                ['yootheme'],
-                file_exists($child_css) ? (string) filemtime($child_css) : JOSWORLD_VERSION,
-            );
-        }, 20)
+        ->style(
+            'yootheme',
+            get_template_directory_uri() . '/style.css',
+            [],
+            wp_get_theme(get_template())->get('Version') ?: null,
+            'all',
+            20,
+        )
+        ->style(
+            'josworld-child',
+            JOSWORLD_URI . '/style.css',
+            ['yootheme'],
+            file_exists($child_css) ? (string) filemtime($child_css) : JOSWORLD_VERSION,
+            'all',
+            20,
+        )
         // ORDERING CONTRACT (fails SILENTLY if broken): `collect` listens
         // for `ntdst/model/registered`, which josworld-core fires on
         // `after_setup_theme` @5. This file runs at top level BEFORE that
