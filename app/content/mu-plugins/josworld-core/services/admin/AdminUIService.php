@@ -40,14 +40,19 @@ final class AdminUIService
 
     private function init(): void
     {
-        add_action('admin_enqueue_scripts', [$this, 'enqueueMetaboxFieldScripts']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueueConditionalFieldScripts']);
     }
 
     /**
      * Scoped to post.php/post-new.php AND to POST_TYPES, so unrelated admin
      * screens (dashboard, a native `post` edit screen) never receive the JS.
+     *
+     * The metabox field client itself (relation/gallery/repeater) is
+     * framework-owned: ntdst-core's MetaboxGenerator enqueues it as
+     * `ntdst-metabox-fields` on the same screens. This service adds only
+     * josworld's conditional-field layer on top of that handle.
      */
-    public function enqueueMetaboxFieldScripts(string $hook): void
+    public function enqueueConditionalFieldScripts(string $hook): void
     {
         if (! in_array($hook, ['post.php', 'post-new.php'], true)) {
             return;
@@ -57,14 +62,6 @@ final class AdminUIService
         if (! $screen || ! in_array($screen->post_type, self::POST_TYPES, true)) {
             return;
         }
-
-        wp_enqueue_script(
-            'josworld-metabox-fields',
-            plugins_url('assets/js/metabox-fields.js', dirname(__DIR__, 2) . '/josworld-core.php'),
-            ['jquery', 'jquery-ui-sortable'],
-            null,
-            true,
-        );
 
         $this->enqueueConditionalFieldScript($screen->post_type);
     }
@@ -85,7 +82,7 @@ final class AdminUIService
         wp_enqueue_script(
             'josworld-metabox-conditional',
             plugins_url('assets/js/metabox-conditional.js', dirname(__DIR__, 2) . '/josworld-core.php'),
-            ['jquery', 'josworld-metabox-fields'],
+            ['jquery', 'ntdst-metabox-fields'],
             null,
             true,
         );

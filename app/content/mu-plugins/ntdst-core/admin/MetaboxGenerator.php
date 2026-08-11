@@ -81,45 +81,46 @@ final class NTDST_MetaboxGenerator
     }
 
     /**
-     * Enqueue metabox field scripts (relation, gallery, repeater)
+     * Enqueue the metabox field client (relation autocomplete, gallery,
+     * repeater) on registered-model edit screens.
+     *
+     * The client ships WITH this class in ntdst-core — it drives the markup
+     * render_* below emits and calls the `relation_search` api_data action
+     * NTDST_RelationField registers, so the three travel together. It used
+     * to be probed from the active theme's `assets/dist/theme-services.js`,
+     * which no theme ever shipped: every site's pickers were silently dead.
+     *
+     * The relation autocomplete transports through window.ntdstAPI, so the
+     * shared API client is enqueued alongside and declared as a dependency
+     * — without it metabox-fields.js disables relation fields on its own.
      */
     public function enqueue_metabox_scripts(string $hook): void
     {
-        // Only on post edit screens
-        if (!in_array($hook, ['post.php', 'post-new.php'])) {
+        if (!in_array($hook, ['post.php', 'post-new.php'], true)) {
             return;
         }
 
-        // Get current post type
         global $post_type;
 
-        // Check if this post type has registered metaboxes
         if (!isset($this->registered_models[$post_type])) {
             return;
         }
 
-        // Enqueue theme-services.js (includes metabox-fields.js) if the
-        // active theme actually ships it. Themes without this build artefact
-        // (e.g. Tailwind-only stridence) work fine without it.
-        $theme_dist_path = get_stylesheet_directory() . '/assets/dist/theme-services.js';
-        if (file_exists($theme_dist_path)) {
-            $theme_dist_uri = get_stylesheet_directory_uri() . '/assets/dist';
-            wp_enqueue_script(
-                'ntdst-theme-services',
-                $theme_dist_uri . '/theme-services.js',
-                ['jquery', 'jquery-ui-sortable'],
-                null,
-                true,
-            );
+        $deps = ['jquery', 'jquery-ui-sortable'];
 
-            // Add type="module" for ES module support
-            add_filter('script_loader_tag', function ($tag, $handle) {
-                if ($handle === 'ntdst-theme-services') {
-                    return str_replace(' src', ' type="module" src', $tag);
-                }
-                return $tag;
-            }, 10, 2);
+        if (function_exists('ntdst_enqueue_api_client')) {
+            ntdst_enqueue_api_client();
+            $deps[] = 'ntdst-api';
         }
+
+        $path = dirname(__DIR__) . '/assets/js/metabox-fields.js';
+        wp_enqueue_script(
+            'ntdst-metabox-fields',
+            plugins_url('assets/js/metabox-fields.js', dirname(__DIR__) . '/ntdst-core.php'),
+            $deps,
+            file_exists($path) ? (string) filemtime($path) : '1.0.0',
+            true,
+        );
     }
 
     public static function instance(): self

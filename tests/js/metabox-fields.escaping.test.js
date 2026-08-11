@@ -29,7 +29,7 @@ import { resolve } from 'node:path';
 
 const SOURCE = resolve(
   __dirname,
-  '../../app/content/mu-plugins/josworld-core/assets/js/metabox-fields.js',
+  '../../app/content/mu-plugins/ntdst-core/assets/js/metabox-fields.js',
 );
 
 /** The exact payload that exploited the pre-fix renderer. */
