@@ -49,7 +49,7 @@ those. Write new comments to this standard.
 
 The theme routes ALL its wiring through the NTDST_Theme facade
 (functions.php chains the CSS enqueue + YOOtheme bridge on the instance;
-AssetHooks stores it and uses on()/filter()). Only NTDST_Bootstrap's boot
+ViteAssets stores it and uses on()/filter()). Only NTDST_Bootstrap's boot
 hooks stay raw — framework boot, not theme wiring.
 
 Assets: NTDST_Theme's config-driven loader is GONE (720399f in daan,
@@ -62,7 +62,7 @@ no `assets` config key anymore.
 The boundary rule: static assets are `->style()`/`->script()` lines;
 anything with a runtime fork (Vite manifest/dev-server split, conditional
 payloads) is a hook class called directly —
-`(new AssetHooks())->bind($theme)`. AssetHooks is the only such class.
+`(new ViteAssets())->bind($theme)`. ViteAssets is the only such class.
 A Theme::bind() forwarder + NTDST_Theme_Hooks interface were tried and
 REVERTED same-day (7bf6ce5 daan / 98fb3e6 here): sugar over a one-line
 call, one implementer, no polymorphic call site — don't reintroduce.
