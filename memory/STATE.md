@@ -59,6 +59,12 @@ wp_enqueue_* pass-throughs deferred to wp_enqueue_scripts; trailing
 priority arg — child CSS uses 20 to land after YOOtheme's own). There is
 no `assets` config key anymore.
 
+The boundary rule: static assets are `->style()`/`->script()` lines;
+anything with a runtime fork (Vite manifest/dev-server split, conditional
+payloads) is a hook class joined to the chain via `->bind($hooks)`
+(ae3d5f5 in daan, 66f1e66 here — bind() duck-types the class's
+bind(NTDST_Theme) convention). AssetHooks is the only such class.
+
 **Known gap (both sites): the metabox client JS.** The field interactions
 for ntdst-core's MetaboxGenerator (relation autocomplete, gallery,
 repeater) live ONLY in `josworld-core/assets/js/metabox-fields.js`,
