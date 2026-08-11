@@ -338,6 +338,30 @@ class NTDST_Theme
     }
 
     /**
+     * Bind a theme hook class into the chain.
+     *
+     * The counterpart of style()/script(): those declare STATIC assets; a
+     * hook class owns anything with a runtime fork (a Vite manifest/dev
+     * server split, conditional payloads). Its bind(NTDST_Theme) method
+     * receives this instance and attaches its hooks through on()/filter().
+     *
+     * Duck-typed rather than an interface: the theme's hook classes are
+     * theme-local files with no autoloader; fail loudly on a miss.
+     */
+    public function bind(object $hooks): self
+    {
+        if (!method_exists($hooks, 'bind')) {
+            throw new InvalidArgumentException(
+                get_class($hooks) . ' cannot be bound: it declares no bind(NTDST_Theme $theme) method.',
+            );
+        }
+
+        $hooks->bind($this);
+
+        return $this;
+    }
+
+    /**
      * Conditional configuration based on context
      *
      * @param callable $condition Function that returns boolean
