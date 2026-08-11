@@ -61,9 +61,11 @@ no `assets` config key anymore.
 
 The boundary rule: static assets are `->style()`/`->script()` lines;
 anything with a runtime fork (Vite manifest/dev-server split, conditional
-payloads) is a hook class joined to the chain via `->bind($hooks)`
-(ae3d5f5 in daan, 66f1e66 here — bind() duck-types the class's
-bind(NTDST_Theme) convention). AssetHooks is the only such class.
+payloads) is a hook class called directly —
+`(new AssetHooks())->bind($theme)`. AssetHooks is the only such class.
+A Theme::bind() forwarder + NTDST_Theme_Hooks interface were tried and
+REVERTED same-day (7bf6ce5 daan / 98fb3e6 here): sugar over a one-line
+call, one implementer, no polymorphic call site — don't reintroduce.
 
 **Known gap (both sites): the metabox client JS.** The field interactions
 for ntdst-core's MetaboxGenerator (relation autocomplete, gallery,
