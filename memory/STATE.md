@@ -2,6 +2,31 @@
 
 ## Current Phase: content model complete (T01-T12 landed); next is section-by-section page building
 
+## ntdst-core synced to daan HEAD (2026-08-11, commit fa51984)
+
+The vendored `ntdst-core` now matches daan's copy (the framework HEAD).
+What the port changed on the josworld side — the traps for future edits:
+
+- **`find()`/`getMeta()` take a post-STATUS second arg, publish-only by
+  default.** `find($id, true)` (the removed skipCache flag) now throws.
+  Admin-facing reads (list columns, save-path rereads) must pass `'any'`.
+- **Taxonomies are declared WITH the model** via `register()`'s
+  `taxonomies` config key (`CaseService` `dienst`). `NTDST_Theme` lost
+  `register()`/`taxonomy()`/`apiAction()`/`module()`.
+- **The relation autocomplete action is `relation_search`** (login +
+  target-type `edit_others_posts`, allow-list derived from declared
+  relation targets). `search_posts`/`search_users` are deleted;
+  `metabox-fields.js` was re-pointed and its user branch removed.
+- **CPT registration is private-by-default** in the new core — all four
+  josworld models declare their flags explicitly, so nothing changed here,
+  but a NEW model must opt in to `public`/`has_archive`/`supports`.
+- phpstan-baseline was regenerated against the new core (framework-only
+  entries); php_codesniffer bumped past CVE-2026-67434.
+- Three test failures fixed in the same pass were PRE-EXISTING drift, not
+  port breakage: the team `publicly_queryable` assertion (stale since
+  d3ff09e), employment-type test values (stale since 543a7ec), and
+  `team.bio` missing from `docs/content-model.md`.
+
 stackedWP install running at https://josworld.ddev.site. `composer gate`: all
 9 tiers green (integration 79, unit 18, JS 12 mu-plugins + 5 theme, e2e 3/3).
 Admin `/wp/wp-admin` (admin/admin). Production domain + remote path are still
@@ -28,9 +53,11 @@ silently drift the way a hand-copied table would.
 - `content/CaseService.php` — `case` (T05): client/tagline/impact/
   uitdaging/resultaat/takeaways/testimonial/interview + a `team` relation.
   The site's primary sales asset.
-- `content/TeamService.php` — `team` (T06): role/email/phone. No public
-  single view (`publicly_queryable => false`), but REST-readable regardless
-  (WP core behaviour, not a bug — see the doc's REST caveat).
+- `content/TeamService.php` — `team` (T06): role/bio/email/phone. Public
+  and publicly queryable since d3ff09e (the archive + YOOtheme enumeration
+  need the flags); the single view is closed by closeSingleView()'s 301
+  redirect, not registration flags. REST-readable regardless (WP core
+  behaviour, not a bug — see the doc's REST caveat).
 - `content/VacatureService.php` / `ToolService.php` — `vacature` + `tool`
   (T07). Vacature's `employment_type` is a closed list enforced by a
   `validate` callback (the `<select>` render does NOT enforce it).
