@@ -41,7 +41,7 @@ if (class_exists('NTDST_Bootstrap')) {
 // ========================================
 
 if (class_exists('NTDST_Theme')) {
-    require_once __DIR__ . '/services/frontend/hooks/AssetHooks.php';
+    require_once __DIR__ . '/services/frontend/hooks/ViteAssets.php';
 
     // The YOOtheme dynamic-content bridge. Required explicitly (no
     // autoloader); `ntdst-cached-meta-accessor.php` is deliberately NOT
@@ -104,5 +104,5 @@ if (class_exists('NTDST_Theme')) {
     // The Vite pipeline (manifest/dev-server fork + inline config) —
     // runtime-conditional, so a hook class rather than static ->script()
     // lines. It attaches through the facade it receives.
-    (new \josworld\services\frontend\hooks\AssetHooks())->bind($theme);
+    (new \josworld\services\frontend\hooks\ViteAssets())->bind($theme);
 }

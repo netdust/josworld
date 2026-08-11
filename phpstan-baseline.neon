@@ -1276,13 +1276,13 @@ parameters:
 			message: '#^Constant JOSWORLD_DIR not found\.$#'
 			identifier: constant.notFound
 			count: 2
-			path: app/content/themes/josworld/services/frontend/hooks/AssetHooks.php
+			path: app/content/themes/josworld/services/frontend/hooks/ViteAssets.php
 
 		-
 			message: '#^Constant JOSWORLD_URI not found\.$#'
 			identifier: constant.notFound
 			count: 1
-			path: app/content/themes/josworld/services/frontend/hooks/AssetHooks.php
+			path: app/content/themes/josworld/services/frontend/hooks/ViteAssets.php
 
 		-
 			message: '#^Offset ''field_groups'' on array\{schema\: array\<string, mixed\>, prefix\: string, field_groups\: array\<string, mixed\>\} on left side of \?\? always exists and is not nullable\.$#'
