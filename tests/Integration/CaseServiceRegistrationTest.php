@@ -8,20 +8,11 @@ use josworld\services\content\CaseService;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves the T05 CONTRACT against REAL WordPress + the
- * real (dedicated) wptests database — the field map is this project's own
- * contract (every later builder template reads these exact keys), so its
- * risk lives entirely in real post-type registration, real prefixed
- * post-meta persistence, and real repeater/relation round-tripping, none of
- * which Brain Monkey (unit tier) can express.
- *
- * THE CONTRACT (tasks.md T05 Integration test line):
- *  1. Registering the model creates a public `case` post type with an
- *     archive.
- *  2. A case saved with 3 impact rows re-reads 3 rows in the SAME ORDER.
- *  3. A case saved with NO takeaways and NO interview re-reads with those
- *     keys ABSENT from the raw postmeta table, not empty-stringed.
- *  4. Every meta key this model WRITES starts with `_jw_` (FR-12 / SC-5).
+ * The `case` model contract against real WordPress + the wptests DB —
+ * every builder template reads these exact keys: a public post type with
+ * an archive, repeater rows re-read in order, omitted optional blocks
+ * leave NO raw meta row (not an empty string), and every written meta key
+ * carries the `_jw_` prefix. None of this is expressible in Brain Monkey.
  */
 final class CaseServiceRegistrationTest extends WP_UnitTestCase
 {
@@ -31,9 +22,8 @@ final class CaseServiceRegistrationTest extends WP_UnitTestCase
 
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/CaseService.php';
 
-        // Constants CaseService depends on (normally defined by
-        // josworld-core.php's own entrypoint). Guarded the same way the
-        // entrypoint guards them, so this test is independent of boot order.
+        // Guarded the same way the entrypoint guards them — boot-order
+        // independent.
         if (! defined('JOSWORLD_CORE_META_PREFIX')) {
             define('JOSWORLD_CORE_META_PREFIX', '_jw_');
         }
@@ -95,10 +85,8 @@ final class CaseServiceRegistrationTest extends WP_UnitTestCase
 
         $this->assertNotWPError($created);
 
-        // The raw postmeta table, not the formatted read path: formatMeta()
-        // fills a per-type default (`[]`) for display, which is a read-time
-        // concern. The acceptance criterion is about STORAGE — no row was
-        // ever written for a key the editor never submitted.
+        // Raw postmeta, not the formatted read path: formatMeta() fills `[]`
+        // at read time; the criterion is that no row was ever WRITTEN.
         $this->assertFalse(
             metadata_exists('post', $created->ID, JOSWORLD_CORE_META_PREFIX . 'takeaways'),
             'no `_jw_takeaways` meta row may exist when takeaways were never submitted',
@@ -108,8 +96,7 @@ final class CaseServiceRegistrationTest extends WP_UnitTestCase
             'no `_jw_interview` meta row may exist when interview blocks were never submitted',
         );
 
-        // Reading back still resolves cleanly (no error, no fatal) with the
-        // schema-driven default rather than an empty string.
+        // Reading back resolves the schema-driven default, not an empty string.
         $reread = $model->find($created->ID, 'any');
         $this->assertNotWPError($reread);
         $this->assertSame([], $reread->fields['takeaways']);
@@ -140,10 +127,7 @@ final class CaseServiceRegistrationTest extends WP_UnitTestCase
 
         $this->assertNotWPError($created);
 
-        // get_post_meta() with no key returns ALL meta for the post, cached
-        // and WP-idiomatic — the same raw postmeta table CaseServiceRegistrationTest's
-        // other tests reach via metadata_exists(), just enumerated instead of
-        // probed for a single key.
+        // get_post_meta() with no key enumerates ALL meta rows for the post.
         $allMeta = get_post_meta($created->ID);
         $metaKeys = array_keys($allMeta);
 

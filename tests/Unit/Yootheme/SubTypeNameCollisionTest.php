@@ -11,47 +11,16 @@ require_once dirname(__DIR__, 3)
     . '/app/content/themes/josworld/services/yootheme/SchemaMapper.php';
 
 /**
- * Unit tier: the CLOSING CHECKS for Cluster B1 review findings C-1 and I-1.
+ * `upperCamelCase()` discards `[_-]+` separators, so field name -> type
+ * name is NOT injective: `key_figures` and `keyFigures` compose to the
+ * same sub-type name. YOOtheme's SchemaBuilder MERGES duplicate type names
+ * silently (objectType() appends configs — no error), so one CPT's
+ * repeater rows would gain another CPT's builder-bindable fields.
  *
- * WHY THIS FILE EXISTS. Two independent reviewers, working separately,
- * converged on the same defect and the controller reproduced it by
- * execution before accepting it:
+ * Not reachable from the four live CPTs today, but the schema is
+ * filter-influenced (`ntdst/{$name}/fields`), so field names are not
+ * strictly developer-authored literals.
  *
- *     key_figures -> CaseKeyFiguresItem
- *     keyFigures  -> CaseKeyFiguresItem     <- same name
- *
- * `upperCamelCase()` splits on `[_-]+` and discards the separators, so the
- * mapping from field name to type name is NOT injective. `toSubObjectTypes()`
- * then wrote into `$types[$name]` with no occupancy check, so the second
- * repeater silently overwrote the first. Measured before the fix:
- * `refs=2 defs=1` — two `listOf` references, one emitted definition, and the
- * first repeater's sub-fields simply gone.
- *
- * WHY IT IS WORSE THAN A NAME CLASH — verified in YOOtheme's own source, not
- * assumed. `SchemaBuilder::objectType()` (packages/graphql/src/SchemaBuilder
- * .php:220-239) APPENDS to `$this->configs[$name][]`, and `loadType()`
- * (:265-269) applies every queued config through `extendType()`. A duplicate
- * type name is therefore MERGED SILENTLY — no InvariantViolation, no warning,
- * no last-write-wins error. One CPT's repeater rows gain another CPT's
- * fields, and per the plan's threat 2 those merged fields become
- * builder-bindable. That is "one CPT rendering another's data", reached
- * through a path every existing guard missed.
- *
- * WHY 18 GREEN TESTS MISSED IT (finding I-1, and the more important half):
- * every existing test asserted ONE method's output against a literal. None
- * asserted the RELATIONSHIP between the two methods. The invariant test
- * below states it directly — every `listOf` reference must have exactly one
- * emitted definition — which subsumes this specific collision and any future
- * divergence between the two methods.
- *
- * NOT reachable from josworld's four live CPTs today (no separator ambiguity,
- * no prefix overlap among Case/Team/Vacature/Tool). It is a latent trap that
- * fires the day someone adds a repeater — and the security review raised its
- * priority by establishing the schema is filter-influenced
- * (`apply_filters("ntdst/{$name}/fields", ...)` at ntdst-core Data.php:1526),
- * so field names are not strictly a developer-authored literal.
- *
- * A test file by nature declares a symbol and executes side effects.
  * phpcs:disable PSR1.Files.SideEffects
  */
 final class SubTypeNameCollisionTest extends TestCase
@@ -61,10 +30,9 @@ final class SubTypeNameCollisionTest extends TestCase
     private const PARENT = 'Case';
 
     /**
-     * THE INVARIANT (finding I-1). This is the assertion whose absence let
-     * the collision through: for ANY schema, every `listOf` type name that
-     * `toObjectType()` references must have exactly one definition emitted
-     * by `toSubObjectTypes()` — no dangling reference, no orphan definition.
+     * The invariant: every `listOf` type name that `toObjectType()`
+     * references must have exactly one definition emitted by
+     * `toSubObjectTypes()` — no dangling reference, no orphan definition.
      *
      * @dataProvider collidingSchemaProvider
      *
@@ -126,13 +94,8 @@ final class SubTypeNameCollisionTest extends TestCase
         ];
     }
 
-    /**
-     * The collision must be resolved FAIL-CLOSED. When two field names
-     * compose to one type name, the safe denial is the one this class
-     * already uses everywhere else: omit BOTH, so the fields are
-     * visibly-absent rather than invisibly-merged. Silently keeping one is
-     * the failure mode that renders the wrong CPT's data.
-     */
+    // Fail-closed: when two names compose to one type name, omit BOTH —
+    // visibly-absent beats invisibly-merged.
     public function test_colliding_repeaters_are_both_omitted_not_silently_merged(): void
     {
         $schema = [
@@ -148,11 +111,8 @@ final class SubTypeNameCollisionTest extends TestCase
         $this->assertSame([], $defs, 'no sub-type definition may be emitted for a collided name');
     }
 
-    /**
-     * A control alongside the above: a NON-colliding repeater in the same
-     * schema as a colliding pair must still map. Without this, "omit both"
-     * could be satisfied by omitting everything.
-     */
+    // Control: a non-colliding repeater in the same schema must still
+    // map — otherwise "omit both" could be satisfied by omitting everything.
     public function test_a_non_colliding_repeater_survives_alongside_a_collision(): void
     {
         $schema = [
@@ -169,13 +129,9 @@ final class SubTypeNameCollisionTest extends TestCase
     }
 
     /**
-     * Finding C-1's second half: a composed name that is not a legal GraphQL
-     * identifier must be omitted. A GraphQL name must start with a letter or
-     * underscore and continue with letters, digits or underscores. The
-     * helper's own docblock claims to prevent illegal names, but `2fast`
-     * produced `Case2fastItem` (legal, as it happens, because the parent
-     * prefixes it) while an EMPTY parent name would not. Pin the rule at the
-     * composed name, where it is decidable.
+     * A composed name that is not a legal GraphQL identifier must be
+     * omitted. Pinned at the COMPOSED name, where it is decidable — a
+     * parent prefix can legalize `2fast`, an empty parent cannot.
      *
      * @dataProvider illegalNameProvider
      */

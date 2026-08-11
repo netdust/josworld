@@ -11,28 +11,9 @@ use josworld\services\content\VacatureService;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves the T08 CONTRACT against REAL WordPress — taxonomy
- * registration + post-type attachment is real-WP behaviour (rewrite rules,
- * `object_type`) that Brain Monkey cannot express, and a wrong `object_type`
- * fails SILENTLY (the taxonomy still registers, still looks correct in the
- * admin, and simply never surfaces terms on the post type that needed them).
- *
- * THE CONTRACT (tasks.md T08 Integration test line):
- *  1. `dienst` is registered and attached to `case` — AND to NO other type
- *     (team, vacature, tool, post). The negative half is the part a wrong
- *     `object_type` breaks silently; asserting only the positive half would
- *     stay green even if `dienst` were attached to everything.
- *  2. Terms attached to a case are retrievable — this file also states
- *     PLAINLY, as a finding rather than a silent substitution, what "order"
- *     actually means here: WP's default term retrieval orders by `name`,
- *     NOT by insertion (confirmed against WP_Term_Query's `orderby` default
- *     and against `wp_set_object_terms()`, which never populates
- *     `wp_term_relationships.term_order` — that column stays 0 for every row
- *     it inserts, so `orderby => 'term_order'` carries no real signal here
- *     either). The test below proves that with terms named specifically to
- *     EXPOSE the difference (a non-alphabetical insertion order), so an
- *     alphabetical default cannot pass by accident.
- *  3. A case with zero diensten returns an empty list, not an error.
+ * Proves the `dienst` taxonomy registers, attaches to `case` and to NO
+ * other type, and retrieves terms — against real WP, because a wrong
+ * `object_type` fails silently (taxonomy registers, terms never surface).
  */
 final class DienstTaxonomyTest extends WP_UnitTestCase
 {
@@ -52,9 +33,8 @@ final class DienstTaxonomyTest extends WP_UnitTestCase
             define('JOSWORLD_CORE_TEXTDOMAIN', 'josworld-core');
         }
 
-        // All four content services, so the "attached to case and to NO
-        // other type" assertion has real siblings to check against — not
-        // just an absence of competition.
+        // All four services, so "attached to NO other type" checks against
+        // real siblings, not an absence of competition.
         new CaseService(ntdst_data());
         new TeamService(ntdst_data());
         new VacatureService(ntdst_data());
@@ -84,11 +64,8 @@ final class DienstTaxonomyTest extends WP_UnitTestCase
     }
 
     /**
-     * The negative half — this is the assertion a wrong `object_type` fails
-     * SILENTLY on. A taxonomy attached to case AND team AND vacature AND
-     * tool would still pass "attached to case" while never being what the
-     * design needs (a service list scoped to cases only, per spec FR-5's
-     * assumption that `dienst` applies to `case` ONLY).
+     * The negative half a wrong `object_type` fails silently on: attached
+     * to everything would still pass "attached to case".
      */
     public function test_dienst_is_attached_to_case_and_no_other_josworld_post_type(): void
     {
@@ -101,15 +78,9 @@ final class DienstTaxonomyTest extends WP_UnitTestCase
     }
 
     /**
-     * Proves retrieval actually works, using term names chosen specifically
-     * to expose an alphabetical-default bug: "Zoeken" and "Analyse" inserted
-     * in THAT (non-alphabetical) order. If retrieval silently defaulted to
-     * insertion order, this would need to assert [Zoeken, Analyse]; if it
-     * defaults to name order (which WP does — see class docblock), the
-     * honest assertion is [Analyse, Zoeken]. This test asserts the latter
-     * because that is what `wp_get_object_terms()` / `get_the_terms()`
-     * actually return with no explicit `orderby`, and states it as a
-     * deliberate finding rather than assuming naive insertion order.
+     * WP's default term retrieval orders by name, NOT insertion
+     * (wp_set_object_terms() never populates term_order). Term names are
+     * chosen non-alphabetical so an insertion-order default cannot pass.
      */
     public function test_terms_attached_to_a_case_are_retrievable_and_wp_orders_them_by_name(): void
     {
@@ -127,9 +98,6 @@ final class DienstTaxonomyTest extends WP_UnitTestCase
         $terms = wp_get_object_terms($created->ID, 'dienst', ['fields' => 'names']);
         $this->assertNotWPError($terms);
 
-        // The FINDING this test proves: WP's default retrieval order is by
-        // `name`, not by insertion — so this is what the design's
-        // comma-joined list will actually render.
         $this->assertSame(
             ['Analyse', 'Zoeken'],
             $terms,

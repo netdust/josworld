@@ -10,60 +10,14 @@ use WP_Hook;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves the T03 CONTRACT — the deferred boot in
- * josworld-core.php actually works against REAL WordPress, not a
- * simulation. This is the exact load-order trap the boot's own
- * `plugins_loaded` deferral exists for (see josworld-core.php:10-16): the
- * loader sorts alphabetically BEFORE ntdst-coreloader.php, so `ntdst_get()`
- * is undefined at include time and every framework-dependent call must wait
- * for a later hook. Brain Monkey (unit tier) cannot observe any of this —
- * it never runs mu-plugins load order — so this is the ONLY place the trap
- * is provable.
- *
- * THREE CLAUSES, THREE DIFFERENT PROOF TECHNIQUES (each justified at its
- * own test — a single technique cannot honestly prove all three):
- *
- * 1) Services resolve via ntdst_get() on after_setup_theme:5, non-empty.
- * 2) Admin-only services do NOT resolve on a front-end request.
- * 3) With ntdst_get undefined, the site loads with no fatal and registers
- *    no post type.
- *
- * CLAUSES 1+2 — re-fire the REAL registered hook, don't reimplement it:
- * wp-phpunit's bootstrap already fires plugins_loaded/after_setup_theme
- * for real, once, before ANY test method runs (confirmed via probe:
- * did_action('after_setup_theme') === 1 at test start, is_admin() === false
- * at that point because the CLI-driven bootstrap is a front-end-like
- * context with no current screen set). That real, once-only firing is
- * itself clause 2's proof — the actual boot genuinely skipped
- * AdminUIService, verified here by asserting no admin_enqueue_scripts
- * listener from it exists yet. Clause 1 is then proven by RE-FIRING the
- * SAME real, already-registered after_setup_theme:5 closure (do_action()
- * calls the real callback again — this is not a reimplementation of the
- * boot block, it is WordPress invoking the actual code under test a second
- * time) after simulating an admin screen the same way
- * AdminUIServiceEnqueueTest does (set_current_screen()), and asserting the
- * listener now exists AND that ntdst_get() returns the SAME cached
- * instance on a fresh call (proof the container's singleton cache was
- * really populated during the refire, not merely resolvable — has()
- * returns true for any autowireable class whether or not it was ever
- * actually constructed).
- *
- * CLAUSE 3 — real subprocess, mirroring the project's own established
- * pattern (tests/Unit/IntegrationBootstrapGuardTest.php): `ntdst_get` IS
- * defined in this integration environment (ntdst-core is loaded), so it
- * cannot be honestly undefined here in-process. A separate `php` process
- * that requires the REAL, unmodified loader + entrypoint files with a
- * minimal hook shim and no ntdst-core at all is the only way to make
- * `ntdst_get` genuinely absent while still exercising the real guarded
- * code path. The probe (see task notes) confirmed this technique is
- * discriminating: calling ntdst_get() directly while undefined fatals with
- * exit 255 and "Fatal error" in the output, so a clean exit 0 with no such
- * string is real proof the guard fired, not an artifact of an inert test.
- * "No post type registered" is asserted as a REGRESSION GUARD: josworld
- * registers none today (T05-T08 land later), so the meaningful assertion
- * today is that the degraded boot registers no MORE than the current
- * baseline of zero — once a content service lands behind the same guard,
- * this same assertion starts covering the real omission it names.
+ * The deferred boot in josworld-core.php against real WordPress: the
+ * mu-plugin loader sorts josworld-core BEFORE ntdst-coreloader, so
+ * ntdst_get() is undefined at include time and every framework call must
+ * wait for a later hook — only provable here, never in Brain Monkey.
+ * The resolve/skip clauses re-fire the REAL registered after_setup_theme:5
+ * closure (wp-phpunit's bootstrap already fired it once, front-end-like);
+ * the framework-absent clause runs a subprocess with a hook shim and no
+ * ntdst-core, because ntdst_get cannot be honestly undefined in-process.
  */
 final class JosworldCoreBootTest extends WP_UnitTestCase
 {
@@ -80,11 +34,8 @@ final class JosworldCoreBootTest extends WP_UnitTestCase
 
     public function test_real_boot_already_ran_and_did_not_resolve_admin_service_on_a_front_end_like_request(): void
     {
-        // Sanity-anchor: the real plugins_loaded/after_setup_theme sequence
-        // has already fired for real, exactly once, before this test method
-        // runs — proving the assertions below exercise the REAL boot's
-        // first, genuine pass rather than something this test triggers
-        // itself.
+        // Anchor: the real boot fired exactly once, front-end-like, before
+        // any test method ran.
         $this->assertSame(
             1,
             did_action('after_setup_theme'),
@@ -105,11 +56,8 @@ final class JosworldCoreBootTest extends WP_UnitTestCase
 
     public function test_admin_only_service_does_not_resolve_on_a_front_end_request(): void
     {
-        // Belt-and-braces behavioral assertion alongside the anchor above:
-        // explicitly simulate a front-end context (no current screen — the
-        // same "unset" state WordPress itself is in on a real front-end
-        // request) and re-fire the REAL after_setup_theme:5 closure. It
-        // must still refuse to resolve the admin-only service.
+        // Simulate a front-end context (no current screen) and re-fire the
+        // REAL after_setup_theme:5 closure.
         global $current_screen;
         $current_screen = null;
 
@@ -123,11 +71,8 @@ final class JosworldCoreBootTest extends WP_UnitTestCase
 
     public function test_services_resolve_via_ntdst_get_on_after_setup_theme_and_the_set_is_non_empty(): void
     {
-        // Simulate an admin edit screen exactly the way
-        // AdminUIServiceEnqueueTest does, then RE-FIRE the REAL,
-        // already-registered after_setup_theme:5 closure — this calls the
-        // actual boot-block code under test a second time, it does not
-        // reimplement it.
+        // Simulate an admin screen, then re-fire the REAL registered closure
+        // — the actual boot-block code, not a reimplementation.
         set_current_screen('case');
         $this->assertTrue(
             is_admin(),
@@ -142,12 +87,9 @@ final class JosworldCoreBootTest extends WP_UnitTestCase
             . 'once after_setup_theme fires inside wp-admin',
         );
 
-        // Non-emptiness is not just "a listener exists" — prove the
-        // CONTAINER really constructed and cached an instance: a fresh
-        // ntdst_get() call returns the SAME instance (singleton semantics),
-        // which only happens if resolve() already ran and populated the
-        // resolved cache. has() alone would be true even if nothing was
-        // ever constructed (it also passes for any autowireable class).
+        // Prove the container really constructed and cached an instance:
+        // a fresh ntdst_get() returns the SAME object — has() would be true
+        // for any autowireable class, constructed or not.
         $first = ntdst_get(AdminUIService::class);
         $second = ntdst_get(AdminUIService::class);
         $this->assertInstanceOf(AdminUIService::class, $first);
@@ -161,14 +103,8 @@ final class JosworldCoreBootTest extends WP_UnitTestCase
 
     public function test_site_loads_with_no_fatal_and_registers_no_post_type_when_ntdst_get_is_undefined(): void
     {
-        // ntdst_get() IS defined in this integration environment (ntdst-core
-        // is loaded as a real mu-plugin) — it cannot be honestly undefined
-        // in-process. A real, separate php subprocess that requires the
-        // ACTUAL loader + entrypoint files with a minimal WP-hook shim and
-        // NO ntdst-core at all is the only way to make ntdst_get() genuinely
-        // absent while still exercising the real guarded code path
-        // end-to-end, mirroring this project's own established subprocess
-        // pattern (tests/Unit/IntegrationBootstrapGuardTest.php).
+        // ntdst_get() is defined in-process here; a subprocess with no
+        // ntdst-core is the only honest absence.
         $result = $this->boot_the_real_plugin_in_a_subprocess_without_ntdst_core();
 
         $this->assertSame(
@@ -256,11 +192,8 @@ final class JosworldCoreBootTest extends WP_UnitTestCase
     }
 
     /**
-     * Minimal, real-hook-faithful shim: NOT a copy of the boot block (that
-     * would prove nothing about the real file) — just enough add_action/
-     * do_action/is_admin/register_post_type surface for the REAL, unmodified
-     * loader + entrypoint to run its actual deferred closures end-to-end,
-     * with ntdst_get() genuinely absent from the symbol table.
+     * Minimal hook shim — the REAL loader + entrypoint run unmodified with
+     * ntdst_get() genuinely absent from the symbol table.
      */
     private function degraded_boot_harness_source(string $loader): string
     {

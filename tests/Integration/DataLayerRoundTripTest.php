@@ -8,13 +8,9 @@ use WP_Post;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: exercises the ntdst-core Data layer against REAL
- * WordPress and the real (dedicated) wptests database.
- *
- * Every assertion here is behavior the unit tier's Brain Monkey explicitly
- * cannot provide: real wp_insert_post persistence, real prefixed post-meta
- * storage read back through WordPress itself, and the real hook dispatcher
- * firing the model's lifecycle action.
+ * Exercises the ntdst-core Data layer against real WordPress and the
+ * dedicated wptests database: real persistence, prefixed meta read back
+ * through WP itself, and the real hook dispatcher.
  */
 final class DataLayerRoundTripTest extends WP_UnitTestCase
 {

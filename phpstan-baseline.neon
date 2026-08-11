@@ -1303,18 +1303,6 @@ parameters:
 			path: tests/Integration/AttachmentSearchTest.php
 
 		-
-			message: '#^Class NTDST_RelationField constructor invoked with 1 parameter, 0 required\.$#'
-			identifier: arguments.count
-			count: 1
-			path: tests/Integration/RelationFieldReverseLookupTest.php
-
-		-
-			message: '#^Class NTDST_RelationField constructor invoked with 1 parameter, 0 required\.$#'
-			identifier: arguments.count
-			count: 1
-			path: tests/Integration/TeamServiceRegistrationTest.php
-
-		-
 			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsString\(\) with ''Case'' and ''variant 0\: the…''\|''variant 1\: the…''\|''variant 2\: the…''\|''variant 3\: the…''\|''variant 4\: the…''\|''variant 5\: the…'' will always evaluate to true\.$#'
 			identifier: method.alreadyNarrowedType
 			count: 1

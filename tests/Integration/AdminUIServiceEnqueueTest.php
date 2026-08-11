@@ -8,26 +8,10 @@ use josworld\services\admin\AdminUIService;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves the T04 enqueue-scoping CONTRACT against real
- * WordPress hook/screen/script-queue machinery — not a mock.
- *
- * THE CONTRACT (T04 acceptance criteria): the metabox field JS
- * (relation autocomplete, gallery picker, repeater add/remove/drag-sort) is
- * enqueued ONLY on a josworld CPT edit screen (`case`/`team`/`vacature`/
- * `tool`), with `jquery` + `jquery-ui-sortable` as declared dependencies —
- * and is NOT enqueued on unrelated admin screens (dashboard, plugins list,
- * a native `post` edit screen). The negative case is the substance of this
- * test: an enqueue that fires everywhere would "pass" a naive positive-only
- * assertion while still shipping the exact bug this task exists to avoid
- * (ntdst-core's own enqueue firing project-wide off an active-theme path
- * that doesn't exist).
- *
- * WHY integration, not unit: the scoping decision depends on real
- * `get_current_screen()`/`set_current_screen()` state and the real
- * `wp_enqueue_script()` dependency queue — Brain Monkey stubs would let a
- * test assert against whatever the test itself hard-codes, never proving
- * the service reads a REAL screen object the way wp-admin actually
- * populates one on `post.php`/`post-new.php`.
+ * Proves the metabox field JS enqueues ONLY on josworld CPT edit screens,
+ * with jquery + jquery-ui-sortable deps, against real WP screen/queue
+ * machinery. The negative cases are the substance: an everywhere-enqueue
+ * passes a positive-only assertion.
  */
 final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
 {
@@ -37,10 +21,8 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
 
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/admin/AdminUIService.php';
 
-        // Screens josworld's content services (T05-T08) will register.
-        // Registered directly here (not via those not-yet-existing
-        // services) so this test exercises real WP_Screen resolution
-        // without depending on tasks that haven't landed.
+        // Registered directly (not via the content services) so real
+        // WP_Screen resolution is exercised without those dependencies.
         foreach (['case', 'team', 'vacature', 'tool'] as $postType) {
             if (! post_type_exists($postType)) {
                 register_post_type($postType, ['public' => true, 'show_ui' => true]);
@@ -85,13 +67,9 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
         wp_dequeue_script('josworld-metabox-fields');
         wp_deregister_script('josworld-metabox-fields');
 
-        // T11: josworld-metabox-conditional depends on josworld-metabox-fields.
-        // WP_Dependencies::query('enqueued') recurses the dependency tree of
-        // the QUEUE, not just the literal handle — so leaving the dependent
-        // script enqueued makes wp_script_is('josworld-metabox-fields',
-        // 'enqueued') report true again on the NEXT call even though the
-        // handle itself was just deregistered above. Clean up both handles
-        // this helper enqueues, not just the one it asserts on.
+        // josworld-metabox-conditional depends on -fields, and the
+        // 'enqueued' query recurses the queue's dep tree — leaving the
+        // dependent enqueued makes the next check report true again.
         wp_dequeue_script('josworld-metabox-conditional');
         wp_deregister_script('josworld-metabox-conditional');
 
@@ -108,19 +86,8 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
     }
 
     /**
-     * Registration is not resolution. Every other test here proves the script
-     * is REGISTERED with the right deps on the right screens — none of them
-     * would notice if its URL pointed nowhere.
-     *
-     * The src comes from
-     * `plugins_url('assets/js/metabox-fields.js', dirname(__DIR__, 2) . '/josworld-core.php')`,
-     * and that `dirname(__DIR__, 2)` hop is exactly the kind of path
-     * arithmetic a later "simplify this" edit breaks: drop it to
-     * `dirname(__DIR__)` and WordPress resolves the URL against
-     * `services/` instead of the plugin root, shipping a 404ing script tag
-     * while `wp_script_is(..., 'enqueued')` stays happily true and this whole
-     * file stays green. The relation/repeater/gallery fields would silently
-     * go back to being inert markup — the precise breakage T04 existed to fix.
+     * Registration is not resolution: a wrong dirname() hop in the
+     * plugins_url() base 404s the src while wp_script_is() stays true.
      */
     public function test_enqueued_script_src_resolves_inside_the_plugin_directory(): void
     {

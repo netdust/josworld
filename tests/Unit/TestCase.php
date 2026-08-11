@@ -30,28 +30,17 @@ abstract class TestCase extends PHPUnitTestCase
 
     protected function tearDown(): void
     {
-        // FieldResolver (T05) memoizes cached post meta per-post for the
-        // life of a request (FR-8/SC-2 — see its class docblock). With no
-        // PHPUnit process isolation on this tier, that static memo would
-        // otherwise persist across test methods/classes in the same run —
-        // documented as a known, real design decision by FieldResolverTest's
-        // class docblock (design note (c)), which authorises exactly this
-        // invalidation point rather than editing the contract test itself.
-        // Guarded by class_exists so this base class carries no hard
-        // dependency on the theme for every OTHER unit test.
+        // FieldResolver memoizes post meta statically; with no process
+        // isolation the memo would leak across tests. class_exists keeps
+        // this base free of a hard theme dependency.
         if (class_exists(FieldResolver::class, false)) {
             FieldResolver::flush();
         }
 
-        // YOOthemeSourcesService (T07) holds its VETTED registry statically —
-        // not a convenience, a requirement: `resolve_jw_field()` must be a
-        // standalone function (the white-page rule), so it has no `$this`
-        // through which to reach an instance registry, and the alternative
-        // was shipping the schema on the wire, which was security finding
-        // C-1. Same consequence as the memo above: with no process isolation
-        // the registry would otherwise leak across test methods and classes,
-        // and it DID — three threat-4 boundary tests passed alone and failed
-        // in-suite until this was wired.
+        // YOOthemeSourcesService holds its vetted registry statically
+        // (resolve_jw_field() is standalone, no $this). Without this flush
+        // the registry leaks across tests — boundary tests passed alone
+        // and failed in-suite until it was wired.
         if (class_exists(YOOthemeSourcesService::class, false)) {
             YOOthemeSourcesService::flushRegistry();
         }

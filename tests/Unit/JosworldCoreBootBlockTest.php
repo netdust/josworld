@@ -5,31 +5,15 @@ declare(strict_types=1);
 namespace NtdstTests\Unit;
 
 /**
- * Structural contract test for the josworld-core.php boot block (T02).
+ * Structural contract test for the josworld-core.php boot block: every
+ * service resolved via ntdst_get() needs a matching require_once (a
+ * missing one fatals on a real request while the unit suite stays green,
+ * since each unit test requires its own service file), and admin-only
+ * services must be resolved only inside the is_admin() branch.
  *
- * THE CONTRACT (DAAN-documented failure, daan-core.php:348-358): every
- * service class resolved via ntdst_get() must have a matching require_once
- * of its file ABOVE the resolution block. Without it, the class is
- * undefined at request time and the site FATALS with "class not found" on
- * a real request — while the unit suite stays green, because each unit
- * test require_once's its own service file directly and therefore can
- * never observe a missing line in the boot block.
- *
- * A SECOND invariant is asserted in the same pass: admin-only services must
- * be resolved only inside the `is_admin()` branch, never in the
- * unconditional list above it — an admin service booted unconditionally
- * would load its admin-only hooks (metaboxes, admin columns, JS enqueues)
- * on every front-end request too.
- *
- * WHY a fixture, not just the real file: today's real josworld-core.php
- * boot block has zero services wired (they land in T04-T09), so asserting
- * directly against it would pass vacuously — it would keep "passing" even
- * if the checker itself were broken. Each test case below runs the SAME
- * checker used on the real file against small fixture strings that
- * deliberately violate one invariant at a time, proving the checker is
- * behavioral (goes RED on a real violation) before trusting it on the
- * file that matters. The final test runs the checker against the real,
- * live josworld-core.php to lock in the invariant as services are added.
+ * Fixtures first, then the real file: the checker is proven behavioral on
+ * fixtures that each violate one invariant — asserting on the real file
+ * alone would pass vacuously whenever it has no services wired.
  */
 final class JosworldCoreBootBlockTest extends TestCase
 {
@@ -62,10 +46,8 @@ final class JosworldCoreBootBlockTest extends TestCase
 
     public function test_a_resolved_service_missing_its_require_once_is_flagged(): void
     {
-        // The exact DAAN failure mode: CaseService is resolved but never
-        // required — would fatal "class not found" on a real request while
-        // this fixture, read purely as text, has no way to execute and
-        // therefore no way to fail except through the checker's own logic.
+        // CaseService is resolved but never required — the "class not
+        // found" fatal-on-request failure mode.
         $fixture = <<<'PHP'
             $dir = __DIR__ . '/services';
             require_once $dir . '/admin/AdminUIService.php';
@@ -135,16 +117,9 @@ final class JosworldCoreBootBlockTest extends TestCase
 
     public function test_a_commented_out_require_once_does_not_satisfy_a_live_resolve(): void
     {
-        // Controller-found regression (mutation test): a scaffolding line
-        // like `// require_once $dir . '/content/CaseService.php';` — added
-        // as documentation for a not-yet-existing T04-T09 service — must
-        // NOT count as satisfying the require_once for that service once
-        // its ntdst_get() call goes live and stays commented out by
-        // oversight. A naive text scan sees the commented require_once as
-        // real and marks the service pre-satisfied for every future task
-        // that ever adds it, which is the exact DAAN failure mode this
-        // checker exists to catch, silently defeated by its own scaffolding
-        // convention.
+        // A commented-out require_once must not satisfy a live
+        // ntdst_get(): a naive text scan sees the commented line as real
+        // and marks the service pre-satisfied.
         $fixture = <<<'PHP'
             $dir = __DIR__ . '/services';
             // require_once $dir . '/content/CaseService.php';
@@ -183,42 +158,29 @@ final class JosworldCoreBootBlockTest extends TestCase
     }
 
     /**
-     * Scan boot-block source text for the two T02 invariants.
-     *
-     * Deliberately regex-based, not a full PHP parser: the boot block is a
-     * flat, line-oriented list by convention (one require_once / ntdst_get
-     * per line), and a lightweight scanner is enough to catch the DAAN
-     * failure mode without taking a parser dependency.
+     * Scan boot-block source text for the two invariants. Regex-based by
+     * design: the boot block is a flat line-oriented list by convention,
+     * so no parser dependency is needed.
      *
      * @return array{missing_require: list<string>, admin_outside_branch: list<string>}
      */
     private function find_boot_block_violations(string $source): array
     {
         // Strip comments FIRST so a commented-out require_once/ntdst_get()
-        // line — e.g. the scaffolding `// require_once $dir . '/content/
-        // CaseService.php';` this file itself ships for not-yet-existing
-        // T04-T09 services — can never be mistaken for a live one. Without
-        // this, a commented require_once "pre-satisfies" the invariant for
-        // any service whose ntdst_get() later goes live with the require
-        // left commented by oversight — the exact DAAN failure mode this
-        // checker exists to catch, defeated by its own documentation
-        // convention. One scanner handles fixtures AND the real file; the
-        // real file is never special-cased.
+        // can never be mistaken for a live one. One scanner handles
+        // fixtures AND the real file; the real file is never special-cased.
         $source = $this->strip_php_comments($source);
 
-        // Collect every required file's basename (without extension) as a
-        // cheap-but-sufficient identifier — the convention is one class per
-        // file, filename === class name.
+        // Basename as identifier — convention is one class per file,
+        // filename === class name.
         preg_match_all('/require_once\s+\$dir\s*\.\s*[\'"]([^\'"]+)[\'"]/', $source, $requireMatches);
         $requiredBasenames = [];
         foreach ($requireMatches[1] as $path) {
             $requiredBasenames[basename($path, '.php')] = true;
         }
 
-        // Find the is_admin() branch boundaries so each ntdst_get() call
-        // can be classified as inside or outside it. Boot blocks nest a
-        // single `if (is_admin()) { ... }` block; track brace depth from
-        // the branch's opening `{` to its matching close.
+        // Classify each ntdst_get() as inside/outside the is_admin()
+        // branch via brace-depth-tracked byte spans.
         $adminBranchSpans = $this->find_is_admin_branch_byte_spans($source);
 
         $missingRequire = [];
@@ -250,15 +212,9 @@ final class JosworldCoreBootBlockTest extends TestCase
     }
 
     /**
-     * Strip `//`, `#`, and `/* ... *\/` comments from a PHP source fragment,
-     * replacing each with matching whitespace/newlines so downstream byte
-     * offsets (used by the is_admin() branch span check) stay aligned with
-     * the original source.
-     *
-     * Uses PHP's own tokenizer rather than a hand-rolled regex — the
-     * fixtures/real file are plain top-level statement lists with no
-     * enclosing `<?php` tag, so token_get_all() is fed a wrapped copy and
-     * the wrapper's own T_OPEN_TAG token is skipped on the way back out.
+     * Strip comments via PHP's own tokenizer, replacing each with matching
+     * newlines so downstream byte offsets stay aligned. token_get_all()
+     * needs a `<?php` wrapper; its T_OPEN_TAG is skipped on the way out.
      */
     private function strip_php_comments(string $source): string
     {

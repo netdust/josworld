@@ -18,66 +18,19 @@ require_once dirname(__DIR__, 3)
     . '/app/content/themes/josworld/services/yootheme/YOOthemeSourcesService.php';
 
 /**
- * Unit tier: the CLOSING CHECKS for Cluster B2 review findings C-1
- * (security), C-2/I-1/I-2 (correctness) and I-4 (the blindness that hid
- * them). They share one root cause and one fix, so they close together.
+ * Invokes the EMITTED resolver with the EMITTED args and asserts the
+ * VALUE — SourcesServiceTest proves resolver shape exhaustively but never
+ * calls one, which is how these defects stayed green.
  *
- * ── THE SECURITY DEFECT (C-1) ──────────────────────────────────────────
+ * Security contract: a caller-supplied schema/prefix is not an allow-list
+ * (a saved builder layout can forge resolver args, gated only by
+ * edit_post), so the resolver accepts only a type + field name and
+ * consults the service's vetted registry, populated after the _jw_
+ * boundary and the exclude_fields filter. Correctness contract: a
+ * repeater row is a plain array with no ID — it resolves from the row, is
+ * never trusted for a post id, and a root with no post id denies instead
+ * of reading post 0.
  *
- * The white-page rule forces the resolver to be a PUBLIC, literally-nameable
- * standalone function — YOOtheme serialises `func` as a string, so nothing
- * else can work. That function then took `field`, `schema` AND `prefix`
- * verbatim from its caller and handed them to `FieldResolver`, whose
- * allow-list IS that caller-supplied `$schema`.
- *
- * An allow-list the caller supplies is not an allow-list. Reproduced by
- * execution before the fix:
- *
- *     A1 unprefixed plugin secret  -> 'sk-live-XXXX'
- *     A2 WP internal _edit_lock    -> '1735689600:1'
- *     A3 undeclared _jw_ meta      -> 'never-registered'
- *
- * Both boundaries — threat 4's `_jw_` gate and threat 2's
- * `ntdst/yootheme/exclude_fields` filter — live in `collect()` and were
- * entirely bypassed on this path. Reachable two ways: any code in the
- * process, and (worse) a SAVED BUILDER LAYOUT, because
- * `SourceQuery::queryField()` copies arbitrary directives with arbitrary
- * arguments out of the layout, gated only by `edit_post`. That is an
- * Editor-reachable arbitrary-post-meta read.
- *
- * THE FIX THIS PINS: the resolver takes NO schema and NO prefix from its
- * caller. It receives only a TYPE NAME and a FIELD NAME, and looks the
- * vetted schema/prefix up in the service's own registry — the same registry
- * `collect()` populates after applying both boundaries. Caller-supplied
- * schema/prefix become unrepresentable rather than merely discouraged.
- *
- * ── THE CORRECTNESS DEFECT (C-2 / I-1 / I-2) ───────────────────────────
- *
- * A repeater ROW is a plain array — `['figure' => '+7 mio']` — with no `ID`.
- * The resolver derived `$postId` from `$root->ID` and fell back to `0`, so
- * every grid cell read `_jw_figure` on post 0 and returned ''. Impact,
- * Take-aways and Interview would all render blank.
- *
- * THAT IS THE EXACT FAILURE THIS PROJECT EXISTS TO PREVENT — "fields
- * visible, values empty" — recurring one level down from the parent-field
- * case T05's contract was written to make unshippable.
- *
- * Worse, `$root` was TRUSTED for the post id: a row carrying `ID => 999`
- * redirected the read to post 999 (`SECRET-FROM-999`), with no post_status
- * and no capability check anywhere in the bridge.
- *
- * ── WHY 19 GREEN TESTS MISSED ALL OF IT (I-4) ──────────────────────────
- *
- * SourcesServiceTest asserts, rigorously, the SHAPE of every emitted
- * resolver reference: that it is a literal string, that the named function
- * exists, that it is not a Closure or `[Class, 'method']`. It never once
- * CALLS one. Shape was proven exhaustively; behaviour never was.
- *
- * So the rule for this file is: INVOKE THE EMITTED RESOLVER, with the
- * EMITTED args, against a realistic root, and assert the VALUE. Nothing
- * here reads the service's source or trusts a docblock.
- *
- * A test file by nature declares a symbol and executes side effects.
  * phpcs:disable PSR1.Files.SideEffects
  */
 final class ResolverInvocationTest extends TestCase
@@ -105,10 +58,8 @@ final class ResolverInvocationTest extends TestCase
     // ── C-1: the security contract ─────────────────────────────────────
 
     /**
-     * The headline denial. A caller cannot widen what is readable by
-     * supplying its own schema — because the resolver accepts no schema at
-     * all. Each payload here is one of the three reads reproduced against
-     * the pre-fix code.
+     * The headline denial: a caller cannot widen what is readable by
+     * supplying its own schema — the resolver accepts none.
      *
      * @dataProvider forgedArgsProvider
      *
@@ -177,11 +128,8 @@ final class ResolverInvocationTest extends TestCase
         ];
     }
 
-    /**
-     * The positive control for the above: with HONEST args — the ones the
-     * service actually emits — a declared field still resolves. Without
-     * this, "return '' always" would satisfy every denial test.
-     */
+    // Positive control: with honest args a declared field still resolves —
+    // otherwise "return '' always" would satisfy every denial test.
     public function test_a_declared_field_still_resolves_through_the_registry(): void
     {
         $service = new YOOthemeSourcesService();
@@ -199,12 +147,8 @@ final class ResolverInvocationTest extends TestCase
         );
     }
 
-    /**
-     * The emitted args must not CARRY the schema or the prefix at all —
-     * if they are absent from the wire, they cannot be tampered with, and
-     * the payload YOOtheme JSON-serialises stops embedding the whole schema
-     * in every single field.
-     */
+    // Schema/prefix absent from the wire cannot be tampered with, and the
+    // serialised payload stops embedding the whole schema per field.
     public function test_the_emitted_args_carry_no_schema_and_no_prefix(): void
     {
         $service = new YOOthemeSourcesService();
@@ -235,10 +179,8 @@ final class ResolverInvocationTest extends TestCase
 
     // ── C-2 / I-1 / I-2: the repeater row ──────────────────────────────
 
-    /**
-     * THE CRITICAL CORRECTNESS BUG. A repeater row must resolve its
-     * sub-field FROM THE ROW, never from a post-id lookup.
-     */
+    // A repeater row must resolve its sub-field FROM THE ROW, never from
+    // a post-id lookup.
     public function test_a_repeater_row_resolves_its_sub_field_from_the_row(): void
     {
         $service = new YOOthemeSourcesService();
@@ -263,10 +205,7 @@ final class ResolverInvocationTest extends TestCase
         );
     }
 
-    /**
-     * Proves the fix reads the REQUESTED key rather than, say, always
-     * returning the row's first value.
-     */
+    // Reads the REQUESTED key, not simply the row's first value.
     public function test_a_repeater_row_resolves_each_sub_field_independently(): void
     {
         $service = new YOOthemeSourcesService();
@@ -279,11 +218,9 @@ final class ResolverInvocationTest extends TestCase
         $this->assertSame('extra omzet', ($call['func'])($row, $call['args'] ?? []));
     }
 
-    /**
-     * I-1 — the row must NEVER be trusted for a post id. Pre-fix, a row
-     * carrying `ID => 999` redirected the read to post 999 and returned
-     * that post's meta, with no post_status and no capability check.
-     */
+    // The row must NEVER be trusted for a post id: `ID => 999` in
+    // editor-authored row content once redirected the read to post 999,
+    // with no status or capability check.
     public function test_a_repeater_row_carrying_an_id_cannot_redirect_the_read(): void
     {
         $service = new YOOthemeSourcesService();
@@ -302,9 +239,7 @@ final class ResolverInvocationTest extends TestCase
         );
     }
 
-    /**
-     * Row edge: a missing key resolves empty, not null and not a notice.
-     */
+    // Row edge: a missing key resolves empty, not null and not a notice.
     public function test_a_repeater_row_missing_the_field_resolves_empty(): void
     {
         $service = new YOOthemeSourcesService();
@@ -316,11 +251,8 @@ final class ResolverInvocationTest extends TestCase
         $this->assertSame('', ($call['func'])(['description' => 'only this'], $call['args'] ?? []));
     }
 
-    /**
-     * C-2's parent-side twin: a root with no derivable post id must DENY
-     * rather than silently resolving post 0 — and must not spend a meta
-     * read doing it.
-     */
+    // A root with no derivable post id must DENY rather than silently
+    // resolve post 0 — without spending a meta read doing it.
     public function test_a_parent_field_denies_when_the_root_has_no_post_id(): void
     {
         $service = new YOOthemeSourcesService();

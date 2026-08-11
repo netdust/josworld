@@ -1,56 +1,14 @@
 <?php
 
 /**
- * Vacature Service — registers the `vacature` post type (T07).
+ * Vacature Service — registers the `vacature` post type.
  *
- * SHAPE: mirrors CaseService/TeamService — a plain class, constructor takes
- * NTDST_Data_Manager, private init() delegating to registerDataModel(),
- * getFields()/getFieldGroups() as private helpers passed into ONE
- * ntdst_data()->register() call.
+ * The closed employment-type list is enforced HERE, not by the framework:
+ * `select` only renders the dropdown — it does not reject an out-of-list
+ * value written via WP-CLI or the Data API. The `validate` callback is the
+ * enforcement: on failure, create()/update() return a WP_Error and never
+ * call wp_insert_post()/wp_update_post(), so nothing is written at all.
  *
- * FIELD MAP — FR-3/FR-9 verbatim: title (the post title, native), body (the
- * post content, native via `supports => ['editor']` — the design shows a
- * vacancy as a title + a block of copy, the same shape `case` already uses
- * for its own body-like fields, so no bespoke `body` meta field is invented
- * for something WP's own `post_content` column already models), and an
- * employment type constrained to a closed list ("Full-time"/"Freelance" per
- * the design).
- *
- * THE CLOSED LIST IS ENFORCED HERE, NOT BY THE FRAMEWORK (the crux of this
- * task): `select` in MetaboxGenerator.php only RENDERS a `<select>` from the
- * `options` map (MetaboxGenerator.php:686-697) — it does not reject a value
- * outside that map on save. A value posted directly, set via WP-CLI, or
- * written through the Data API bypasses the dropdown entirely and would
- * persist unless this project enforces the closed list itself. Data.php DOES
- * run a per-field `validate` callback on write (Data.php:105-117 collects
- * it, Data.php:422-426 calls it and collects a WP_Error unless it returns
- * `true` exactly) — confirmed by reading the framework, not assumed. So
- * `employment_type` carries a `validate` closure asserting membership in
- * EMPLOYMENT_TYPES; `create()`/`update()` return a WP_Error and NEVER call
- * wp_insert_post()/wp_update_post() when it fails (Data.php:452-455,
- * 508-511) — "rejected" concretely means: no WP_Post is created at all, no
- * meta row is ever written, the caller gets a WP_Error back. Verified both
- * ways per the task brief: a value FROM the list must still save and
- * re-read correctly (VacatureToolRegistrationTest::
- * test_a_valid_employment_type_saves_and_rereads_correctly) — a denial test
- * that also rejects good input would be worse than none.
- *
- * ARCHIVE (FR-3): `has_archive => true` — the vacancy LIST is a designed
- * surface (spec P3: "renders a list that has a designed 'no vacancies'
- * state"). An empty archive query is a normal, non-erroring WP_Query result
- * (0 posts, not an error) — no special handling is needed here for that;
- * rendering the empty state itself is builder-phase work, out of scope for
- * this task.
- *
- * META PREFIX (FR-12/SC-5): every meta key prefixed `_jw_` via
- * `meta_prefix`, same as CaseService/TeamService.
- *
- * i18n (FR-11): every editor-facing label goes through __() against
- * JOSWORLD_CORE_TEXTDOMAIN. Dutch labels are correct per FR-1.
- *
- * A service file by nature both declares a symbol (the class below) and
- * executes a side effect (the ABSPATH guard) — exempt from the PSR-1
- * side-effects rule, same posture as CaseService.php/TeamService.php.
  * phpcs:disable PSR1.Files.SideEffects
  */
 
@@ -65,19 +23,12 @@ defined('ABSPATH') || exit;
 final class VacatureService
 {
     /**
-     * The closed employment-type list (design: "Full-time" and "Freelance").
-     * A rule THIS project chose (FR-9) — not a framework primitive — so it
-     * is enforced by a `validate` callback below, not merely offered as
-     * `select` options.
+     * Key === label on purpose: YOOtheme's binding exposes the STORED value,
+     * not the option label — a `full_time` key would print literally as
+     * "full_time" on the archive. `validate` below keeps the list closed.
      *
      * @var array<string, string>
      */
-    // Key === label on purpose. The stored value is what the front end
-    // RENDERS: the Jobs & stages archive binds this meta straight into the
-    // vacancy row, and YOOtheme's binding exposes the stored value, not the
-    // option label — so a `full_time` key printed literally as "full_time".
-    // Making the key the label fixes that with no computed source field and
-    // no new code path. The list stays closed; `validate` still enforces it.
     private const EMPLOYMENT_TYPES = [
         'Voltijds' => 'Voltijds',
         'Freelance' => 'Freelance',
@@ -105,8 +56,8 @@ final class VacatureService
                 'options' => self::EMPLOYMENT_TYPES,
                 'required' => true,
                 // The enforcement half of the closed list — see class
-                // docblock. Must return exactly `true` to pass (Data.php:
-                // 424); any other return becomes the WP_Error message.
+                // docblock. Must return exactly `true` to pass; any other
+                // return becomes the WP_Error message.
                 'validate' => static function (mixed $value) {
                     if (! array_key_exists($value, self::EMPLOYMENT_TYPES)) {
                         return sprintf(
@@ -162,12 +113,9 @@ final class VacatureService
             'supports' => ['title', 'editor'],
             'menu_icon' => 'dashicons-businessman',
             // `jobs-stages`, not `vacatures`: the archive IS the designed
-            // "Jobs & stages" page (frame 625:12258), the nav and footer both
-            // link to /jobs-stages/, and page 21 is an empty slug-holder the
-            // archive shadows — the same arrangement `case` has with page 15
-            // (`ons-werk`) and `team` with page 16. `rest_base` deliberately
-            // stays `vacatures`: it is an API name, not a front-end URL, and
-            // renaming it would break any consumer for no benefit.
+            // "Jobs & stages" page the nav and footer link to. `rest_base`
+            // stays `vacatures` — an API name, not a front-end URL; renaming
+            // it would break consumers for no benefit.
             'rewrite' => ['slug' => 'jobs-stages'],
             'show_in_rest' => true,
             'rest_base' => 'vacatures',

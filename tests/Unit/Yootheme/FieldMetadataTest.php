@@ -1,71 +1,15 @@
 <?php
 
 /**
- * T08 CONTRACT TEST — field `label`/`group` must be emitted under `metadata`,
- * which is the ONLY nesting YOOtheme reads.
- *
- * WHY THIS TEST EXISTS. T04's rule 5 ("the label carries through") and T06's
- * rule (d) ("sub-field labels carry through") were both correct about the
- * REQUIREMENT and wrong about the SHAPE: they pinned a TOP-LEVEL `label` key
- * on the field definition. YOOtheme never reads that key, so labels have
- * never rendered in the builder's dynamic-content picker — the editor sees
- * the raw meta key (`what_we_did`, `testimonial_role`) instead of the Dutch
- * label the service already defines.
- *
- * GROUND TRUTH — the installed parent theme, not documentation:
- *
- *   1. `packages/builder-source/src/Source.php:14-25` — the `FieldConfig`
- *      phpstan type is `{name?, type, args?, metadata?, extensions?}`. There
- *      is NO top-level `label` member. The old emission was not merely
- *      ignored at runtime, it was off-contract for static analysis too.
- *
- *   2. `packages/builder-wordpress-source/src/Type/SiteQueryType.php:20-33` —
- *      the canonical minimal first-party field:
- *          'site' => [
- *              'type' => 'Site',
- *              'metadata' => ['label' => trans('Site'), 'group' => trans('Global')],
- *              'extensions' => ['call' => __CLASS__ . '::resolve'],
- *          ]
- *      `metadata` sits ALONGSIDE `extensions`; it does not replace it.
- *
- *   3. `packages/builder-wordpress-acf/src/Type/FieldsType.php:36-48` — the
- *      ACF bridge, the closest analogue to this one, emits
- *      `'metadata' => ['label' => $field['label'] ?: $field['name'], 'group' => …]`
- *      for exactly the same reason: third-party custom fields surfacing in
- *      the same picker as first-party ones.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * DESIGN DECISIONS THIS TEST PINS, AND WHY.
- *
- * (a) `group` IS THE BARE PARENT TYPE NAME (`Case`, `Tool`) — not a decorated
- *     string like "Case velden". Per-type grouping is the explicit product
- *     decision: each model's custom fields collapse under their OWN heading
- *     in the picker rather than into one undifferentiated bucket. The BARE
- *     name is chosen because every first-party group in the same dropdown is
- *     a bare noun (`Site`, `Page`, `Global`, `Custom`, `Single Post`,
- *     `Archive`) and ACF passes `$field['group']['title']` through verbatim.
- *     A decorated value would read as a foreign vocabulary in a list whose
- *     other entries are all bare. `toObjectType()` already receives
- *     `$typeName` for repeater sub-type composition; this reuses it.
- *
- * (b) SUB-OBJECT (REPEATER ROW) TYPES GET NO `group` AT ALL — but DO get a
- *     `label`. A row's fields are resolved inside a `listOf` sub-type and
- *     render in the row's own context, where a heading repeating the parent
- *     type name is pure noise. Ground truth agrees: `FieldsType.php:41` emits
- *     `'group' => $isType ? $field['group']['title'] : null` — YOOtheme's own
- *     ACF bridge omits the group precisely when the fields are NOT rendering
- *     at type level. The existing signature already encodes the distinction:
- *     `toSubObjectTypes()` calls `toObjectType($subFields, $prefix)` with NO
- *     `$typeName`, so "no type name" == "not at type level" == "no group".
- *     The key is OMITTED rather than set to `''`/null, consistent with this
- *     class's omit-don't-emit-empty doctrine.
- *
- * (c) `metadata` MUST NOT DISTURB `extensions`. The resolver wiring
- *     (`withResolvers()` in YOOthemeSourcesService, hardened in d03fe88
- *     finding C-1 so only `type` + `field` cross the wire) is a separate
- *     concern that must keep working byte-for-byte. Pinned explicitly below.
- *
- * A test file by nature declares a symbol; no side effects beyond that.
+ * Field `label`/`group` must be emitted under `metadata` — the only
+ * nesting YOOtheme reads (FieldConfig in builder-source Source.php has no
+ * top-level `label`; one there is silently ignored and the picker shows
+ * raw meta keys). Grouping rules pinned here: a field claimed by a field
+ * group takes that group's BARE title; an unclaimed field falls back to
+ * the bare parent type name; repeater sub-fields get a label but never a
+ * group — rows render in their own context, mirroring the ACF bridge
+ * (FieldsType.php:41). `metadata` is additive and must not disturb
+ * `type`/`extensions`.
  */
 
 declare(strict_types=1);
@@ -81,15 +25,8 @@ final class FieldMetadataTest extends TestCase
 
     private const CASE_TYPE = 'Case';
 
-    /**
-     * 1. A SCALAR FIELD'S LABEL LANDS UNDER `metadata`, NOT AT TOP LEVEL.
-     *
-     * This is the whole bug. The assertion is written against the parent
-     * theme's `FieldConfig` shape (Source.php:14-25), so it fails
-     * BEHAVIOURALLY against the old emission — the definition exists and
-     * carries the right `type`, but the label is in a place YOOtheme does
-     * not look.
-     */
+    // The core bug: the label must land under metadata, where YOOtheme
+    // actually looks.
     public function test_a_scalar_field_label_is_emitted_under_metadata(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -106,15 +43,8 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * 2. THE TOP-LEVEL `label` KEY IS GONE.
-     *
-     * Not cosmetic: `FieldConfig` declares no top-level `label` member, so
-     * leaving it behind would keep emitting an off-contract key that reads
-     * as "the label is handled" to anyone inspecting the array, while the
-     * picker still shows the raw meta key. Deleting it is what makes
-     * metadata.label the single source of truth.
-     */
+    // FieldConfig declares no top-level label; deleting it makes
+    // metadata.label the single source of truth.
     public function test_the_ignored_top_level_label_key_is_no_longer_emitted(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -130,26 +60,8 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * 3. AN UNGROUPED FIELD FALLS BACK TO THE PARENT TYPE NAME (decision (a),
-     *    as amended in T09).
-     *
-     * CONTRACT CORRECTION, not a weakening. This test previously asserted
-     * that EVERY field groups under its bare parent type name, because that
-     * was the whole grouping rule when it was written (T08). T09 supersedes
-     * that rule: a field listed in the model's `field_groups` now groups
-     * under its GROUP TITLE (see the field-group tests below), and the parent
-     * type name survives only as the FALLBACK for a field no group claims.
-     *
-     * What is asserted here is therefore the still-true half of the original
-     * contract — the fallback — and it is still asserted for TWO different
-     * type names so a hardcoded constant cannot pass. The superseded half is
-     * re-pinned, in its corrected form, by
-     * `test_a_grouped_field_is_grouped_under_its_field_group_title()`.
-     *
-     * No `field_groups` argument is passed at all here, which is exactly the
-     * ungrouped case: nothing claims `client`/`subtitle`, so each falls back.
-     */
+    // The ungrouped-fallback case (no field_groups passed). Two different
+    // type names so a hardcoded constant cannot pass.
     public function test_an_ungrouped_field_falls_back_to_its_parent_type_name(): void
     {
         $caseMapped = SchemaMapper::toObjectType(
@@ -176,14 +88,8 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * 4. A REPEATER FIELD CARRIES THE SAME metadata SHAPE.
-     *
-     * The repeater path builds its definition in a separate branch
-     * (`toRepeaterFieldDefinition()`), which is exactly why it had its own
-     * duplicate copy of the wrong-nesting bug. Pinned separately so fixing
-     * one path cannot leave the other broken.
-     */
+    // The repeater branch builds its definition separately and had its own
+    // copy of the nesting bug — pinned so fixing one path can't miss the other.
     public function test_a_repeater_field_carries_label_and_group_under_metadata(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -219,14 +125,8 @@ final class FieldMetadataTest extends TestCase
         $this->assertArrayNotHasKey('label', $mapped['impact']);
     }
 
-    /**
-     * 5. A REPEATER SUB-FIELD GETS A metadata LABEL BUT NO GROUP (decision (b)).
-     *
-     * The DENIAL half of the group rule, and the reason it is a decision
-     * rather than a copy-paste: emitting a group here would put a redundant
-     * `Case` heading inside every row's own field context. Mirrors
-     * `FieldsType.php:41`'s `$isType ? … : null`.
-     */
+    // Denial half of the group rule: a parent-type heading inside a row's
+    // own field context is noise.
     public function test_a_repeater_sub_field_gets_a_metadata_label_but_no_group(): void
     {
         $types = SchemaMapper::toSubObjectTypes(
@@ -262,15 +162,9 @@ final class FieldMetadataTest extends TestCase
         $this->assertArrayNotHasKey('label', $fields['title']);
     }
 
-    /**
-     * 6. A FIELD WITH NO LABEL EMITS NO EMPTY metadata.label — BUT STILL GROUPS.
-     *
-     * Bare-string schema entries (`'title' => 'text'`, framework-legal per
-     * setupSanitizers()) carry no label. Emitting `'label' => null` would
-     * make the picker show an empty entry, which is worse than the raw-key
-     * fallback it would replace. The group still applies: it comes from the
-     * parent type, not from the field.
-     */
+    // Bare-string schema entries ('title' => 'text') are framework-legal
+    // and carry no label: emit no label key, never null. The group still
+    // applies — it comes from the parent type, not the field.
     public function test_a_field_without_a_label_omits_the_label_key_but_keeps_the_group(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -288,15 +182,9 @@ final class FieldMetadataTest extends TestCase
         $this->assertSame('Case', $mapped['title']['metadata']['group'] ?? null);
     }
 
-    /**
-     * 7. NO PARENT TYPE NAME MEANS NO `metadata.group` KEY AT ALL.
-     *
-     * The two-argument call path (T04's retained contract, and the call
-     * `toSubObjectTypes()` makes internally). Omitting the key rather than
-     * emitting `'group' => ''` keeps this class's omit-don't-emit-empty
-     * doctrine intact, and is what makes decision (b) fall out structurally
-     * instead of needing a second flag.
-     */
+    // The two-argument path toSubObjectTypes() uses internally: omit the
+    // group key entirely, never emit '' — the no-group-in-rows rule falls
+    // out of this structurally.
     public function test_without_a_parent_type_name_no_group_key_is_emitted(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -312,15 +200,8 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * 8. metadata SITS ALONGSIDE THE TYPE — IT REPLACES NOTHING.
-     *
-     * Guards the d03fe88 hardening (finding C-1). `metadata` is a sibling of
-     * `type`/`extensions` in YOOtheme's FieldConfig, so adding it must leave
-     * every pre-existing key of the definition untouched. If a future edit
-     * ever rebuilds the definition array around metadata and drops the
-     * listOf or the type, this fails.
-     */
+    // metadata is additive: a future rebuild of the definition array that
+    // drops the type or listOf fails here.
     public function test_adding_metadata_leaves_the_rest_of_the_definition_untouched(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -348,14 +229,8 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * 9. THE DENIAL PATH IS UNCHANGED BY THE metadata FIX.
-     *
-     * An unmapped type is still OMITTED, not defaulted (threat 2). A
-     * refactor of the definition-building block is exactly where an
-     * omit-don't-default rule gets accidentally relaxed, so it is re-pinned
-     * here at the point of change rather than relying on the T04 file.
-     */
+    // An unmapped type stays omitted, not defaulted — metadata never
+    // resurrects it.
     public function test_unmapped_types_are_still_omitted_entirely(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -375,32 +250,11 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * ═════════════════════════════════════════════════════════════════════
-     * T09 — GROUP BY THE MODEL'S FIELD GROUPS, NOT BY POST TYPE.
-     *
-     * The product decision T09 supersedes T08's decision (a) with: the picker
-     * groups by the model's own `field_groups` (the wp-admin metabox tabs) so
-     * its structure matches how editors already think about the content.
-     *
-     * The heading is the group's `title` VERBATIM and BARE (`Klant & intro`) —
-     * NOT the group KEY (`intro`), and NOT prefixed with the type name
-     * (`Case — Klant & intro`). Explicit user decision. Ground truth agrees
-     * that a bare title is the house style: `builder-wordpress-acf/src/Type/
-     * FieldsType.php:41` emits `$field['group']['title']` verbatim.
-     * ═════════════════════════════════════════════════════════════════════
-     */
+    // ── Grouping by the model's field_groups: the heading is the group's
+    // title VERBATIM and BARE — never the group key, never type-prefixed. ──
 
-    /**
-     * 10. A GROUPED FIELD USES ITS GROUP'S TITLE — NOT THE KEY, NOT THE TYPE.
-     *
-     * The core T09 contract. Asserted across THREE fields in TWO different
-     * groups so that neither a hardcoded string nor "always the first group"
-     * can pass. The negative assertions are the point: `intro` (the group KEY)
-     * and `Case` (the superseded type-name rule) are both explicitly refused,
-     * so an implementation that inverts the map wrongly — or one that simply
-     * never changed — fails behaviourally rather than subtly.
-     */
+    // Three fields, two groups: neither a hardcoded string nor "always the
+    // first group" can pass; the group key and the type name are refused.
     public function test_a_grouped_field_is_grouped_under_its_field_group_title(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -452,15 +306,8 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * 11. THE TITLE IS BARE — NEVER PREFIXED WITH THE TYPE NAME.
-     *
-     * The user's explicit choice, pinned separately from test 10 because it
-     * is the decision most likely to be "improved" by a later well-meaning
-     * edit ("Case — Klant & intro" reads more informative in isolation). It
-     * is refused: every first-party group in the same dropdown is a bare noun,
-     * and ACF passes its group title through verbatim.
-     */
+    // Explicit user decision, pinned separately because a well-meaning
+    // edit is most likely to "improve" it with a type prefix.
     public function test_the_group_title_is_bare_and_never_prefixed_with_the_type_name(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -480,19 +327,9 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * 12. A FIELD NO GROUP CLAIMS FALLS BACK TO THE TYPE NAME — MIXED MODEL.
-     *
-     * The fallback asserted in the SAME call as grouped siblings, which test 3
-     * cannot do (it passes no groups at all). This is the shape a real model
-     * takes the moment a field is added to `getFields()` without being added
-     * to `getFieldGroups()` — verified as the ONLY way this arises today: all
-     * four josworld models currently group 100% of their fields (Case 17/17,
-     * Team 3/3, Vacature 1/1, Tool 4/4).
-     *
-     * Fallback rather than omission: an omitted group renders the field with
-     * NO heading at all, orphaned above the first subheader in the picker.
-     */
+    // Fallback asserted in the SAME call as grouped siblings. Fallback
+    // rather than omission: an omitted group orphans the field above the
+    // picker's first subheader.
     public function test_a_field_claimed_by_no_group_falls_back_to_the_type_name(): void
     {
         $mapped = SchemaMapper::toObjectType(
@@ -513,19 +350,9 @@ final class FieldMetadataTest extends TestCase
         );
     }
 
-    /**
-     * 13. A MODEL WITH NO field_groups STILL EMITS A VALID GROUP.
-     *
-     * The backwards-compatibility denial path: `field_groups` is OPTIONAL, and
-     * a model registered without it (or with an empty/garbage value) must keep
-     * working exactly as it did before T09 — every field under the type name.
-     * No crash, no null, no empty string, and never a missing key that would
-     * orphan the field.
-     *
-     * The malformed variants matter because `field_groups` reaches this class
-     * from `apply_filters("ntdst/{$name}/field_groups", …)` (ntdst-core
-     * `Data.php`), so ANY plugin can rewrite it to anything at all.
-     */
+    // field_groups is optional AND filter-controlled
+    // (`ntdst/{$name}/field_groups`), so malformed variants matter: any
+    // plugin can rewrite it to anything.
     public function test_a_model_with_no_field_groups_still_groups_under_the_type_name(): void
     {
         foreach ([[], ['intro' => []], ['intro' => ['fields' => ['client']]]] as $i => $groups) {
@@ -545,19 +372,8 @@ final class FieldMetadataTest extends TestCase
         }
     }
 
-    /**
-     * 14. A GROUP TITLE THAT IS NOT A USABLE STRING IS REFUSED.
-     *
-     * `field_groups` is filter-controlled third-party input (see test 13), so
-     * a `title` may be an array, an object, null, or an empty string. Emitting
-     * any of those into the builder's schema config is the failure this
-     * refuses: an array reaches YOOtheme's serialiser as a non-string group,
-     * and an empty string renders as a blank heading — strictly worse than the
-     * type-name fallback it would replace.
-     *
-     * Same doctrine as this class's omit-don't-default type handling, one
-     * level down: an unusable value falls back, it never propagates.
-     */
+    // A filter can make title an array/null/blank; an unusable value falls
+    // back to the type name, it never propagates into the schema config.
     public function test_an_unusable_group_title_falls_back_to_the_type_name(): void
     {
         foreach ([['x'], null, '', '   ', 123, true] as $i => $title) {
@@ -579,16 +395,8 @@ final class FieldMetadataTest extends TestCase
         }
     }
 
-    /**
-     * 15. A FIELD IN MULTIPLE GROUPS TAKES THE FIRST DECLARED — DETERMINISTIC.
-     *
-     * `field_groups` does not forbid a field appearing twice, and a filter can
-     * introduce it. The rule is FIRST DECLARATION WINS: declaration order is
-     * the only ordering the data carries, it matches the metabox tab a field
-     * renders in first, and it is stable under repeated calls. Pinned so the
-     * behaviour cannot silently become "last wins" (the natural result of a
-     * naive overwriting loop) or, worse, array-order-dependent.
-     */
+    // First declaration wins — pinned so a naive overwriting loop cannot
+    // silently make it "last wins" or array-order-dependent.
     public function test_a_field_in_two_groups_deterministically_takes_the_first(): void
     {
         $groups = [
@@ -612,18 +420,9 @@ final class FieldMetadataTest extends TestCase
         }
     }
 
-    /**
-     * 16. REPEATER SUB-TYPE FIELDS STILL CARRY NO GROUP (decision (b) HOLDS).
-     *
-     * The T08 rule T09 must not regress, re-pinned WITH field_groups in play
-     * because that is the new way to break it: a naive lookup keyed only by
-     * field name would match a row sub-field called `title` against a group
-     * listing `title`, and start emitting headings inside repeater rows.
-     *
-     * The fixture is built to trigger exactly that — a group claiming `title`
-     * and `body`, which are also the sub-field names. Ground truth:
-     * `FieldsType.php:41` omits the group when not at type level.
-     */
+    // A naive lookup keyed only by field name would match a row sub-field
+    // called `title` against a group listing `title` — the fixture
+    // triggers exactly that.
     public function test_repeater_sub_fields_carry_no_group_even_when_a_group_claims_the_name(): void
     {
         $types = SchemaMapper::toSubObjectTypes(

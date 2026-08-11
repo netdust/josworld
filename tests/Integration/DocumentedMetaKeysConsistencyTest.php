@@ -11,26 +11,13 @@ use josworld\services\content\VacatureService;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: T12 — the meta-key table in docs/content-model.md is
- * MECHANICALLY tied to the live model config, not hand-copied.
- *
- * THE PROBLEM THIS TEST EXISTS TO PREVENT: a hand-copied doc table is
- * correct on the day it is written and silently wrong the day a field gets
- * renamed, added, or removed on any of the four services — with nothing
- * anywhere flagging the drift. This test parses the doc's own
- * machine-readable table (between the META-KEY-TABLE markers) and asserts
- * it is byte-for-byte the SAME {model, field, meta_key} triple set the real
- * `NTDST_Data_Manager` registry reports, using the identical registry-scope
- * boundary `ModelConventionsTest` already established (registered through
- * `ntdst_data()` AND carrying `JOSWORLD_CORE_META_PREFIX`) — so `dienst`
- * (a taxonomy, not a Data model) is correctly excluded on both sides, and a
- * future fifth model needs no edit to this test file to be swept into the
- * check, only an update to the doc table.
- *
- * RED PROOF (recorded in the task report): with the doc table's `_jw_team`
- * row for `case.team` mutated to `_jw_team_members`, this test fails with a
- * diff naming exactly that row — proving the parser is comparing real
- * content, not passing vacuously.
+ * The meta-key table in docs/content-model.md is mechanically tied to the
+ * live model registry: the block between the META-KEY-TABLE markers must
+ * equal the {model, field, meta_key} triple set the real registry reports,
+ * scoped by the same boundary as ModelConventionsTest (registered through
+ * ntdst_data() AND carrying JOSWORLD_CORE_META_PREFIX) — so `dienst`, a
+ * taxonomy, is excluded on both sides and a future fifth model is swept in
+ * with no edit to this file.
  */
 final class DocumentedMetaKeysConsistencyTest extends WP_UnitTestCase
 {
@@ -59,23 +46,10 @@ final class DocumentedMetaKeysConsistencyTest extends WP_UnitTestCase
     }
 
     /**
-     * The SECOND half of the drift guard (added at T12 close, after the
-     * controller mutation-tested the first).
-     *
-     * The doc carries meta keys in TWO places: the machine-checked block
-     * between the META-KEY-TABLE markers, and the human-readable per-model
-     * tables (`| field | meta key | type | notes |`) that a developer
-     * actually reads when building a template. Only the first was guarded.
-     *
-     * Proven, not assumed: renaming `_jw_client` -> `_jw_klant` in the
-     * per-model table at line 66 left the suite GREEN, while the same rename
-     * inside the marker block correctly failed. So 25 documented meta keys —
-     * the ones humans read — could drift from the code silently, which is
-     * precisely the failure this task exists to prevent.
-     *
-     * This asserts the two tables agree with each other. Combined with the
-     * marker block already being diffed against the live registry, that
-     * transitively pins the human-readable tables to the code too.
+     * The doc carries meta keys in TWO places: the marker block and the
+     * human-readable per-model tables. Pinning the tables to the marker
+     * block (itself diffed against the registry) transitively pins them to
+     * the code.
      */
     public function test_the_human_readable_tables_agree_with_the_machine_checked_table(): void
     {
@@ -150,10 +124,8 @@ final class DocumentedMetaKeysConsistencyTest extends WP_UnitTestCase
     }
 
     /**
-     * Mutation-proof companion: this file's OWN parser must reject an
-     * obviously malformed table row rather than silently skipping it — a
-     * parser that swallows malformed rows could mask real drift as "row
-     * just didn't parse". Proven against a fixture with a short row.
+     * The parser must throw on a malformed row rather than silently skip it
+     * — a swallowed row could mask real drift.
      */
     public function test_the_table_parser_rejects_a_malformed_row_rather_than_silently_skipping_it(): void
     {
@@ -184,11 +156,9 @@ final class DocumentedMetaKeysConsistencyTest extends WP_UnitTestCase
     }
 
     /**
-     * Parses `| model | field | meta_key |` markdown table rows into
-     * `"model.field=meta_key"` triples. Skips the header separator row
-     * (`|---|---|---|`) and the header row itself. Throws on any DATA row
-     * that does not resolve to exactly 3 cells, rather than silently
-     * dropping it (see the malformed-row test above).
+     * Parses `| model | field | meta_key |` rows into "model.field=meta_key"
+     * triples; skips header rows, throws on any data row without exactly
+     * 3 cells.
      *
      * @return list<string>
      */
@@ -230,10 +200,8 @@ final class DocumentedMetaKeysConsistencyTest extends WP_UnitTestCase
 
     /**
      * Same registry-scope boundary as ModelConventionsTest::
-     * josworld_owned_model_slugs() — registered through ntdst_data() AND
-     * carrying JOSWORLD_CORE_META_PREFIX as meta_prefix. `dienst` (a
-     * taxonomy) is excluded on the same terms as every model: it fails
-     * registry membership, not by a special case here.
+     * josworld_owned_model_slugs(); `dienst` fails registry membership,
+     * not a special case here.
      *
      * @return list<string>
      */

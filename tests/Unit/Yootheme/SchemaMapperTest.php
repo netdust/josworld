@@ -1,60 +1,15 @@
 <?php
 
 /**
- * T04 CONTRACT TEST — authored by the independent test-author BEFORE any
- * implementation exists, and IMMUTABLE to the implementer: green it without
- * weakening it. A dispute is an escalation, not an edit.
+ * Contract for SchemaMapper::toObjectType(): scalars map to GraphQL
+ * String/Boolean; relation/group/unknown/malformed types are OMITTED
+ * entirely — never null, never a String default, which would auto-expose
+ * future upstream field types through the builder and render repeaters as
+ * the literal text "Array". Labels carry through as metadata.label, the
+ * only nesting YOOtheme reads. Bare-string entries (`'title' => 'text'`)
+ * are framework-legal (ntdst-core setupSanitizers() accepts a raw string)
+ * and must not fatal. Fixtures are copied from the real josworld schemas.
  *
- * WHAT THIS PINS (from tasks.md T04's acceptance criteria, FR-4/FR-6 — NOT
- * from any implementation, which did not exist when this was written):
- *   1. text/textarea/email/select -> 'String'
- *   2. boolean -> 'Boolean'
- *   3. relation and group -> OMITTED entirely (assertArrayNotHasKey, not null)
- *   4. an unknown/garbage type -> OMITTED, no throw, no notice, and the rest
- *      of the model still maps (FR-6: one bad field must not poison the map)
- *   5. field `label` carries through into the output metadata — as
- *      `metadata.label`, the only nesting YOOtheme reads (corrected in T08
- *      against `packages/builder-source/src/Source.php:14-25`; the original
- *      assertion pinned a top-level `label` that never rendered)
- *   6. a BARE-STRING schema entry is handled without fatal
- *
- * ON (6) — GROUND-TRUTHED, not invented. ntdst-core's
- * `NTDST_Data_Model::setupSanitizers()` (api/Data.php, the
- * `foreach ($this->schema as $field => $type)` loop) branches on
- * `is_array($type)` and has an explicit `else` calling
- * `getDefaultSanitizer($type)` with the RAW string. So `['title' => 'text']`
- * is a shape the framework genuinely supports, and the mapper is fed the
- * schema verbatim via `getSchema()`. All four josworld services happen to use
- * the array form today, so this is the shape that is supported-but-unused —
- * exactly where an unguarded `$field['type']` on a string would surface as a
- * PHP 8 "Cannot access offset of type string on string" TypeError in the
- * builder. The test pins the framework's contract, not today's accident.
- *
- * ON `group` — CORRECTION TO THE TASK LINE, recorded deliberately rather than
- * silently: `'type' => 'group'` exists NOWHERE in ntdst-core (zero hits;
- * CaseService's own docblock states this is why its title/body pairs are two
- * flat fields). So `group` is not a "supported type deferred to v2" — it is,
- * today, indistinguishable from any other unrecognised type. The task line
- * still names it, and asserting it is cheap and forward-useful: if a `group`
- * type is ever added upstream, this test is what stops it silently mapping to
- * 'String' and rendering as "Array" in the builder. The assertion is right;
- * only the reason differs from what the task line implies.
- *
- * ON REPEATERS — T04 does not implement them (T06 does), but leaving their
- * behaviour undefined would hand T06 an ambiguous starting point, so this
- * test PINS THE INTERIM CONTRACT: a repeater is OMITTED at T04, exactly like
- * any other unmapped type. This is the safe direction — omission is what T06
- * must then turn into a `listOf`, and a missing field in the builder is a
- * visibly absent feature, whereas a repeater wrongly flattened to 'String'
- * would render as the literal text "Array" and look like working output.
- * T06 WILL flip these two assertions; that is a deliberate, contract-level
- * change made by T06's own test-author, not a weakening of this one.
- *
- * The fixtures below are COPIED FROM THE REAL SCHEMAS, not invented:
- * TeamService (role/email/phone), VacatureService (employment_type select),
- * CaseService (textarea, boolean, repeater, relation), ToolService (relation).
- *
- * A test file by nature declares a symbol and executes side effects.
  * phpcs:disable PSR1.Files.SideEffects
  */
 
@@ -65,28 +20,18 @@ namespace NtdstTests\Unit\Yootheme;
 use NtdstTests\Unit\TestCase;
 use josworld\services\yootheme\SchemaMapper;
 
-// The theme has no PSR-4 autoloader — require the unit under test directly,
-// the same pattern BaselineInputHandlingTest uses for mu-plugin support
-// classes. ABSPATH is already defined by tests/bootstrap-unit.php, so the
-// file's `defined('ABSPATH') || exit;` guard is a no-op here.
+// The theme has no PSR-4 autoloader — require the unit under test
+// directly. ABSPATH is defined by tests/bootstrap-unit.php.
 require_once dirname(__DIR__, 3)
     . '/app/content/themes/josworld/services/yootheme/SchemaMapper.php';
 
 final class SchemaMapperTest extends TestCase
 {
-    /**
-     * The meta prefix every josworld model uses (FR-12/SC-5). Passed as the
-     * mapper's second argument; T04 asserts nothing about how it is used —
-     * meta-key composition is T05's contract (threat 3).
-     */
+    /** The meta prefix every josworld model uses. */
     private const PREFIX = '_jw_';
 
-    /**
-     * 1. The four string-ish scalar types all collapse to GraphQL 'String'.
-     *
-     * `text`/`email` are TeamService's real fields, `textarea` is
-     * CaseService's, `select` is VacatureService's `employment_type`.
-     */
+    // text/email/textarea/select are real fields from the Team, Case and
+    // Vacature services.
     public function test_string_ish_scalars_map_to_the_graphql_string_type(): void
     {
         $schema = [
@@ -108,13 +53,8 @@ final class SchemaMapperTest extends TestCase
         }
     }
 
-    /**
-     * 2. `boolean` maps to GraphQL 'Boolean' — NOT to 'String'.
-     *
-     * CaseService has two real boolean fields. Mapping a boolean to 'String'
-     * is the plausible-looking bug this asserts against: it would render
-     * "1"/"" in the builder instead of a usable true/false.
-     */
+    // boolean must NOT map to String — that would render "1"/"" in the
+    // builder instead of a usable true/false.
     public function test_boolean_maps_to_the_graphql_boolean_type(): void
     {
         $schema = [
@@ -127,17 +67,8 @@ final class SchemaMapperTest extends TestCase
         $this->assertSame('Boolean', $mapped['show_testimonial']['type']);
     }
 
-    /**
-     * 3. THE OMISSION CONTRACT (the negative path). `relation` and `group` are
-     * v2 and must be ABSENT from the output — not null, not 'String'.
-     *
-     * `assertArrayNotHasKey`, deliberately: a null-valued key still reaches
-     * YOOtheme's objectType builder and surfaces as a broken field in the
-     * builder's picker, which is the failure mode this task exists to avoid.
-     *
-     * `file` and `related_tools` are ToolService's real relation fields;
-     * `team` is CaseService's.
-     */
+    // assertArrayNotHasKey deliberately: a null-valued key still reaches
+    // YOOtheme's objectType builder and surfaces as a broken picker field.
     public function test_relation_and_group_fields_are_omitted_entirely(): void
     {
         $schema = [
@@ -158,25 +89,14 @@ final class SchemaMapperTest extends TestCase
             );
         }
 
-        // ...and the surviving scalar still maps: omission must skip the field,
-        // not abort the model.
+        // Omission must skip the field, not abort the model.
         $this->assertArrayHasKey('subtitle', $mapped);
         $this->assertSame('String', $mapped['subtitle']['type']);
     }
 
-    /**
-     * 4. THE DENIAL PATH FOR UNTRUSTED SHAPES. An unrecognised type is omitted
-     * rather than thrown on, and — FR-6 — the rest of the model still maps.
-     *
-     * This is the whitelist-vs-blacklist decision this project authored: an
-     * unknown type must NOT fall through to a 'String' default. A future field
-     * type added upstream in ntdst-core would otherwise auto-expose through
-     * the builder as a stringified array (threat 2: "the bridge maps whatever
-     * the schema declares").
-     *
-     * Four garbage shapes, all realistic: an invented type, an empty type, a
-     * schema entry with NO `type` key at all, and a null type.
-     */
+    // Whitelist, not blacklist: an unknown type must not default to
+    // String, or a future upstream field type auto-exposes through the
+    // builder as a stringified array.
     public function test_unknown_and_malformed_types_are_omitted_without_throwing(): void
     {
         $schema = [
@@ -198,36 +118,16 @@ final class SchemaMapperTest extends TestCase
             );
         }
 
-        // FR-6: one bad field must not poison the whole map — the good fields
-        // on BOTH sides of the garbage still register.
+        // One bad field must not poison the map — good fields on BOTH
+        // sides of the garbage still register.
         $this->assertArrayHasKey('role', $mapped, 'a field BEFORE the bad ones must still map');
         $this->assertArrayHasKey('phone', $mapped, 'a field AFTER the bad ones must still map');
         $this->assertSame('String', $mapped['phone']['type']);
     }
 
-    /**
-     * 5. The editor-facing label carries through into the output metadata —
-     * this is what YOOtheme shows in the builder's field picker. A mapper that
-     * produced correct types but dropped every label would leave the editor
-     * picking between raw meta keys.
-     *
-     * Asserted as a SUBSET (`assertSame` on the label value, not on the whole
-     * definition array) so the implementer stays free to add metadata keys
-     * this test does not know about.
-     *
-     * T08 — SHAPE CORRECTED AGAINST GROUND TRUTH, NOT WEAKENED. This test's
-     * PROSE was always right ("carries through into the output metadata") but
-     * its assertion read a TOP-LEVEL `label` key. YOOtheme never reads that:
-     * `packages/builder-source/src/Source.php:14-25` declares `FieldConfig`
-     * as `{name?, type, args?, metadata?, extensions?}` with no top-level
-     * `label` member, and every first-party type puts the label at
-     * `metadata.label` (`builder-wordpress-source/src/Type/SiteQueryType.php
-     * :20-33`; the ACF bridge at `builder-wordpress-acf/src/Type/FieldsType
-     * .php:36-48`). So the original assertion pinned a shape that could never
-     * have rendered a label in the picker — the editor saw raw meta keys.
-     * The requirement is unchanged and the assertion is strictly no weaker;
-     * only the path it looks up is corrected. Full contract: FieldMetadataTest.
-     */
+    // Labels live at metadata.label — a top-level label never renders.
+    // Subset assertion (label value only) so the implementer may add
+    // metadata keys. Full contract: FieldMetadataTest.
     public function test_field_labels_carry_through_to_the_output_metadata(): void
     {
         $schema = [
@@ -241,18 +141,9 @@ final class SchemaMapperTest extends TestCase
         $this->assertSame('Toon testimonial', $mapped['show_testimonial']['metadata']['label']);
     }
 
-    /**
-     * 6. A BARE-STRING schema entry maps by the same rules and does not fatal.
-     *
-     * Ground-truthed against ntdst-core's `setupSanitizers()`, which handles
-     * `is_array($type) === false` by passing the raw string to
-     * `getDefaultSanitizer()`. The mapper receives `getSchema()` verbatim, so
-     * it inherits that tolerance. An unguarded `$config['type']` against a
-     * string is a PHP 8 TypeError, which in the builder is a white screen.
-     *
-     * Label metadata is not asserted here: a bare-string entry carries no
-     * label to carry through.
-     */
+    // The mapper receives getSchema() verbatim and inherits the
+    // framework's bare-string tolerance; an unguarded $config['type'] on
+    // a string is a PHP 8 TypeError — a white page in the builder.
     public function test_a_bare_string_schema_entry_maps_by_the_same_rules(): void
     {
         $schema = [
@@ -270,34 +161,9 @@ final class SchemaMapperTest extends TestCase
         $this->assertArrayNotHasKey('mystery', $mapped, 'a bare-string unknown type is still omitted');
     }
 
-    /**
-     * 7. A REPEATER IS OMITTED WHEN NO PARENT TYPE NAME IS SUPPLIED.
-     *
-     * ─── DELIBERATE CONTRACT FLIP, T04 → T06 ───────────────────────────────
-     * This test was authored as `test_a_repeater_is_omitted_until_t06_adds_
-     * listof_support()`, pinning T04's INTERIM decision that a repeater is
-     * omitted like any other unmapped type. Its own name declared the flip was
-     * T06's to make, and T06's independent test-author has now made it: full
-     * repeater support lives in `RepeaterMappingTest`, which pins
-     * `['type' => ['listOf' => 'CaseImpactItem']]`.
-     *
-     * The test is RETAINED rather than deleted, because after the flip it
-     * covers a case `RepeaterMappingTest` deliberately does not: the TWO-ARG
-     * call. T06 adds an optional third parameter, `$typeName`, carrying the
-     * parent object type name (`Case`) that a sub-type name is composed from —
-     * `$prefix` is `_jw_` and cannot yield it. A two-arg call therefore has NO
-     * name to compose `<Type><Field>Item` from, and the only safe behaviour is
-     * the original one: OMIT.
-     *
-     * That is not a leftover; it is the denial path of the new parameter, and
-     * the reason it is safe to make the parameter optional at all. Emitting
-     * `ImpactItem` (unscoped) instead would hand T07 a name that collides
-     * across CPTs — exactly what `RepeaterMappingTest`'s naming test forbids.
-     * Emitting 'String' would render the literal text "Array" in the builder
-     * and look like working output.
-     *
-     * The fixture is CaseService's real `takeaways` repeater shape.
-     */
+    // Denial path of the optional $typeName parameter: a two-arg call has
+    // no name to compose <Type><Field>Item from, so a repeater is OMITTED —
+    // an unscoped ImpactItem would collide across CPTs (RepeaterMappingTest).
     public function test_a_repeater_is_omitted_when_no_parent_type_name_is_supplied(): void
     {
         $schema = [
@@ -326,13 +192,8 @@ final class SchemaMapperTest extends TestCase
         $this->assertSame([], SchemaMapper::toSubObjectTypes($schema, self::PREFIX));
     }
 
-    /**
-     * 8. An empty schema yields an empty array, not a notice or a null.
-     *
-     * The bridge iterates every registered model; a model with no custom
-     * fields at all must map to an empty type, not crash the `source.init`
-     * listener that is registering all four CPTs.
-     */
+    // A model with no custom fields must map to an empty type, not crash
+    // the source.init listener registering the CPTs.
     public function test_an_empty_schema_yields_an_empty_map(): void
     {
         $this->assertSame([], SchemaMapper::toObjectType([], self::PREFIX));

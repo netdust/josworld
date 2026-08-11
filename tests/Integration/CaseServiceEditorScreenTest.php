@@ -8,31 +8,12 @@ use josworld\services\content\CaseService;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves T11's CONTRACT against real WordPress — the risk
- * here lives entirely in real filter/hook registration (admin columns are
- * WP hook wiring Brain Monkey cannot meaningfully assert) and real postmeta
- * round-tripping (a hidden block that silently drops data on save is a
- * storage-layer bug, not a JS bug).
- *
- * THE CONTRACT (tasks.md T11 Integration test line):
- *  1. A `case` registers admin list columns showing client + diensten +
- *     impact-row count (DAAN's registerAdminColumns() pattern).
- *  2. `takeaways` and `interview` carry a `condition` field option keyed to
- *     a controlling boolean field (has_takeaways / has_interview) — this is
- *     OUR code (0 hits for `condition` anywhere in ntdst-core), so nothing
- *     upstream proves it exists or is shaped correctly.
- *  3. A value entered into a hidden/conditional block (takeaways, with
- *     has_takeaways left off) still round-trips on save — disclosure must
- *     never silently drop data. This is the load-bearing assertion: it is
- *     the one a naive "hide with CSS display:none, strip empty fields on
- *     submit" implementation would fail.
- *
- * WHY integration, not unit: admin columns require real
- * `manage_{type}_posts_columns` / `manage_{type}_posts_custom_column` hook
- * firing through WordPress's real admin-list-table machinery, and the
- * round-trip claim requires the real wptests postmeta table — a Brain
- * Monkey stub would let the assertion pass regardless of whether the
- * hooks are wired to the real post type at all.
+ * The case editor screen against real WordPress: admin list columns are
+ * real hook wiring, the `condition` field option is this project's own
+ * code (nothing upstream proves it), and a value entered into a hidden
+ * conditional block must still round-trip on save. Brain Monkey can
+ * assert none of this — the hooks and the wptests postmeta table have to
+ * be real.
  */
 final class CaseServiceEditorScreenTest extends WP_UnitTestCase
 {
@@ -53,7 +34,7 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
     }
 
     // ------------------------------------------------------------------
-    // Admin columns (DAAN's registerAdminColumns() pattern)
+    // Admin columns
     // ------------------------------------------------------------------
 
     public function test_case_admin_list_adds_client_diensten_and_impact_count_columns(): void
@@ -135,7 +116,7 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
     }
 
     // ------------------------------------------------------------------
-    // `condition` field option (T11's own code — nothing upstream proves it)
+    // `condition` field option
     // ------------------------------------------------------------------
 
     public function test_takeaways_and_interview_carry_a_condition_tied_to_a_controlling_boolean(): void
@@ -174,21 +155,16 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
     }
 
     /**
-     * THE LOAD-BEARING ASSERTION. A value entered into takeaways (a
-     * conditionally-hidden block) round-trips on save regardless of
-     * whether the controlling toggle (has_takeaways) was ever set — the
-     * ORM/save path must never treat "hidden" as "must be stripped".
-     * A naive CSS-hide-and-strip-on-submit implementation, or a save
-     * handler that special-cased conditional fields, would fail this.
+     * THE LOAD-BEARING CASE: a value in a conditionally-hidden block must
+     * round-trip regardless of the controlling toggle — a save handler that
+     * strips "hidden" fields fails this.
      */
     public function test_a_value_in_a_hidden_conditional_block_still_round_trips_on_save(): void
     {
         $model = ntdst_data()->get('case');
 
-        // has_takeaways intentionally OMITTED — this is what "the block was
-        // hidden, but the editor's browser still submitted its inputs
-        // because they were never removed from the DOM" looks like at the
-        // save boundary.
+        // has_takeaways deliberately omitted: the hidden block's inputs
+        // were still submitted from the DOM.
         $created = $model->create([
             'title' => 'Hidden block round-trip case',
             'client' => 'Acme Corp',
@@ -214,8 +190,7 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
     }
 
     // ------------------------------------------------------------------
-    // Tabs (field_groups + use_tabs) — already wired by T05; this asserts
-    // the T11 acceptance criterion holds, not that T11 built it.
+    // Tabs (field_groups + use_tabs)
     // ------------------------------------------------------------------
 
     public function test_case_registers_grouped_field_tabs_not_one_flat_wall(): void
@@ -231,21 +206,9 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
             'precondition: the case model has enough fields for tabs to matter',
         );
 
-        // The assertion that actually enforces the T11 criterion.
-        //
-        // This method previously stopped at the field-count precondition
-        // above, while its own comment claimed to assert the tabs criterion.
-        // It did not: flipping `use_tabs` to false in CaseService left this
-        // whole file green (7/7) — proven by mutation, which is how the gap
-        // was found at the Cluster C review gate.
-        //
-        // `use_tabs`/`field_groups` are NOT on NTDST_Data_Model — getSchema()
-        // cannot see them. NTDST_Data_Manager::register() forwards the whole
-        // config to the metabox generator (Data.php:1546-1552), which retains
-        // it in a private `$registered_models` (MetaboxGenerator.php:19,83).
-        // That retained config is the only place the live tab settings exist,
-        // so reflection is how this is read — the same pattern this cluster
-        // already uses to reach framework internals.
+        // use_tabs/field_groups never reach NTDST_Data_Model — the metabox
+        // generator's private $registered_models is the only place the live
+        // tab settings exist, hence reflection.
         $generator = ntdst_metabox();
         $property = new \ReflectionProperty($generator, 'registered_models');
         $property->setAccessible(true);

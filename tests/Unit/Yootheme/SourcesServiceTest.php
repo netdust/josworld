@@ -1,200 +1,26 @@
 <?php
 
 /**
- * T07 CONTRACT TEST — authored by the independent test-author BEFORE any
- * implementation exists, and IMMUTABLE to the implementer: green it without
- * weakening it. A dispute is an escalation, not an edit.
+ * Contract for YOOthemeSourcesService (collect / buildTypes / register):
+ * inert without YOOtheme (no listener, no diagnostics); only `_jw_`
+ * models are collected; the listener attaches to `source.init` at
+ * priority -10 (YOOtheme krsort()s listeners, so a LOWER number runs
+ * LATER — a sign error registers silently and the types are shadowed);
+ * every emitted resolver reference is a LITERAL STRING naming an existing
+ * function (a Closure or [Class, 'method'] is callable but not
+ * serialisable — the white-page bug); collection accumulates via the
+ * `ntdst/model/registered` action; the exclude_fields filter gates at
+ * collection, on every emission path. buildTypes() is FLAT: parent types
+ * and repeater sub-types share one `name => config` map, and every listOf
+ * reference must resolve within that same payload — YOOtheme merges or
+ * drops a dangling reference silently rather than erroring.
  *
- * WHAT THIS PINS (derived from tasks.md T07's acceptance criteria, FR-1/FR-7,
- * threat 4 and threat 2, and acceptance flow 4 — NOT from any implementation,
- * which did not exist when this was written):
+ * Proof technique: the parent theme is gitignored and not autoloadable,
+ * so this file declares YOOtheme\Event as a recording double in the real
+ * namespace, and YOOtheme\app() only via a lazily-required stub inside
+ * the positive tests — PHP cannot undeclare a function, so the denial
+ * tests run first and assert the absence precondition explicitly.
  *
- *   1. FR-7 / FLOW 4 — INERT WITHOUT YOOtheme. With `YOOtheme\app` absent,
- *      `register()` attaches NO `source.init` listener, returns normally, and
- *      raises no error/warning/notice. This is the DENIAL PATH and it is the
- *      reason this task is Tier A.
- *   2. THREAT 4 — ONLY josworld's MODELS. A model whose `meta_prefix` is not
- *      `_jw_` is REFUSED at collection; a `_jw_` one is accepted. A future
- *      third-party ntdst model must not become builder-bindable.
- *   3. FR-1 — REGISTRATION SHAPE. The listener is attached to the literal
- *      event name `source.init` at priority `-10` (YOOtheme `krsort()`s
- *      listeners, so a LOWER number runs LATER — the source must run AFTER
- *      the base types; ground-truthed at
- *      `yootheme/packages/utils/src/EventDispatcher.php::addListener()`).
- *   4. TYPE NAMING. The registered type name derives from the post type:
- *      `case` -> `Case`, `team` -> `Team`, and must agree with the
- *      `$typeName` SchemaMapper already scopes its `<Type><Field>Item`
- *      sub-types by (T04/T06's committed third parameter).
- *   5. THE WHITE-PAGE RULE — RESOLVER REFERENCES ARE LITERAL STRINGS. Every
- *      emitted `extensions.call.func` is a `string` naming an EXISTING
- *      function — never a Closure, never a `[$obj, 'method']` array, never a
- *      bare `__NAMESPACE__`-composed value that fails to resolve.
- *   6. MODEL COLLECTION VIA THE ACTION. A model registered AFTER the listener
- *      is attached is still collected (the ordering premise T03 proved).
- *   7. THREAT 2 — `ntdst/yootheme/exclude_fields`. Collection is the
- *      chokepoint: the filter defaults to excluding nothing, and when it
- *      returns a field name that field is absent from the emitted type.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * THE TRAP THIS FILE EXISTS TO MAKE UNSHIPPABLE — assertion 5.
- *
- * YOOtheme resolves a field's resolver through the `@call` directive, whose
- * `func` argument is declared `Type::string()` — a GraphQL String
- * (`yootheme/packages/graphql/src/Directive/CallDirective.php:17-27`). The
- * directive args are built by `ContainerPlugin::callDirective()`
- * (`.../Plugin/ContainerPlugin.php:120-133`) and travel into the builder's
- * serialised schema. A Closure or a `[$this, 'method']` pair cannot survive
- * that String round-trip, and the failure mode is not an exception — it is a
- * WHITE PAGE in the Customizer, i.e. the builder simply stops rendering, with
- * the theme's own golden path naming it the single most painful failure in
- * this integration (`ntdst-patterns/golden-paths/yootheme-integration.md:9`,
- * :110, :185). Writing a closure is the OBVIOUS way to write this code, which
- * is precisely why the contract pins the string form behaviourally rather
- * than trusting a code comment.
- *
- * `test_every_emitted_resolver_reference_is_a_literal_callable_function_name`
- * asserts this on what the service actually EMITS, not by reading its source:
- * `is_string()`, NOT a Closure, NOT an array, and `function_exists()` true —
- * so an implementation that emits `[self::class, 'resolve']` (a genuinely
- * callable value that PHP is perfectly happy with, and that a naive
- * `is_callable()` assertion would wave through) still fails here. That
- * distinction — callable-but-not-serialisable — is the whole bug.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * DESIGN DECISIONS THIS TEST PINS, AND WHY — recorded here because the task
- * brief explicitly delegated the shape to the test-author.
- *
- * (a) THE SERVICE IS SPLIT INTO COLLECT / BUILD / REGISTER, and the contract
- *     is written against all three:
- *
- *         public function collect(string $name, array $config): void
- *         public function buildTypes(): array
- *         public function register(): void
- *
- *     `collect()` is the `ntdst/model/registered` listener (threat 4 and
- *     threat 2 are decided here — collection is the chokepoint, and the
- *     plan's own note that "the mapper is pure and must not call
- *     apply_filters" is what forces the filter to live here rather than in
- *     SchemaMapper). `buildTypes()` is the PURE emission of
- *     `typeName => objectType config` — pure so the white-page rule
- *     (assertion 5), the type naming (4) and the field mapping can be
- *     asserted against real emitted data instead of a source grep.
- *     `register()` is the only YOOtheme-coupled member: the `init` callback
- *     carrying the `function_exists('YOOtheme\app')` guard and the
- *     `Event::on()` call.
- *
- *     This is not decomposition for its own sake. A single monolithic method
- *     that both guards and registers can only be tested by observing
- *     `Event::on`, and `Event` is a vendor class in a GITIGNORED theme
- *     (`.gitignore:138` ignores `app/content/themes/*`; only `josworld/` is
- *     re-included) — so a test that could only run when the licensed parent
- *     theme happens to be present is a test that does not run in CI. The
- *     split keeps the high-consequence contract (what gets emitted, and in
- *     what form) in code that is testable with no vendor dependency at all.
- *
- * (b) HOW `Event::on` IS ASSERTED HONESTLY — a test-owned RECORDING DOUBLE,
- *     not a fake that proves nothing. Verified at authoring time: neither
- *     `YOOtheme\Event` nor `YOOtheme\app()` is autoloadable at this tier
- *     (`php -r 'class_exists("YOOtheme\\Event")'` -> false), because the
- *     parent theme is gitignored and outside the composer autoloader. So
- *     this file DECLARES both symbols itself, at the bottom, in the real
- *     `YOOtheme` namespace:
- *
- *       - `YOOtheme\Event::on()` records `[$event, $listener, $priority]`
- *         into a public static array. This is the REAL API surface the
- *         production code calls — same class name, same method name, same
- *         three-parameter signature as
- *         `yootheme/packages/utils/src/Event.php`. The service under test is
- *         not modified, injected, or aware of the double; it calls
- *         `Event::on(...)` exactly as it will in production, and the double
- *         records what it was called with. That is a genuine seam
- *         observation, not a simulation.
- *       - `YOOtheme\app()` is declared ONLY inside the positive test, via a
- *         lazily-required global-namespace file — see (c). Its ABSENCE is
- *         the FR-7 denial path and needs no faking at all: at this tier the
- *         function genuinely does not exist, which is exactly the production
- *         condition flow 4 describes.
- *
- *     What this deliberately does NOT claim: it does not prove YOOtheme's
- *     dispatcher then does the right thing with priority -10. That is
- *     vendor behaviour, ground-truthed by reading `EventDispatcher::
- *     addListener()`'s `krsort()` and asserted here only as "the service
- *     passes -10". The remaining risk — that the listener runs at the wrong
- *     moment against the REAL dispatcher — is named in the deferral line and
- *     belongs to T08's integration gate and the acceptance drive (T11).
- *
- * (c) WHY `YOOtheme\app()` IS DECLARED IN ITS OWN LAZILY-REQUIRED FILE. Same
- *     constraint T05 hit and documented at
- *     `services/yootheme/ntdst-cached-meta-accessor.php`: a function whose
- *     defining file is loaded at test-DISCOVERY time cannot be controlled
- *     per-test. Here the need is sharper still — FR-7's whole contract is
- *     that the function is ABSENT, and a function declared at the top of
- *     this file would exist for every test in the class, silently deleting
- *     the denial path. Declaring it from inside ONE test, and ordering that
- *     test last (`zz_` prefix), keeps "absent" the default state that every
- *     other test observes. PHP cannot undeclare a function, so ordering is
- *     the only honest mechanism; the guard test asserts the precondition
- *     explicitly rather than assuming it.
- *
- * (d) THE FIXTURE SCHEMAS ARE REAL-SHAPED, taken from the four josworld
- *     content services' `fields` arrays (scalar + repeater + a relation that
- *     SchemaMapper omits), so the emitted types are asserted against the
- *     shape the bridge will really see, not a toy.
- *
- * (e) `buildTypes()` IS FLAT: parent types AND repeater sub-types share one
- *     `name => config` map. CONTRACT CORRECTION, authored post-RED by this
- *     file's author after the implementer escalated NEEDS_CONTEXT rather
- *     than editing the test — correctly, and the defect was real and mine.
- *
- *     As first committed, two assertions were mutually exclusive over the
- *     same fixture: `test_each_registered_type_name_derives_from_the_post_
- *     type` asserted `assertSame(['Case','Team'], array_keys(buildTypes()))`
- *     (an EXACT match) while `test_the_repeater_sub_type_is_scoped_by_the_
- *     same_derived_type_name` required `CaseImpactItem` among those same
- *     keys. No implementation could satisfy both.
- *
- *     FLAT IS THE CORRECT SHAPE, and the reason is forced rather than
- *     stylistic: `SchemaBuilder::objectType(string $name, $config)`
- *     (yootheme/packages/graphql/src/SchemaBuilder.php:220) is the ONLY
- *     registration primitive YOOtheme offers, and it must be called for
- *     parent types and sub-object types ALIKE — a field whose type is
- *     `['listOf' => 'CaseImpactItem']` is a DANGLING reference unless
- *     `CaseImpactItem` was itself registered through that same call. So the
- *     payload T07 hands the `source.init` listener is inherently one flat
- *     map of everything that needs registering; making `buildTypes()` return
- *     exactly that keeps the contract expressed in the units YOOtheme
- *     actually consumes.
- *
- *     WHY SchemaMapper's TWO-METHOD SPLIT DOES NOT TRANSFER (it is the
- *     strongest argument for the other shape, and was weighed): the mapper
- *     splits `toObjectType()` from `toSubObjectTypes()` because it is a PURE
- *     MAPPER whose two outputs have different shapes, and because enriching
- *     the first would have broken T04's committed tests. T07 is the
- *     REGISTRAR, and merging those two buckets into the one thing
- *     `objectType()` consumes is precisely its job. The split is right where
- *     it is and would be wrong here.
- *
- *     WHAT THE CORRECTION PINS INSTEAD, so nothing is traded away — and
- *     this is the part that makes it a STRENGTHENING rather than a
- *     relaxation. The exact-key-match form was itself the brittleness
- *     Cluster B1's finding I-1 named: "every existing test asserted ONE
- *     method's output against a literal; none asserted the RELATIONSHIP
- *     between the two" (SubTypeNameCollisionTest's docblock). Replacing it
- *     with per-name `assertArrayHasKey` alone WOULD have been a weakening,
- *     so it is accompanied by `test_every_listOf_reference_resolves_to_a_
- *     type_that_is_actually_registered`, which states the relationship
- *     invariant directly at the layer that matters: every `listOf`
- *     reference anywhere in the payload must have a definition somewhere in
- *     that same payload. That is finding C-1's exact desync (`refs=2
- *     defs=1`, merged silently by YOOtheme rather than erroring) asserted
- *     one layer UP from SchemaMapper — on what actually reaches the
- *     builder. The derivation is additionally pinned negatively (the raw
- *     slug `case` must NOT survive as a type name), and the accumulation
- *     test keeps its negative half (`Team` absent before it is collected),
- *     both of which the exact-match form got implicitly.
- *
- * A test file by nature declares symbols and executes side effects
- * (requires, the YOOtheme namespace block).
  * phpcs:disable PSR1.Files.SideEffects
  * phpcs:disable PSR1.Classes.ClassFileName
  * phpcs:disable Squiz.Classes.ClassFileName
@@ -215,13 +41,11 @@ require_once dirname(__DIR__, 3)
 
 final class SourcesServiceTest extends TestCase
 {
-    /** The josworld boundary — JOSWORLD_CORE_META_PREFIX, josworld-core.php:32. */
+    /** The josworld boundary — JOSWORLD_CORE_META_PREFIX. */
     private const JW = '_jw_';
 
     /**
-     * A real-shaped `case` model config, as `ntdst/model/registered` passes
-     * it (Data.php:1555 fires with `$name, $config`; the config carries
-     * `fields` and `meta_prefix` — see TeamService.php:217-218).
+     * A real-shaped `case` model config, as `ntdst/model/registered` passes it.
      *
      * @return array<string, mixed>
      */
@@ -268,18 +92,13 @@ final class SourcesServiceTest extends TestCase
         Event::$recorded = [];
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 1. FR-7 / FLOW 4 — THE DENIAL PATH: inert without YOOtheme.
-    // ─────────────────────────────────────────────────────────────────────
+    // ── The denial path: inert without YOOtheme ──
 
     public function test_the_yootheme_app_function_is_genuinely_absent_at_this_tier(): void
     {
-        // PRECONDITION GUARD for the two FR-7 tests below. Their whole
-        // meaning depends on `YOOtheme\app` not existing; if some future
-        // bootstrap declares it, those tests would silently start asserting
-        // the OPPOSITE branch while still passing. This makes that
-        // impossible to miss. (See design note (c): the positive test
-        // declares it last, on purpose.)
+        // Precondition guard: the denial tests below are only meaningful
+        // while YOOtheme\app is absent — a future bootstrap declaring it
+        // would silently flip them to the opposite branch.
         $this->assertFalse(
             function_exists('YOOtheme\app'),
             'FR-7 denial path is only meaningful while YOOtheme\app is absent — '
@@ -290,7 +109,6 @@ final class SourcesServiceTest extends TestCase
 
     public function test_without_yootheme_no_source_init_listener_is_attached(): void
     {
-        // FR-7 / flow 4 ("YOOtheme absent … bridge inert"): THE DENIAL PATH.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
 
@@ -308,10 +126,9 @@ final class SourcesServiceTest extends TestCase
 
     public function test_without_yootheme_registering_raises_no_error_and_does_not_fatal(): void
     {
-        // Flow 4's expected outcome is "No fatal, site functional". A guard
-        // that returned early but emitted a notice/deprecation on the way
-        // would still break flow 4's promise, so the absence of DIAGNOSTICS
-        // is asserted separately from the absence of the listener above.
+        // A guard that returned early but emitted a notice would still
+        // break "no fatal, site functional" — diagnostics asserted
+        // separately from the listener's absence.
         $raised = [];
         set_error_handler(static function (int $no, string $str) use (&$raised): bool {
             $raised[] = "{$no}: {$str}";
@@ -336,19 +153,12 @@ final class SourcesServiceTest extends TestCase
         );
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 2. THREAT 4 — only josworld's models (`_jw_`) are ever exposed.
-    // ─────────────────────────────────────────────────────────────────────
+    // ── Only josworld's models (_jw_) are ever exposed ──
 
     public function test_a_model_whose_meta_prefix_is_not_jw_is_refused(): void
     {
-        // THREAT 4's denial path. A third-party plugin registering its own
-        // ntdst model fires the SAME `ntdst/model/registered` action this
-        // service listens to (Data.php:1555 is global, not josworld's), so
-        // without this boundary the bridge would expose that plugin's data
-        // through josworld's builder. `_jw_` is the same boundary
-        // PostTypeRegistryConsistencyTest already uses to define "josworld's"
-        // (plan.md:108-110).
+        // Any plugin's ntdst model fires the same global action; without
+        // the _jw_ boundary the bridge would expose that plugin's data.
         $service = new YOOthemeSourcesService();
         $service->collect('vendor_thing', [
             'label' => 'Vendor Things',
@@ -369,10 +179,8 @@ final class SourcesServiceTest extends TestCase
 
     public function test_a_model_with_no_meta_prefix_at_all_is_refused(): void
     {
-        // Fail-CLOSED on the missing key, not fail-open. `meta_prefix` is
-        // optional in NTDST_Data_Manager::register() (Data.php:1541 defaults
-        // it to ''), so an absent prefix is a shape the framework really
-        // produces — and '' is not '_jw_'.
+        // Fail-closed on the missing key: the framework defaults
+        // meta_prefix to '', a shape it really produces.
         $service = new YOOthemeSourcesService();
         $service->collect('prefixless', [
             'label' => 'Prefixless',
@@ -390,9 +198,8 @@ final class SourcesServiceTest extends TestCase
 
     public function test_a_jw_model_is_accepted_while_a_foreign_one_registered_alongside_it_is_not(): void
     {
-        // The discriminating pair: accepted AND refused in one collection
-        // pass, so an implementation that refuses everything (or accepts
-        // everything) cannot satisfy both halves.
+        // Discriminating pair: accepted AND refused in one pass, so
+        // blanket-accept or blanket-refuse cannot satisfy both halves.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
         $service->collect('vendor_thing', [
@@ -420,26 +227,13 @@ final class SourcesServiceTest extends TestCase
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 3. FR-1 — registration shape: source.init at priority -10.
-    // ─────────────────────────────────────────────────────────────────────
+    // ── Registration shape: source.init at priority -10 ──
 
     public function test_with_yootheme_present_the_listener_is_attached_to_source_init_at_priority_minus_ten(): void
     {
-        // FR-1. Both halves matter and both are pinned:
-        //   - the literal event name `source.init` (the only event
-        //     `builder-source/bootstrap.php:47` emits the Source on);
-        //   - the priority `-10`. YOOtheme's dispatcher krsort()s listeners
-        //     (EventDispatcher::addListener() -> `krsort($this->listeners
-        //     [$event])`), so a HIGHER number runs FIRST and a source must
-        //     therefore use a LOWER one to run AFTER the base types
-        //     registered by builder-wordpress-source. Every first-party
-        //     add-on source in the theme uses exactly -10
-        //     (builder-wordpress-toolset/bootstrap.php:10,
-        //     builder-wordpress-acf/bootstrap.php:10,
-        //     builder-wordpress-woocommerce/bootstrap.php:15). Getting the
-        //     SIGN wrong here is silent: the source registers, the builder
-        //     loads, and the types are shadowed by the base ones.
+        // Both halves pinned: the literal event name, and priority -10 —
+        // krsort() means a LOWER number runs LATER, and getting the sign
+        // wrong is silent (the types are shadowed by the base ones).
         $this->requireYOOthemeAppStub();
 
         $service = new YOOthemeSourcesService();
@@ -471,14 +265,9 @@ final class SourcesServiceTest extends TestCase
             . 'here fails silently: the builder still loads, the types are just wrong',
         );
 
-        // Not `assertIsCallable` — the double's `on()` signature already
-        // types the parameter `callable`, so PHP would have fataled before
-        // reaching any such assertion, making it dead (PHPStan flags it at
-        // level 6). The live property is that the listener ACCEPTS the
-        // Source it will be handed: `Event::emit('source.init', $source)`
-        // (builder-source/bootstrap.php:47) passes exactly one argument, and
-        // a listener declaring zero or two required parameters is an
-        // ArgumentCountError at builder-load time.
+        // Not assertIsCallable — the double's signature already types the
+        // parameter callable, making that assertion dead. The live property:
+        // the listener must accept the single Source argument it is handed.
         $reflected = new \ReflectionFunction(\Closure::fromCallable($listener));
 
         $this->assertLessThanOrEqual(
@@ -492,10 +281,8 @@ final class SourcesServiceTest extends TestCase
 
     public function test_with_yootheme_present_the_listener_registers_every_collected_type_on_the_source(): void
     {
-        // The listener is not merely attached — invoking it with a Source
-        // must actually register the object types. Without this, an
-        // implementation that attaches an empty closure passes the FR-1
-        // shape test above while registering nothing at all.
+        // Invoking the listener must actually register types — an empty
+        // closure would pass the shape test above.
         $this->requireYOOthemeAppStub();
 
         $service = new YOOthemeSourcesService();
@@ -521,24 +308,12 @@ final class SourcesServiceTest extends TestCase
         );
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 4. TYPE NAMING — derived from the post type, agreeing with SchemaMapper.
-    // ─────────────────────────────────────────────────────────────────────
+    // ── Type naming: derived from the post type ──
 
     public function test_each_registered_type_name_derives_from_the_post_type(): void
     {
-        // CONTRACT CORRECTION (authored by this file's author, post-RED —
-        // see the "buildTypes() IS FLAT" note in the file docblock).
-        // Originally this asserted `assertSame(['Case','Team'],
-        // array_keys(buildTypes()))` — an EXACT key match, which contradicted
-        // this file's own sub-type assertions below, since buildTypes() must
-        // also carry CaseImpactItem. The exact-match form was additionally
-        // the precise brittleness SubTypeNameCollisionTest's finding I-1
-        // calls out: asserting one method's output against a literal instead
-        // of asserting the RELATIONSHIP. What FR-1 actually promises is the
-        // DERIVATION (`case` -> `Case`), not that parents are the only
-        // entries — so the derivation is what is pinned, positively for each
-        // post type and negatively against the un-derived slug.
+        // Pins the DERIVATION (case -> Case), not an exact key match —
+        // buildTypes() is the flat payload and also carries sub-types.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
         $service->collect('team', $this->teamConfig());
@@ -556,12 +331,8 @@ final class SourcesServiceTest extends TestCase
             'the registered type name derives from the post type: team -> Team',
         );
 
-        // The derivation must be a real transform, not a pass-through: the
-        // raw post-type slug must never appear as a registered type name.
-        // GraphQL type names are conventionally UpperCamelCase and YOOtheme
-        // merges same-named types silently (SchemaBuilder::objectType()
-        // appends to configs[$name][]), so a lowercase `case` entry
-        // alongside `Case` would be two types where one was meant.
+        // A real transform, not a pass-through: YOOtheme merges same-named
+        // types silently, so `case` alongside `Case` is two types.
         $this->assertArrayNotHasKey(
             'case',
             $types,
@@ -577,23 +348,9 @@ final class SourcesServiceTest extends TestCase
 
     public function test_every_listOf_reference_resolves_to_a_type_that_is_actually_registered(): void
     {
-        // THE RELATIONSHIP INVARIANT — the assertion the exact-key-match
-        // form above was standing in for, and the one that actually protects
-        // what matters. Cluster B1's Critical finding C-1 was exactly this
-        // desync one layer down: two `listOf` references, one emitted
-        // definition (`refs=2 defs=1`), silently MERGED by YOOtheme rather
-        // than erroring (SchemaBuilder::objectType() appends to
-        // configs[$name][]; loadType() applies every queued config). Finding
-        // I-1 recorded WHY 18 green tests missed it: every test asserted one
-        // method's output against a literal, none asserted the relationship
-        // between them. SubTypeNameCollisionTest states that invariant for
-        // SchemaMapper; this states it for what T07 actually hands YOOtheme,
-        // which is the layer where a dangling reference becomes a real
-        // builder failure.
-        //
-        // This is what makes the flattening SAFE rather than merely
-        // convenient: every reference emitted anywhere in the payload must
-        // have a definition somewhere in that same payload.
+        // The relationship invariant that makes the flat payload safe:
+        // every listOf reference must have a definition in the same
+        // payload — YOOtheme merges/omits a dangling one silently.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
         $service->collect('team', $this->teamConfig());
@@ -633,15 +390,9 @@ final class SourcesServiceTest extends TestCase
 
     public function test_the_repeater_sub_type_is_scoped_by_the_same_derived_type_name(): void
     {
-        // The naming is not free: SchemaMapper composes repeater sub-types
-        // as `<TypeName><Field>Item` and takes the parent type name as its
-        // THIRD parameter (SchemaMapper::toSubObjectTypes(schema, prefix,
-        // typeName)). If this service derived a different name than it
-        // passes to the mapper, the emitted `listOf` reference and the
-        // emitted sub-type DEFINITION would be scoped differently — a
-        // dangling type name in the builder. Asserting the sub-type name
-        // proves the two agree, which asserting the parent name alone
-        // cannot.
+        // If the service derived a different name than it passes to the
+        // mapper, the listOf reference and the sub-type definition would be
+        // scoped differently — a dangling type name in the builder.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
 
@@ -667,11 +418,8 @@ final class SourcesServiceTest extends TestCase
 
     public function test_scalar_fields_are_mapped_and_unmappable_ones_omitted(): void
     {
-        // Composition proof: the service must delegate to SchemaMapper
-        // rather than re-implement mapping. `relation` is deliberately
-        // present in the fixture and deliberately absent here — T04 pinned
-        // omit-don't-default, and this asserts the service did not undo it
-        // by defaulting unmapped types back in on its way to the type.
+        // Composition proof: the service delegates to SchemaMapper and
+        // must not default omitted types back in.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
 
@@ -695,24 +443,13 @@ final class SourcesServiceTest extends TestCase
         );
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 5. THE WHITE-PAGE RULE — literal string resolver references.
-    // ─────────────────────────────────────────────────────────────────────
+    // ── The white-page rule: literal string resolver references ──
 
     public function test_every_emitted_resolver_reference_is_a_literal_callable_function_name(): void
     {
-        // THE highest-consequence assertion in this file. See the file
-        // docblock: YOOtheme's @call directive declares `func` as
-        // Type::string() (CallDirective.php:17-27) and the value travels
-        // into the builder's serialised schema — a Closure or a
-        // [$obj, 'method'] pair does not survive that and the Customizer
-        // renders a WHITE PAGE.
-        //
-        // Asserted on what the service EMITS, not by grepping its source,
-        // and deliberately NOT via is_callable(): `[self::class, 'resolve']`
-        // IS callable and would sail through such a check while being
-        // exactly the non-serialisable form that crashes the builder. The
-        // four assertions below are the ones that discriminate.
+        // Asserted on what the service EMITS, and deliberately NOT via
+        // is_callable(): [self::class, 'resolve'] IS callable and is
+        // exactly the non-serialisable form that white-pages the builder.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
         $service->collect('team', $this->teamConfig());
@@ -732,14 +469,9 @@ final class SourcesServiceTest extends TestCase
 
                 $func = $definition['extensions']['call']['func'] ?? null;
 
-                // ORDER IS DELIBERATE. The two DISCRIMINATING checks run
-                // FIRST, on the un-narrowed value, so each names the
-                // specific defect an implementer would actually have
-                // written. `assertIsString` afterwards subsumes both
-                // logically — running it first would make these two dead
-                // assertions (PHPStan says so at level 6) and collapse
-                // three distinct diagnostics into one generic
-                // "not a string".
+                // Order is deliberate: the two discriminating checks run
+                // FIRST — assertIsString subsumes them and would make them
+                // dead assertions if it ran before.
                 $this->assertFalse(
                     $func instanceof \Closure,
                     "{$where}: a Closure resolver is the obvious way to write this and is "
@@ -783,10 +515,8 @@ final class SourcesServiceTest extends TestCase
 
     public function test_repeater_sub_type_fields_also_carry_literal_string_resolvers(): void
     {
-        // The sub-type is a SEPARATE objectType config, built on a
-        // different code path than the parent's fields — so it can
-        // independently regress to a closure. Rows of a repeater grid are
-        // exactly where a white page would surface for an editor.
+        // The sub-type is a separate emission path and can independently
+        // regress to a closure.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
 
@@ -813,20 +543,13 @@ final class SourcesServiceTest extends TestCase
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 6. MODEL COLLECTION — via the action, including late registrations.
-    // ─────────────────────────────────────────────────────────────────────
+    // ── Model collection via the action, including late registrations ──
 
     public function test_a_model_registered_after_the_listener_is_attached_is_still_collected(): void
     {
-        // The premise T03 proved at the integration tier, pinned here as a
-        // property of THIS service: models arrive over time via
-        // `ntdst/model/registered` (Data.php:1555), so the collection must
-        // be an accumulating registry the action feeds — NOT a one-shot
-        // enumeration taken at construction, and NOT reflection over
-        // `NTDST_Data_Manager::$models` (protected static, Data.php:1511 —
-        // the reference implementation's approach, ground-truthed FALSE for
-        // josworld at plan.md:45-57).
+        // Models arrive over time via the action, so collection must be an
+        // accumulating registry — not a one-shot enumeration at
+        // construction, not reflection over the manager's protected models.
         $service = new YOOthemeSourcesService();
 
         $this->assertSame(
@@ -836,16 +559,8 @@ final class SourcesServiceTest extends TestCase
             . 'enumerate models at construction time',
         );
 
-        // CONTRACT CORRECTION (same cause and same author as the correction
-        // at test_each_registered_type_name_derives_from_the_post_type):
-        // these two were `assertSame(['Case'], array_keys(...))` and
-        // `assertSame(['Case','Team'], ...)`, exact key matches that
-        // contradicted this file's own sub-type assertions once buildTypes()
-        // is understood as the FLAT payload. What this test is actually
-        // about is ACCUMULATION over time, so accumulation is what it now
-        // pins — including the negative half (Team absent before it is
-        // collected), which the exact-match form got for free and which
-        // would otherwise be lost.
+        // Pins accumulation, including the negative half: Team absent
+        // before it is collected.
         $service->collect('case', $this->caseConfig());
 
         $afterFirst = $service->buildTypes();
@@ -861,8 +576,7 @@ final class SourcesServiceTest extends TestCase
             . 'what the action actually gave it, never a speculative or hardcoded set',
         );
 
-        // The LATE registration — arriving after the first model was
-        // already collected and after any type map might have been built.
+        // The late registration.
         $service->collect('team', $this->teamConfig());
 
         $afterSecond = $service->buildTypes();
@@ -882,10 +596,8 @@ final class SourcesServiceTest extends TestCase
 
     public function test_a_model_carrying_no_fields_registers_no_empty_type(): void
     {
-        // Edge: `fields` is optional in register() (Data.php checks
-        // `!empty($config['fields'])` before the metabox branch). An empty
-        // object type is worse than no type — it appears in the builder's
-        // picker and binds to nothing.
+        // An empty object type is worse than none — a picker entry that
+        // binds to nothing.
         $service = new YOOthemeSourcesService();
         $service->collect('fieldless', [
             'label' => 'Fieldless',
@@ -900,19 +612,13 @@ final class SourcesServiceTest extends TestCase
         );
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // 7. THREAT 2 — the ntdst/yootheme/exclude_fields filter.
-    // ─────────────────────────────────────────────────────────────────────
+    // ── The ntdst/yootheme/exclude_fields filter ──
 
     public function test_the_exclude_fields_filter_defaults_to_excluding_nothing(): void
     {
-        // Threat 2's mitigation as plan.md:98-102 states it: "an
-        // `ntdst/yootheme/exclude_fields` filter (default: empty, since
-        // FR-12 exposes everything today)". The DEFAULT is half the
-        // contract — a filter that silently dropped fields when unset would
-        // break FR-12. Brain Monkey's default `apply_filters` stub returns
-        // the first argument unchanged, i.e. the real WordPress behaviour
-        // with no filter attached.
+        // The default is half the contract: unset, nothing is excluded.
+        // Brain Monkey's default apply_filters stub returns the first
+        // argument unchanged — the real no-filter WordPress behaviour.
         $service = new YOOthemeSourcesService();
         $service->collect('case', $this->caseConfig());
 
@@ -933,14 +639,9 @@ final class SourcesServiceTest extends TestCase
 
     public function test_the_exclude_fields_filter_actually_gates_a_field(): void
     {
-        // The other half: the filter must genuinely REMOVE a field, and be
-        // applied at COLLECTION (the chokepoint) — not in SchemaMapper,
-        // which the plan requires to stay pure and free of apply_filters.
-        // Without this assertion the filter could be declared and ignored,
-        // which is how a documented mitigation becomes a comment.
-        //
-        // The filter is passed the model NAME as its second argument so an
-        // exclusion can be scoped to one CPT rather than applying globally.
+        // The filter must genuinely REMOVE a field, at collection (the
+        // mapper stays pure) — else a documented mitigation becomes a
+        // comment. The model name is the second arg, for per-CPT scoping.
         \Brain\Monkey\Filters\expectApplied('ntdst/yootheme/exclude_fields')
             ->atLeast()
             ->once()
@@ -967,11 +668,9 @@ final class SourcesServiceTest extends TestCase
 
     public function test_an_excluded_field_is_excluded_from_the_repeater_sub_type_too(): void
     {
-        // A sub-field named by the filter must also be gated. Repeater rows
-        // are a second, independent emission path (see assertion 5's
-        // sub-type test) — an exclusion honoured only at the parent level
-        // would leave the excluded data rendering inside every grid row,
-        // which is precisely the leak threat 2 describes.
+        // Repeater rows are a second, independent emission path — an
+        // exclusion honoured only at the parent level would leave the
+        // excluded data rendering inside every grid row.
         \Brain\Monkey\Filters\expectApplied('ntdst/yootheme/exclude_fields')
             ->atLeast()
             ->once()
@@ -995,18 +694,11 @@ final class SourcesServiceTest extends TestCase
         );
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Support — see design note (c) for why the app() stub is loaded LAST.
-    // ─────────────────────────────────────────────────────────────────────
-
     /**
-     * Declare `YOOtheme\app()` for the duration of the process.
-     *
-     * PHP cannot undeclare a function, so this is deliberately called ONLY
-     * from the two FR-1 positive tests, and the FR-7 denial tests are
-     * protected by test_the_yootheme_app_function_is_genuinely_absent_at_
-     * this_tier() rather than by ordering luck: PHPUnit runs methods in
-     * declaration order, and every FR-7 test is declared above these.
+     * Declare `YOOtheme\app()` for the duration of the process. PHP cannot
+     * undeclare a function, so this is called ONLY from the positive tests;
+     * the denial tests are declared above and guarded by the explicit
+     * absence precondition, not ordering luck.
      */
     private function requireYOOthemeAppStub(): void
     {
@@ -1020,14 +712,9 @@ final class SourcesServiceTest extends TestCase
 }
 
 /**
- * A minimal stand-in for YOOtheme's `Source`/`SchemaBuilder`, recording what
- * the service registers on it.
- *
- * Mirrors the real signature `SchemaBuilder::objectType(string $name,
- * $config = []): void` (yootheme/packages/graphql/src/SchemaBuilder.php:220).
- * Deliberately NOT a Mockery mock: the contract here is about the STATE the
- * service produces (which types, with which configs), and asserting recorded
- * state beats asserting interactions.
+ * Minimal recording stand-in for YOOtheme's Source/SchemaBuilder,
+ * mirroring the real objectType() signature. Deliberately not a Mockery
+ * mock: the contract is recorded STATE, not interactions.
  */
 final class RecordingSource
 {
@@ -1057,26 +744,11 @@ final class RecordingSource
 namespace YOOtheme;
 
 /**
- * Test-owned recording double for YOOtheme's `Event` façade.
- *
- * Verified at authoring time: `YOOtheme\Event` is NOT autoloadable at the
- * unit tier (the parent theme is gitignored — .gitignore:138 ignores
- * `app/content/themes/*` and re-includes only `josworld/` — and is outside
- * the composer autoloader), so declaring it here collides with nothing and
- * lets the unit tier run in CI without the licensed theme.
- *
- * The API surface mirrors the real class exactly — same namespace, same
- * class name, same `on(string $event, callable $listener, int $priority = 0)`
- * signature (yootheme/packages/utils/src/Event.php). The service under test
- * is NOT aware of this double, is not injected with it, and calls
- * `Event::on(...)` exactly as it will in production; the double simply
- * records the arguments. That is a genuine seam observation.
- *
- * What it deliberately does NOT model: the real dispatcher's krsort()
- * ordering behaviour. The priority is asserted as a VALUE here; that -10
- * actually orders correctly against the base types is vendor behaviour,
- * ground-truthed by reading EventDispatcher::addListener() and deferred to
- * the T08 integration gate and the T11 acceptance drive.
+ * Test-owned recording double for YOOtheme's `Event` façade, in the real
+ * namespace with the real on() signature — the parent theme is gitignored
+ * and not autoloadable, so this collides with nothing and the service
+ * calls it exactly as in production. It does NOT model the dispatcher's
+ * krsort() ordering; the priority is asserted as a value only.
  */
 abstract class Event
 {
