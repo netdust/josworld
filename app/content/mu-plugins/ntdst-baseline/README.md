@@ -1,26 +1,20 @@
 # ntdst-baseline
 
-> **josworld copy — 2026-08-03.** Copied from `daan`
-> (`web/app/mu-plugins/ntdst-baseline/`) as a LOCAL copy; the two are
-> intentionally allowed to drift and there is no shared package yet.
+> **Vendored per-site, kept IDENTICAL across sites.** There is no shared
+> package yet; each site carries a byte-identical copy of this plugin
+> (`daan`: `web/app/mu-plugins/ntdst-baseline/`, `josworld`:
+> `app/content/mu-plugins/ntdst-baseline/`). Converged 2026-08-11 by
+> merging the superset of both copies: josworld's gate-required hardening
+> (sanitized `REQUEST_URI` / `If-None-Match` reads, `wp_kses()` over the
+> filtered head-tag loop, the `ntdst/baseline/schema/*` filter rename,
+> phpcs/phpstan compliance) plus daan's `purge_exclude_post_types`
+> cache-purge exclusion (S-2) and its user-enum flag documentation.
 >
-> This copy **deliberately diverges** from daan's by the following fixes,
-> which josworld's quality gate (phpcs WPCS + phpstan level 6, scoped over
-> `app/content/mu-plugins`) required and daan's gate never surfaced:
->
-> | File | Fix |
-> |---|---|
-> | `services/SecurityService.php` | `$_SERVER['REQUEST_URI']` now `sanitize_text_field(wp_unslash(...))` — was read raw |
-> | `services/SeoService.php` | `wp_kses()` with a `<meta>`/`<link>` allow-list on the tag loop — the `ntdst/baseline/seo/meta` filter means post-filter tags can't be assumed pre-escaped |
-> | `services/CacheHeadersService.php` | `HTTP_IF_NONE_MATCH` now sanitized (had `wp_unslash` only); one over-long i18n string wrapped |
-> | `support/CacheHeaderPolicy.php` | multi-line control-structure formatting (phpcbf) |
-> | all 13 PHP files | house-style `phpcs:disable PSR1.Files.SideEffects` docblock note |
-> | `services/SecurityService.php`, `support/Cidr.php`, `support/Config.php` | phpstan level-6 type annotations |
->
-> **The two input-sanitization fixes and the output-escaping fix are real
-> security fixes, and daan's upstream copy still carries them unfixed.**
-> Porting them back to daan is a known, deliberate follow-up — out of scope
-> for the josworld work that produced this copy.
+> **A fix made in one copy must land in the other in the same change.**
+> Behavioural tests live where the behaviour's threat is real (e.g.
+> `BaselinePurgeExclusionTest` in daan's suite, the input-handling and
+> filter-namespace tests in josworld's); the identity of the copies is what
+> carries the coverage across.
 
 **What it is.** The third mu-plugin in the stack, alongside `ntdst-core` (the
 DI/data/routing framework, shared across every Netdust project) and

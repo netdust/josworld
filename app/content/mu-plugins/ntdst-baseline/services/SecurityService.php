@@ -43,6 +43,14 @@ final class SecurityService
     private const DEFAULTS = [
         'disable_xmlrpc' => true,
         'disable_file_editor' => true,
+        // Gates TWO surfaces: the /wp/v2/users REST routes (the whole user
+        // table, including users with no published posts, and slugs that hint at
+        // login names) and author archive probes. It does NOT gate `author` in
+        // api_data output — a get() row has always carried author id and
+        // display_name, and no flag ever changed that. Flipped to false on
+        // 2026-08-07 on that mistaken premise and reverted the same day; the six
+        // BaselineUserEnumTest / BaselineSecurityFixesTest assertions are what
+        // caught it.
         'disable_user_enumeration' => true,
         'limit_login_attempts' => true,
         'generic_login_errors' => true,

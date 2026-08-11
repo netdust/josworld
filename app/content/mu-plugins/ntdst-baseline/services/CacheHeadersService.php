@@ -136,6 +136,16 @@ class CacheHeadersService
         // non-positive) `purge_debounce_seconds` disables the limit.
         'purge_debounce_seconds' => 30,
         'purge_debounce_limit' => 5,
+        // S-2 (record-shop threat model, mitigation 11): post types listed
+        // here NEVER trigger a content-scope purge, on either content hook
+        // (`save_post` / `deleted_post`) and regardless of status
+        // transition. Anonymous-traffic post types (e.g. `record_order`,
+        // created per anonymous shop order) must not become purge
+        // amplifiers — a NEW post is a status transition, which bypasses
+        // the rate limit above, so without this list every anonymous order
+        // would be one unthrottled site-wide purge. Default [] = no fleet
+        // behaviour change.
+        'purge_exclude_post_types' => [],
     ];
 
     /**
@@ -476,6 +486,16 @@ class CacheHeadersService
             return;
         }
 
+        // S-2: excluded post types never purge — transition or not (see
+        // the `purge_exclude_post_types` DEFAULTS comment). Still consume
+        // the pending-transition marker so the request-scoped array does
+        // not accumulate stale entries for excluded types.
+        if ($this->isPurgeExcludedPostType($post->post_type)) {
+            unset($this->postsWithPendingStatusTransition[$postId]);
+
+            return;
+        }
+
         $isStatusTransition = isset($this->postsWithPendingStatusTransition[$postId]);
         unset($this->postsWithPendingStatusTransition[$postId]);
 
@@ -508,6 +528,12 @@ class CacheHeadersService
     public function onDeletedPost(int $postId, \WP_Post $post): void
     {
         if ($post->post_type === 'revision') {
+            return;
+        }
+
+        // S-2: excluded on the delete path too — see the
+        // `purge_exclude_post_types` DEFAULTS comment.
+        if ($this->isPurgeExcludedPostType($post->post_type)) {
             return;
         }
 
@@ -623,6 +649,23 @@ class CacheHeadersService
                 ),
             ],
         ]);
+    }
+
+    /**
+     * S-2: is this post type on the configured content-purge exclusion
+     * list (`purge_exclude_post_types`)? Consulted by BOTH content hooks
+     * (`onSavePost()` / `onDeletedPost()`) before `firePurge()` — an
+     * exclusion is a config-carried extension of the convergence point
+     * (INV-6), never a bypass of it: excluded types simply never reach the
+     * single `firePurge()` call-site.
+     */
+    private function isPurgeExcludedPostType(string $postType): bool
+    {
+        return in_array(
+            $postType,
+            (array) ($this->config['purge_exclude_post_types'] ?? []),
+            true,
+        );
     }
 
     /**
