@@ -7,25 +7,30 @@ namespace NtdstTests\Integration;
 use WP_UnitTestCase;
 
 /**
- * Regression cover for the ntdst-core `search_posts` attachment fix
- * (2026-08-03, Cluster B review finding CB-B-1).
+ * Regression cover for the relation-picker attachment fix (2026-08-03,
+ * Cluster B review finding CB-B-1), re-targeted at the surface that now
+ * carries it: `NTDST_RelationField::handleRelationSearch()` behind the
+ * `relation_search` api_data action (ntdst-core/admin/RelationField.php).
+ * The public `search_posts` example action these tests originally exercised
+ * was deleted from the framework with the rest of the example surface.
  *
  * THE DEFECT. A `relation` field scoped to `post_type => 'attachment'` — the
  * idiomatic way to model "pick a downloadable file", and what josworld's
  * `tool.file` field uses — rendered a working autocomplete that could never
- * return a result. `getPostsFast()` defaults `post_status` to `'publish'`
- * (Data.php:1792), correct for every ordinary content type; but WordPress
- * stores attachments as `'inherit'` (set by `wp_insert_attachment()`, never
- * promoted by the media library). So the search matched nothing, always, and
- * an editor simply could not attach a file.
+ * return a result: the search path defaults `post_status` to `'publish'`,
+ * correct for every ordinary content type, but WordPress stores attachments
+ * as `'inherit'` (set by `wp_insert_attachment()`, never promoted by the
+ * media library). So the search matched nothing, always, and an editor
+ * simply could not attach a file.
  *
- * Verified before the fix: an uploaded attachment searched through the same
- * path returned 0 results, and 1 as soon as `post_status => 'inherit'` was
- * passed.
- *
- * WHY IT WENT UNNOTICED: no sibling ntdst site had ever scoped a relation
- * field at attachments — the field type was only ever pointed at ordinary
- * content types, where the `publish` default is right.
+ * THE SURFACE'S OWN GATES, which these tests must satisfy to reach the
+ * behaviour under cover (they are the handler's contract, not incidental):
+ *  - the requested type must be a DECLARED relation target — derived from
+ *    the registered schemas, so `attachment` (tool.file) and `tool`
+ *    (tool.related_tools) qualify; a type nobody points a relation field at
+ *    (e.g. `post`) is silently dropped from the request;
+ *  - the caller must hold the target type's `edit_others_posts` — hence the
+ *    administrator fixture in setUp().
  *
  * This test lives in josworld because ntdst-core is vendored per-site with no
  * suite of its own; it travels with the fix, like
@@ -37,21 +42,20 @@ final class AttachmentSearchTest extends WP_UnitTestCase
     {
         parent::setUp();
 
-        // The search_posts filter is registered by
-        // NTDST_Endpoints::register_example_actions(), hooked on
-        // `rest_api_init` — so it only exists during a REST request. Fire
-        // that here so these tests exercise the REAL registered filter
-        // rather than a hand-rolled stand-in. (Probed first: without this,
-        // has_filter('ntdst/api_data/search_posts') is false and every
-        // assertion below tests nothing.)
-        if (! has_filter('ntdst/api_data/search_posts')) {
-            do_action('rest_api_init');
-        }
-
+        // NTDST_RelationField self-registers on `after_setup_theme` @ 20
+        // (RelationField.php's unconditional bootstrap), which has already
+        // fired during the wp-phpunit boot. Probe rather than assume.
         $this->assertNotFalse(
-            has_filter('ntdst/api_data/search_posts'),
-            'precondition: the search_posts filter must be registered, or these '
+            has_filter('ntdst/api_data/relation_search'),
+            'precondition: the relation_search filter must be registered, or these '
             . 'tests assert against a filter that does not exist',
+        );
+
+        // handleRelationSearch() requires the target type's
+        // `edit_others_posts`; an anonymous caller gets forbidden_post_type
+        // and every assertion below would test the gate, not the widening.
+        wp_set_current_user(
+            self::factory()->user->create(['role' => 'administrator']),
         );
     }
 
@@ -73,15 +77,15 @@ final class AttachmentSearchTest extends WP_UnitTestCase
     private function searchIds(string $term, array $postTypes): array
     {
         $result = apply_filters(
-            'ntdst/api_data/search_posts',
+            'ntdst/api_data/relation_search',
             null,
             ['search' => $term, 'post_types' => $postTypes],
         );
 
         $posts = is_array($result) ? ($result['results'] ?? []) : [];
 
-        // The endpoint returns its JSON payload shape, not WP_Post objects:
-        // rows are arrays keyed id/title/excerpt/content/permalink/... —
+        // The handler returns getFormattedPosts()'s JSON payload shape, not
+        // WP_Post objects: rows are arrays keyed id/title/excerpt/... —
         // lowercase `id`, not WP's `ID`. Probed rather than assumed.
         return array_map(
             static fn (array $post): int => (int) $post['id'],
@@ -107,19 +111,22 @@ final class AttachmentSearchTest extends WP_UnitTestCase
 
     /**
      * The widening must not turn into "any status matches". A draft is not an
-     * uploaded file and must stay out of the picker.
+     * uploaded file and must stay out of the picker. `tool` is the declared
+     * ordinary-type relation target here (tool.related_tools) — `post` is not
+     * a target of any josworld relation field and would be dropped, testing
+     * nothing.
      */
     public function test_a_draft_post_is_still_excluded_from_a_mixed_search(): void
     {
         $draft = (int) wp_insert_post([
-            'post_type' => 'post',
+            'post_type' => 'tool',
             'post_title' => 'Whitepaper draft',
             'post_status' => 'draft',
         ]);
 
         $this->assertNotContains(
             $draft,
-            $this->searchIds('Whitepaper', ['attachment', 'post']),
+            $this->searchIds('Whitepaper', ['attachment', 'tool']),
             'widening to inherit must not admit drafts — the picker shows publishable '
             . 'content and real uploads, nothing else',
         );
@@ -134,43 +141,43 @@ final class AttachmentSearchTest extends WP_UnitTestCase
     {
         $attachment = $this->makeAttachment('Mixed Whitepaper');
         $published = (int) wp_insert_post([
-            'post_type' => 'post',
+            'post_type' => 'tool',
             'post_title' => 'Mixed Whitepaper article',
             'post_status' => 'publish',
         ]);
 
-        $found = $this->searchIds('Mixed Whitepaper', ['attachment', 'post']);
+        $found = $this->searchIds('Mixed Whitepaper', ['attachment', 'tool']);
 
         $this->assertContains($attachment, $found, 'the attachment must be found');
-        $this->assertContains($published, $found, 'the published post must still be found');
+        $this->assertContains($published, $found, 'the published tool must still be found');
     }
 
     /**
-     * BACK-COMPAT — the path every other ntdst site actually uses. A search
-     * that names no attachment type must behave exactly as before: published
-     * only, drafts excluded, no status widening.
+     * BACK-COMPAT — the path every relation field scoped to an ordinary type
+     * uses. A search that names no attachment type must behave exactly as
+     * before: published only, drafts excluded, no status widening.
      */
     public function test_a_search_without_attachments_is_unchanged(): void
     {
         $published = (int) wp_insert_post([
-            'post_type' => 'post',
+            'post_type' => 'tool',
             'post_title' => 'Legacy Whitepaper published',
             'post_status' => 'publish',
         ]);
         $draft = (int) wp_insert_post([
-            'post_type' => 'post',
+            'post_type' => 'tool',
             'post_title' => 'Legacy Whitepaper draft',
             'post_status' => 'draft',
         ]);
 
-        $found = $this->searchIds('Legacy Whitepaper', ['post']);
+        $found = $this->searchIds('Legacy Whitepaper', ['tool']);
 
         $this->assertContains($published, $found);
         $this->assertNotContains(
             $draft,
             $found,
             'a non-attachment search must keep the publish-only default — this is the '
-            . 'path every other ntdst site uses and it must not change',
+            . 'path every relation field scoped to an ordinary type relies on',
         );
     }
 }

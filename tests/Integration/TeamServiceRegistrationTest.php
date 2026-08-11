@@ -79,11 +79,22 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         $postType = get_post_type_object('team');
         $this->assertNotNull($postType);
 
-        // No public single view (FR-2 / assumption): publicly_queryable false
-        // and no rewrite means no front-end URL resolves to a single member.
-        $this->assertFalse(
+        // FR-2's "no public single view" is enforced by the closeSingleView()
+        // template_redirect route, NOT by publicly_queryable => false: WordPress
+        // has no flag for "archive yes, singles no" (parse_request drops the
+        // post_type query var for non-queryable types, killing the archive with
+        // the single — see TeamService's registration comment, 2026-08-07).
+        $this->assertTrue(
             $postType->publicly_queryable,
-            'team must not be publicly queryable — the design never links to a member\'s own page',
+            'team must stay publicly queryable — the archive and YOOtheme source enumeration require it',
+        );
+        $this->assertTrue(
+            $postType->has_archive !== false,
+            'team must keep its archive — the design\'s /team/ grid is the archive',
+        );
+        $this->assertTrue(
+            $postType->exclude_from_search,
+            'team members must not surface as site-search results — the single view is closed',
         );
 
         // Full admin UI still required — editors manage members in wp-admin.
@@ -112,7 +123,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         ]);
         $this->assertNotWPError($case);
 
-        $reread = $caseModel->find($case->ID, true);
+        $reread = $caseModel->find($case->ID, 'any');
         $this->assertNotWPError($reread);
         $team = $reread->fields['team'] ?? [];
         $this->assertCount(
@@ -127,7 +138,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         ]);
         $this->assertNotWPError($updated);
 
-        $rereadAgain = $caseModel->find($case->ID, true);
+        $rereadAgain = $caseModel->find($case->ID, 'any');
         $teamAgain = $rereadAgain->fields['team'] ?? [];
         $this->assertCount(1, array_unique($teamAgain), 'resaving must not accumulate duplicate relation ids');
     }
@@ -153,7 +164,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         wp_delete_post($member->ID, true);
 
         // The dangling relation id must not fatal the case's read.
-        $reread = $caseModel->find($case->ID, true);
+        $reread = $caseModel->find($case->ID, 'any');
         $this->assertNotWPError($reread, 'a case referring to a deleted member must still read cleanly');
         $this->assertSame('Case with a member later deleted', $reread->fields['title'] ?? get_the_title($case->ID));
 

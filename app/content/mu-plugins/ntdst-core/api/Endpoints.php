@@ -3,13 +3,23 @@
 declare(strict_types=1);
 
 /**
- * Fast REST API Endpoints for Database Access
+ * NTDST action router.
  *
- * Super-fast alternative to WordPress AJAX using REST API + direct DB access.
+ * A same-origin dispatcher for `ntdst/api_data/{action}` filters, and NOTHING
+ * ELSE. It decides five things — origin, rate limit, nonce, whether this actor
+ * may reach this action, and which filter to fire — and holds no opinion about
+ * anyone's data. Actions are registered by the services that know what their
+ * rows mean.
  *
- * Requirements:
- * - Define `ALLOW_RESTAPI_AJAX` as true in wp-config.php
- * - Use with ntdstAPI client (endpoints-client.js)
+ * That boundary is the correction of 2026-08-07. This file used to ship
+ * "example" data actions (`get_recent_posts`, `search_posts`, `search_users`)
+ * and make two of them anonymous by default, which handed every site on this
+ * framework a generic, caller-parameterised query surface it never asked for —
+ * and then required a gate that re-derived WordPress's visibility semantics
+ * from the registry to defend it. Five consecutive generations of security
+ * review went into that gate. The actions had zero, zero and one consumer
+ * respectively; the one moved to `NTDST_RelationField`, and the gate was
+ * deleted with the surface.
  *
  * Endpoints:
  * - POST /wp-json/ntdst/v1/get_nonce
@@ -18,11 +28,12 @@ declare(strict_types=1);
  * Conventions:
  *  - Filter prefixes: `ntdst/api/*` for new code. `netdust_trusted_proxies`
  *    is historical — do not propagate that naming.
- *  - Public-action nonces are issued without auth. Handlers for public
- *    actions MUST NOT assume the caller is authenticated; treat all input
- *    as untrusted.
- *  - The `_files` key in request params is reserved for uploaded files
- *    (overwritten by get_request_params). Do not pass `_files` as data.
+ *  - Anonymous exposure is a SITE decision, made only via the
+ *    `ntdst/api/public_actions` filter. A handler listed there MUST NOT assume
+ *    the caller is authenticated and MUST treat all input as untrusted.
+ *  - The `_files` key in request params is reserved for uploaded files and is
+ *    overwritten unconditionally by `get_request_params()`. Do not pass
+ *    `_files` as data.
  */
 
 if (!defined('ABSPATH')) {
@@ -32,7 +43,6 @@ if (!defined('ABSPATH')) {
 final class NTDST_Endpoints
 {
     private const REST_NAMESPACE = 'ntdst/v1';
-    private const CACHE_GROUP = 'ntdst_posts';
 
     /**
      * Rate limiting settings
@@ -41,24 +51,86 @@ final class NTDST_Endpoints
     private const RATE_WINDOW = 60; // Window in seconds
 
     /**
-     * Public actions that don't require authentication for nonce generation
-     * All other actions require user to be logged in
+     * Actions reachable WITHOUT authentication.
+     *
+     * EMPTY BY DEFAULT, AND THE FRAMEWORK NEVER ADDS TO IT. Anonymous exposure
+     * is a decision only a site can make, because only a site knows what its
+     * data means — so it is made in one place, the `ntdst/api/public_actions`
+     * filter, which is where INV-2 already said it was made.
+     *
+     * This list used to ship `get_recent_posts`, `search_posts` and
+     * `send_magic_link`, which opted EVERY ntdst-core site into an anonymous,
+     * caller-parameterised query surface it never asked for. Ground-truthed in
+     * this repo before the change: `get_recent_posts` had zero consumers,
+     * `send_magic_link` had no handler anywhere, and `search_posts`'s only
+     * consumer was the ADMIN relation autocomplete (`NTDST_RelationField`,
+     * `admin_only => true`) — authenticated by definition. Nothing needed them
+     * to be anonymous, and the cost of pretending otherwise was five
+     * consecutive generations of security review (T16, T23, T24, T25, plus the
+     * parked T30/T31) spent defending a surface with no user.
+     *
+     * It was also a SECOND DOOR: a site could harden its own handler — the
+     * `release` action grew a capability check and an explicit allow-list
+     * projection over three tasks — while these defaults served the same rows
+     * raw next to it, bypassing that work entirely.
+     *
+     * RETIRED 2026-08-07, with explicit sanction. `send_magic_link` went first
+     * (it named no handler in any tree). `get_recent_posts` and `search_users`
+     * are DELETED — zero consumers each. `search_posts` MOVED to the one
+     * consumer it ever had, as `NTDST_RelationField::handleRelationSearch()`,
+     * where the question it must answer is answerable: not "may this anonymous
+     * caller query the type they named", but "is this type a declared relation
+     * TARGET, and may this authenticated caller edit others' posts of it".
+     *
+     * That is what let the gate stack be DELETED rather than fixed —
+     * `filterQueryablePostTypes()`, `canQueryPostType()`,
+     * `canQueryUnpublishedMedia()`, `nonViewableMediaParentIds()` (T30's
+     * uncached full-attachment scan) and T31's fail-open `post_parent__not_in`
+     * sibling. Every one existed only because an anonymous caller could reach
+     * a caller-named query. T30 and T31 are closed by deletion, not by fix.
      */
-    private array $public_actions = [
-        'get_recent_posts',
-        'search_posts',
-        'send_magic_link',
-    ];
+    private array $public_actions = [];
+
+    /**
+     * Memoized rate decisions: request object => [action => decision].
+     *
+     * WP core invokes a route's `permission_callback` TWICE per served HTTP
+     * request — a fact this code cannot show, so it is stated here:
+     *  1. in `WP_REST_Server::respond_to_request()` (the dispatch-time
+     *     permission check), and
+     *  2. in `rest_send_allow_header()` (hooked on `rest_post_dispatch`),
+     *     which re-invokes every matched handler's permission_callback to
+     *     compute the `Allow` response header — on every response, error
+     *     responses included, since `set_matched_route()` is unconditional.
+     * Without memoization each invocation ran the transient increment, so one
+     * HTTP request consumed TWO budget units and every configured limit was
+     * halved on the wire (fleet default 30 behaved as 15; verified live:
+     * limit 3 passed exactly 2 requests).
+     *
+     * Keyed on the WP_REST_Request OBJECT because both core invocations
+     * receive the same request instance, while two different HTTP requests
+     * can never share one — the memo is per-request by construction, needs no
+     * reset, and cannot become a persistent bypass. WeakMap entries die with
+     * the request object.
+     *
+     * @var \WeakMap<\WP_REST_Request, array<string, bool>>
+     */
+    private \WeakMap $rateDecisions;
 
     public function __construct()
     {
-        add_action('rest_api_init', [$this, 'register_routes']);
-        add_action('rest_api_init', [$this, 'register_example_actions']);
+        $this->rateDecisions = new \WeakMap();
 
-        // Auto-clear cache on post changes
-        add_action('save_post', [$this, 'clear_post_cache'], 10, 1);
-        add_action('deleted_post', [$this, 'clear_post_cache'], 10, 1);
-        add_action('trashed_post', [$this, 'clear_post_cache'], 10, 1);
+        add_action('rest_api_init', [$this, 'register_routes']);
+
+        // No data actions are registered here. The framework ships a ROUTER —
+        // origin check, rate limit, nonce, auth gate, dispatch — and no opinion
+        // about anyone's data. Actions belong to the services that know what
+        // their rows mean.
+        //
+        // T04: no cache-invalidation hooks either. The data layer keeps no
+        // cache of its own, and core already invalidates its post, post_meta
+        // and object-term entries on save/delete/trash.
     }
 
     // =========================================================================
@@ -112,15 +184,22 @@ final class NTDST_Endpoints
     /**
      * Check permission for nonce endpoint
      * Only allows nonce generation for public actions or logged-in users
+     *
+     * @return WP_Error|bool WP_Error(rate_limited, 429) when the rate limit is
+     *                       exceeded — WP REST honours the error's status, so
+     *                       the denial reaches the wire as 429 and a
+     *                       legitimate client knows to back off. Auth denials
+     *                       stay bare `false` (401 rest_forbidden),
+     *                       deliberately indistinguishable.
      */
-    public function check_nonce_permission(WP_REST_Request $request): bool
+    public function check_nonce_permission(WP_REST_Request $request): WP_Error|bool
     {
         // Resolve action first so the rate limit can be per-action.
         $params = $this->get_request_params($request);
         $action = sanitize_text_field($params['action'] ?? $request->get_param('action') ?? '');
 
-        if (!$this->checkRateLimit($action)) {
-            return false;
+        if (!$this->checkRateLimit($action, $request)) {
+            return $this->rateLimitedError();
         }
 
         // Get public actions dynamically (allows late registration)
@@ -138,15 +217,19 @@ final class NTDST_Endpoints
     /**
      * Check permission for action endpoint
      * Verifies origin and applies rate limiting
+     *
+     * @return WP_Error|bool WP_Error(rate_limited, 429) when the rate limit is
+     *                       exceeded; auth/origin denials stay bare `false`
+     *                       (401 rest_forbidden) — see check_nonce_permission().
      */
-    public function check_action_permission(WP_REST_Request $request): bool
+    public function check_action_permission(WP_REST_Request $request): WP_Error|bool
     {
         $params = $this->get_request_params($request);
         $action = sanitize_text_field($params['action'] ?? '');
 
         // Rate limiting check (per-action so sensitive actions can be tighter)
-        if (!$this->checkRateLimit($action)) {
-            return false;
+        if (!$this->checkRateLimit($action, $request)) {
+            return $this->rateLimitedError();
         }
 
         // CSRF: Verify request origin
@@ -168,6 +251,24 @@ final class NTDST_Endpoints
     }
 
     /**
+     * The one denial the router makes DISTINGUISHABLE on the wire.
+     *
+     * A rate-limited caller gets 429 `rate_limited` instead of the 401
+     * `rest_forbidden` that bare `false` produces, because a legitimate JS
+     * client must know to back off — while an attacker learns nothing about
+     * auth state it couldn't already infer from timing/counting. Auth and
+     * origin denials deliberately stay bare `false`. Carries no request data.
+     */
+    private function rateLimitedError(): WP_Error
+    {
+        return new WP_Error(
+            'rate_limited',
+            __('Too many requests. Please wait a moment and try again.', 'ntdst-core'),
+            ['status' => 429],
+        );
+    }
+
+    /**
      * Rate limiting to prevent API abuse.
      *
      * Keying strategy:
@@ -177,9 +278,42 @@ final class NTDST_Endpoints
      * Limits and windows are filterable per-action so sensitive operations
      * (e.g. magic-link send) can be much stricter than the default 30/min.
      *
+     * The decision is memoized per (request, action) — see $rateDecisions:
+     * WP invokes the permission callback twice per served request (dispatch +
+     * `rest_send_allow_header()`), and only the FIRST invocation may consume
+     * a budget unit, or every limit is effectively halved. The memo can only
+     * make the limiter MORE permissive within a single request (one unit
+     * instead of two); a caller cannot steer it, since the key is the
+     * server-created request object plus the action within one PHP request
+     * lifecycle.
+     *
      * @return bool false when limit exceeded
      */
-    private function checkRateLimit(string $action = ''): bool
+    private function checkRateLimit(string $action, WP_REST_Request $request): bool
+    {
+        $decisions = $this->rateDecisions[$request] ?? [];
+
+        if (array_key_exists($action, $decisions)) {
+            return $decisions[$action];
+        }
+
+        $decision = $this->consumeRateBudget($action);
+
+        $decisions[$action]            = $decision;
+        $this->rateDecisions[$request] = $decisions;
+
+        return $decision;
+    }
+
+    /**
+     * The unmemoized decision: read the (user|ip, action) bucket and consume
+     * one unit when under the limit. The transient TTL resets on every
+     * increment (sliding window) — long-standing behaviour, deliberately
+     * unchanged here.
+     *
+     * @return bool false when limit exceeded
+     */
+    private function consumeRateBudget(string $action): bool
     {
         $limit = (int) apply_filters("ntdst/api/rate_limit/{$action}", self::RATE_LIMIT, $action);
         $window = (int) apply_filters("ntdst/api/rate_window/{$action}", self::RATE_WINDOW, $action);
@@ -268,6 +402,14 @@ final class NTDST_Endpoints
 
     /**
      * Get client IP for rate limiting (secure implementation)
+     *
+     * The LEFTMOST X-Forwarded-For end is attacker-authored: under the
+     * standard nginx→FPM topology, nginx's default
+     * `$proxy_add_x_forwarded_for` APPENDS the connecting address to whatever
+     * header the client sent, so anything left of the infrastructure-appended
+     * hops is client-supplied fiction. Only the RIGHTMOST hop NOT in the
+     * trusted-proxy list — the address that actually connected to trusted
+     * infrastructure — is load-bearing for rate-bucket identity.
      */
     private function getClientIp(): string
     {
@@ -277,14 +419,28 @@ final class NTDST_Endpoints
         $trusted_proxies = apply_filters('netdust_trusted_proxies', ['127.0.0.1', '::1']);
 
         // Only trust X-Forwarded-For if behind trusted proxy
-        if (in_array($remote_ip, $trusted_proxies, true) && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $forwarded_ips = array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']));
-            $client_ip = $forwarded_ips[0];
-            if (filter_var($client_ip, FILTER_VALIDATE_IP)) {
-                return $client_ip;
-            }
+        if (!in_array($remote_ip, $trusted_proxies, true) || empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            return $remote_ip;
         }
 
+        // Walk the chain right-to-left, skipping trusted proxies; the first
+        // untrusted hop is the client. Attacker-prepended garbage on the left
+        // is never reached. A malformed candidate terminates the walk — fall
+        // back to the trusted proxy's address rather than trust anything to
+        // its left.
+        $forwarded_ips = array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']));
+
+        foreach (array_reverse($forwarded_ips) as $candidate) {
+            if (!filter_var($candidate, FILTER_VALIDATE_IP)) {
+                return $remote_ip;
+            }
+            if (in_array($candidate, $trusted_proxies, true)) {
+                continue;
+            }
+            return $candidate;
+        }
+
+        // Every hop in the chain is a trusted proxy — internal traffic.
         return $remote_ip;
     }
 
@@ -307,16 +463,20 @@ final class NTDST_Endpoints
             $params = $request->get_body_params();
         }
 
-        // Include uploaded files when present
-        $files = $request->get_file_params();
-        if (!empty($files)) {
-            $params['_files'] = $files;
-        }
+        // `_files` is RESERVED, so it is written unconditionally — including
+        // when there are no uploads. Guarding this with `if (!empty($files))`
+        // made the reservation true only in the case that did not need it: with
+        // no file attached, a caller-supplied `_files` key in the JSON body
+        // survived into `$params` verbatim, so the first handler to trust
+        // `$params['_files'][…]['tmp_name']` would read an attacker-chosen
+        // path. No handler does today; the docblock's promise is what the next
+        // one would rely on, so the promise is made true rather than softened.
+        $params['_files'] = $request->get_file_params();
 
         return $params;
     }
 
-    public function handle_get_nonce(WP_REST_Request $request): array
+    public function handle_get_nonce(WP_REST_Request $request): WP_REST_Response
     {
         $params = $this->get_request_params($request);
         $action = $params['action'] ?? $request->get_param('action');
@@ -330,7 +490,7 @@ final class NTDST_Endpoints
         ]);
     }
 
-    public function handle_action(WP_REST_Request $request): array
+    public function handle_action(WP_REST_Request $request): WP_REST_Response
     {
         $params = $this->get_request_params($request);
         $action = sanitize_text_field($params['action'] ?? '');
@@ -353,7 +513,12 @@ final class NTDST_Endpoints
         $data = apply_filters("ntdst/api_data/{$action}", [], $params);
 
         if (is_wp_error($data)) {
-            return $this->error($data->get_error_message(), $data->get_error_code());
+            // Honour a status the handler declared in the WP_Error's data
+            // (WP convention: new WP_Error(code, msg, ['status' => 403])).
+            $errorData = $data->get_error_data();
+            $status = is_array($errorData) && isset($errorData['status']) ? (int) $errorData['status'] : 400;
+
+            return $this->error($data->get_error_message(), (string) $data->get_error_code(), $status);
         }
 
         return $this->success(is_array($data) ? $data : []);
@@ -361,142 +526,21 @@ final class NTDST_Endpoints
 
 
     // =========================================================================
-    // CACHE CLEARING
-    // =========================================================================
-
-    public function clear_post_cache(int $post_id): void
-    {
-        // Clear per-post entries only. NTDST_Query_Cache's onPostSave hook
-        // already bumps the per-post-type version, which invalidates query
-        // caches granularly — flushing the whole group here defeats that.
-        wp_cache_delete("post_meta_{$post_id}", self::CACHE_GROUP);
-        wp_cache_delete("post_terms_{$post_id}", self::CACHE_GROUP);
-    }
-
-    // =========================================================================
-    // EXAMPLE ACTIONS (register via filter)
-    // =========================================================================
-
-    public function register_example_actions(): void
-    {
-        // Get recent posts
-        add_filter('ntdst/api_data/get_recent_posts', function ($data, $params) {
-            $post_type = sanitize_text_field($params['post_type'] ?? 'post');
-            $per_page  = max(1, intval($params['per_page'] ?? 10));
-            $use_cache = ($params['use_cache'] ?? true) !== false;
-
-            $args = [
-                'post_type'      => $post_type,
-                'posts_per_page' => $per_page,
-                'cache_time'     => $use_cache ? 3600 : 0,
-            ];
-
-            return ['posts' => ntdst_get_posts_fast($args)];
-        }, 10, 2);
-
-        // Search posts
-        add_filter('ntdst/api_data/search_posts', function ($data, $params) {
-            $search = trim(sanitize_text_field($params['search'] ?? ''));
-            if (empty($search)) {
-                return $this->error('Search term required', 'empty_search');
-            }
-
-            $post_types = is_array($params['post_types']) ? array_map('sanitize_text_field', $params['post_types']) : ['post', 'page'];
-
-            $args = [
-                's'               => $search,
-                'post_type'       => $post_types,
-                'posts_per_page'  => 20,
-                'cache_time'      => 300,
-            ];
-
-            // Attachments are stored with post_status 'inherit', never
-            // 'publish' — wp_insert_attachment() sets that, and the media
-            // library never promotes them. getPostsFast() defaults
-            // post_status to 'publish' (Data.php:1792), which is right for
-            // every ordinary content type and silently wrong here: a
-            // relation field scoped to post_type 'attachment' renders a
-            // working autocomplete that can never return a single result,
-            // so an editor simply cannot pick a file.
-            //
-            // Widened only when attachments are actually being searched, so
-            // no other post type's visibility rules change. 'inherit' is
-            // added alongside 'publish' rather than replacing it: a mixed
-            // search (e.g. ['tool', 'attachment']) must still find the
-            // published tools.
-            if (in_array('attachment', $post_types, true)) {
-                $args['post_status'] = ['publish', 'inherit'];
-            }
-
-            return ['results' => ntdst_get_posts_fast($args)];
-        }, 10, 2);
-
-        // Search users
-        add_filter('ntdst/api_data/search_users', function ($data, $params) {
-            // Listing users by email/login leaks PII — require list_users.
-            if (!current_user_can('list_users')) {
-                return $this->error('Insufficient permissions', 'forbidden');
-            }
-
-            $search = trim(sanitize_text_field($params['search'] ?? ''));
-            if (empty($search)) {
-                return $this->error('Search term required', 'empty_search');
-            }
-
-            $role = sanitize_text_field($params['role'] ?? '');
-            $per_page = absint($params['per_page'] ?? 20);
-
-            $args = [
-                'search'         => '*' . $search . '*',
-                'search_columns' => ['user_login', 'user_email', 'display_name'],
-                'number'         => $per_page,
-                'orderby'        => 'display_name',
-                'order'          => 'ASC',
-            ];
-
-            if (!empty($role)) {
-                $args['role'] = $role;
-            }
-
-            $users = get_users($args);
-
-            // Transform to match expected format
-            $results = array_map(function ($user) {
-                return [
-                    'ID' => $user->ID,
-                    'id' => $user->ID,
-                    'post_title' => $user->display_name,
-                    'title' => $user->display_name,
-                    'user_email' => $user->user_email,
-                    'user_login' => $user->user_login,
-                ];
-            }, $users);
-
-            return ['results' => $results];
-        }, 10, 2);
-    }
-
-    // =========================================================================
     // RESPONSE HELPERS
+    //
+    // Endpoints owns the envelope DECISION; Response owns EMISSION. These ask
+    // Response for a WP_REST_Response carrying the api envelope + HTTP status,
+    // so an error leaves as a real 4xx instead of a 200 with a bare array.
     // =========================================================================
 
-    private function success(array $data): array
+    private function success(array $data): WP_REST_Response
     {
-        return [
-            'success' => true,
-            'data'    => $data,
-        ];
+        return NTDST_Response::apiSuccessResponse($data);
     }
 
-    private function error(string $message, string $code = 'error'): array
+    private function error(string $message, string $code = 'error', int $status = 400): WP_REST_Response
     {
-        return [
-            'success' => false,
-            'data'    => [
-                'message' => $message,
-                'code'    => $code,
-            ],
-        ];
+        return NTDST_Response::apiErrorResponse($message, $code, $status);
     }
 }
 
@@ -515,4 +559,108 @@ if (!function_exists('ntdst_endpoints')) {
 // outside this codebase. New code should use NTDST_Endpoints.
 if (!class_exists('Endpoints', false)) {
     class_alias(NTDST_Endpoints::class, 'Endpoints');
+}
+
+/**
+ * Register an `ntdst/api_data/{action}` handler, optionally with a declared
+ * per-action capability floor and/or public (anonymous) reachability. The
+ * registration path for data actions in `daan-core` — services call it
+ * directly. (S9 retired the `Theme::apiAction()` wrapper that used to delegate
+ * here: an api_data action outlives a theme switch, so registering one was
+ * never Theme's job.)
+ *
+ * NOT the only mechanical path, and the claim is scoped rather than absolute
+ * for that reason (Cluster B review finding F6): `ntdst/api_data/{action}` is
+ * an ordinary WordPress filter, so a plugin can attach a handler with a raw
+ * `add_filter()` and one does — `ntdst-baseline`'s `CacheHeadersService`
+ * registers `ntdst/api_data/baseline_purge` that way, gating it itself. Doing
+ * so forfeits everything below (the declared floor, the public allowlist entry)
+ * and puts the whole burden of the gate on the handler; prefer this helper.
+ *
+ *  - `$opts['cap_type']` — a capability FLOOR enforced at DISPATCH, ahead of the
+ *    real handler, so it protects even a handler that forgot to check (defense in
+ *    depth, ALONGSIDE the handler's own gate). The cap is TYPE-DERIVED from
+ *    `get_post_type_object($type)->cap->edit_others_posts` and FAIL-CLOSED (an
+ *    unresolvable/empty/absent cap denies EVERYONE, admin included) — never the
+ *    literal `edit_others_posts`. Mirrors `AccessGrantService::manageCapability()`.
+ *  - `$opts['public'] === true` — adds `$action` to the `ntdst/api/public_actions`
+ *    filter (the site's one place for anonymous exposure) and NEVER floors it:
+ *    public reachability wins over any declared `cap_type`.
+ *  - `$opts['capability']` — a LITERAL cap floor. It exists because S7 reconciled
+ *    the retired `Theme::apiAction()` wrapper's literal-cap option onto this one
+ *    path rather than dropping it; it keeps that wrapper's fail-open-on-empty
+ *    semantics, which is why `cap_type` (fail-CLOSED) is the form to prefer.
+ *  - neither — login-required: the router's binary floor refuses anonymous
+ *    callers, and the handler keeps its own per-row/per-type check.
+ *
+ * @param array{cap_type?: string, public?: bool, capability?: string, priority?: int} $opts
+ */
+if (!function_exists('ntdst_api_action')) {
+    function ntdst_api_action(string $action, callable $handler, array $opts = []): void
+    {
+        $action   = sanitize_key($action);
+        $priority = (int) ($opts['priority'] ?? 10);
+
+        // Public wins (threat T1): a public action is unified onto the site's one
+        // `ntdst/api/public_actions` filter and is NEVER floored — anonymous
+        // reachability is not conditional on a capability.
+        if (($opts['public'] ?? false) === true) {
+            add_filter('ntdst/api/public_actions', static function (array $actions) use ($action): array {
+                $actions[] = $action;
+                return $actions;
+            });
+
+            add_filter('ntdst/api_data/' . $action, $handler, $priority, 2);
+            return;
+        }
+
+        // A declared cap floor bites at DISPATCH, ahead of the real handler, so it
+        // protects even a handler that forgot to check — ALONGSIDE, not replacing,
+        // the handler's own check. `cap_type` is TYPE-DERIVED (threat T2); a literal
+        // `capability` is the form S7 reconciled onto this one path from the Theme
+        // wrapper S9 has since retired.
+        $capType    = isset($opts['cap_type']) && is_string($opts['cap_type']) ? $opts['cap_type'] : '';
+        $literalCap = isset($opts['capability']) && is_string($opts['capability']) ? $opts['capability'] : '';
+
+        if ($capType !== '' || $literalCap !== '') {
+            $floored = static function ($data, $params) use ($handler, $capType, $literalCap) {
+                $cap = $capType !== '' ? ntdst_api_floor_cap($capType) : $literalCap;
+
+                // FAIL-CLOSED (threat T3): an unresolvable/empty cap denies everyone, admin included.
+                if ($cap === '' || !current_user_can($cap)) {
+                    return new \WP_Error('forbidden', 'Insufficient permissions', ['status' => 403]);
+                }
+
+                return $handler($data, $params);
+            };
+
+            add_filter('ntdst/api_data/' . $action, $floored, $priority, 2);
+            return;
+        }
+
+        // Neither opt: login-required. The router's binary floor already refuses an
+        // anonymous caller for any action not on public_actions; the handler keeps
+        // whatever per-row/per-type check it has.
+        add_filter('ntdst/api_data/' . $action, $handler, $priority, 2);
+    }
+}
+
+if (!function_exists('ntdst_api_floor_cap')) {
+    /**
+     * The type's OWN `edit_others_posts`-mapped capability, or `''` when it cannot
+     * be resolved (fail-closed). Mirrors `AccessGrantService::manageCapability()`;
+     * never the literal `edit_others_posts`.
+     */
+    function ntdst_api_floor_cap(string $post_type): string
+    {
+        $type = get_post_type_object($post_type);
+
+        if (!$type instanceof \WP_Post_Type) {
+            return '';
+        }
+
+        $cap = $type->cap->edit_others_posts ?? null;
+
+        return is_string($cap) && $cap !== '' ? $cap : '';
+    }
 }

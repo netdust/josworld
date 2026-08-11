@@ -2,7 +2,7 @@
  * Metabox Fields - All field interactions for NTDST MetaboxGenerator
  *
  * Handles:
- * - Relation field autocomplete (posts/users)
+ * - Relation field autocomplete (posts, via relation_search)
  * - Gallery field (media library + sortable)
  * - Repeater field (add/remove rows + sortable)
  *
@@ -32,7 +32,7 @@
 	}
 
 	// =========================================================================
-	// RELATION FIELDS - Autocomplete for posts/users
+	// RELATION FIELDS - Autocomplete for posts
 	// =========================================================================
 
 	function initRelationFields() {
@@ -49,7 +49,6 @@
 	function initRelationField(fieldContainer) {
 		const fieldName = fieldContainer.dataset.fieldName;
 		const postType = fieldContainer.dataset.postType;
-		const userRole = fieldContainer.dataset.userRole;
 		const allowMultiple = fieldContainer.dataset.multiple === '1';
 
 		const searchInput = fieldContainer.querySelector('.ntdst-relation-input');
@@ -62,7 +61,6 @@
 		}
 
 		let searchTimeout = null;
-		const isUserSearch = postType === 'user';
 
 		// Handle search input
 		searchInput.addEventListener('input', function(e) {
@@ -76,11 +74,7 @@
 			}
 
 			searchTimeout = setTimeout(() => {
-				if (isUserSearch) {
-					searchUsers(query, userRole, resultsContainer, selectedContainer, searchInput, allowMultiple, fieldName);
-				} else {
-					searchPosts(query, postType, resultsContainer, selectedContainer, searchInput, allowMultiple, fieldName);
-				}
+				searchPosts(query, postType, resultsContainer, selectedContainer, searchInput, allowMultiple, fieldName);
 			}, 300);
 		});
 
@@ -105,10 +99,13 @@
 		resultsContainer.innerHTML = '<div class="ntdst-relation-result-loading">Searching...</div>';
 
 		try {
-			const response = await window.ntdstAPI.call('search_posts', {
+			// `relation_search` is NTDST_RelationField's own login-required
+			// action (ntdst-core/admin/RelationField.php). It replaced the
+			// public `search_posts` example action the framework deleted;
+			// result count is capped server-side at 20.
+			const response = await window.ntdstAPI.call('relation_search', {
 				search: query,
-				post_types: [postType],
-				per_page: 10
+				post_types: [postType]
 			});
 
 			if (response.error) {
@@ -119,33 +116,6 @@
 			const results = (response.results || []).map(post => ({
 				id: post.ID || post.id,
 				title: post.post_title || post.title
-			}));
-
-			renderResults(results, resultsContainer, selectedContainer, searchInput, allowMultiple, fieldName);
-		} catch (error) {
-			showError(resultsContainer, 'Search failed');
-		}
-	}
-
-	async function searchUsers(query, userRole, resultsContainer, selectedContainer, searchInput, allowMultiple, fieldName) {
-		resultsContainer.style.display = 'block';
-		resultsContainer.innerHTML = '<div class="ntdst-relation-result-loading">Searching...</div>';
-
-		try {
-			const response = await window.ntdstAPI.call('search_users', {
-				search: query,
-				role: userRole || '',
-				per_page: 10
-			});
-
-			if (response.error) {
-				showError(resultsContainer, response.error);
-				return;
-			}
-
-			const results = (response.results || []).map(user => ({
-				id: user.ID || user.id,
-				title: user.post_title || user.title
 			}));
 
 			renderResults(results, resultsContainer, selectedContainer, searchInput, allowMultiple, fieldName);

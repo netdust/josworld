@@ -126,28 +126,31 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
     {
         $model = ntdst_data()->get('vacature');
 
+        // The registered values ARE the labels since 543a7ec ("render the
+        // employment type as its label") — the closed list's keys are
+        // 'Voltijds' and 'Freelance', not slug-shaped keys.
         $created = $model->create([
             'title' => 'Marketing Freelancer',
             'content' => 'We are looking for a freelance marketer',
-            'employment_type' => 'freelance',
+            'employment_type' => 'Freelance',
         ]);
 
         $this->assertNotWPError($created, 'a valid, registered employment type must be accepted');
 
-        $reread = $model->find($created->ID, true);
+        $reread = $model->find($created->ID, 'any');
         $this->assertNotWPError($reread);
-        $this->assertSame('freelance', $reread->fields['employment_type'] ?? null);
+        $this->assertSame('Freelance', $reread->fields['employment_type'] ?? null);
 
         // The other registered value must also round-trip.
         $createdFullTime = $model->create([
             'title' => 'Frontend Developer',
             'content' => 'Join our team full-time',
-            'employment_type' => 'full_time',
+            'employment_type' => 'Voltijds',
         ]);
         $this->assertNotWPError($createdFullTime, 'the other registered employment type must also be accepted');
 
-        $rereadFullTime = $model->find($createdFullTime->ID, true);
-        $this->assertSame('full_time', $rereadFullTime->fields['employment_type'] ?? null);
+        $rereadFullTime = $model->find($createdFullTime->ID, 'any');
+        $this->assertSame('Voltijds', $rereadFullTime->fields['employment_type'] ?? null);
     }
 
     public function test_a_tool_saved_with_no_file_still_saves(): void
@@ -165,7 +168,7 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
 
         $this->assertNotWPError($created, 'a tool with no file must still save');
 
-        $reread = $model->find($created->ID, true);
+        $reread = $model->find($created->ID, 'any');
         $this->assertNotWPError($reread);
         $this->assertSame('Free Audit Checklist', $reread->fields['title'] ?? get_the_title($created->ID));
     }
@@ -187,7 +190,7 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
         ]);
         $this->assertNotWPError($mainTool);
 
-        $reread = $model->find($mainTool->ID, true);
+        $reread = $model->find($mainTool->ID, 'any');
         $this->assertNotWPError($reread);
 
         $related = $reread->fields['related_tools'] ?? [];
@@ -227,7 +230,7 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
 
         // The surviving tool must still read cleanly — no WP_Error, no
         // fatal from dereferencing the now-dangling related_tools id.
-        $reread = $model->find($toolA->ID, true);
+        $reread = $model->find($toolA->ID, 'any');
         $this->assertNotWPError($reread, 'a tool relating to a since-deleted tool must still read cleanly');
         $this->assertSame('Tool A (survives)', $reread->fields['title'] ?? get_the_title($toolA->ID));
 

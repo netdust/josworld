@@ -25,18 +25,169 @@ final class NTDST_RelationField implements NTDST_Service_Meta
         ];
     }
 
-    public function __construct(private readonly NTDST_Theme $theme)
+    /**
+     * Takes nothing. This used to demand a theme object it never dereferenced
+     * — a dependency that did no work, but forced the bootstrap below to
+     * resolve one out of the container purely to satisfy this signature, and to
+     * gate the picker's existence on a class the picker does not use.
+     */
+    public function __construct()
     {
         $this->init();
     }
 
     private function init(): void
     {
-        // Note: Using existing search_posts endpoint from Endpoints.php
-        // No need to register duplicate API endpoint
+        // The autocomplete's own action. It used to borrow the router's public
+        // `search_posts`, which is how a PUBLIC, caller-parameterised query
+        // surface came to exist for the sake of one ADMIN picker — and why five
+        // generations of security review were spent gating it.
+        // Login-required (no per-action cap_type): its cap is per-REQUESTED-type,
+        // resolved inside mayPickFrom(), so a single per-action floor would be wrong.
+        ntdst_api_action('relation_search', [$this, 'handleRelationSearch']);
 
         // Register reverse relationship metaboxes
         add_action('add_meta_boxes', [$this, 'registerReverseRelationshipMetaboxes'], 20);
+    }
+
+    /**
+     * Resolve the relation-field autocomplete.
+     *
+     * NOT in `ntdst/api/public_actions`, so the router requires a logged-in
+     * caller before this runs. Two further conditions, and they are the whole
+     * gate:
+     *
+     *  1. THE TYPE MUST BE A DECLARED RELATION TARGET. The allow-list is
+     *     DERIVED from the registered schemas — exactly the `post_type` values
+     *     named by `relation`-typed fields — so a type nobody points a relation
+     *     field at is unreachable here and nobody has to remember to exclude
+     *     it. This replaces `canQueryPostType()`, which tried to answer "may
+     *     this actor query this arbitrary type" by re-deriving WordPress's
+     *     visibility semantics from the registry, and whose own docblock had to
+     *     list the flags it did NOT consult.
+     *
+     *  2. THE CALLER MUST HOLD THE TARGET TYPE'S `edit_others_posts`. Read off
+     *     the type rather than hard-coded, so a CPT that remaps its capabilities
+     *     narrows this with it (T33's rule). `edit_posts` is deliberately NOT
+     *     enough: it means "may edit MY OWN posts", Contributor and Author both
+     *     hold it, and this returns EVERY row of the type — which is precisely
+     *     the T23/T32 finding. Empty or non-string capabilities deny.
+     *
+     * With an anonymous caller impossible, T24's attachment widening no longer
+     * needs `canQueryUnpublishedMedia()`, `nonViewableMediaParentIds()` (T30's
+     * uncached full-attachment scan) or T31's fail-open `post_parent__not_in`
+     * sibling: every caller who reaches this point may already edit others'
+     * posts of the type, which is the same claim those three gates were
+     * computing the hard way.
+     *
+     * @param  mixed $data   Filter carry-through, unused.
+     * @param  array $params Untrusted request parameters.
+     * @return array|WP_Error
+     */
+    public function handleRelationSearch($data, $params)
+    {
+        $search = trim(sanitize_text_field((string) ($params['search'] ?? '')));
+        if ($search === '') {
+            return new \WP_Error('empty_search', 'Search term required');
+        }
+
+        $targets = $this->relationTargetTypes();
+        $requested = $params['post_types'] ?? $params['post_type'] ?? [];
+
+        $allowed = [];
+        foreach (is_array($requested) ? $requested : [$requested] as $type) {
+            if (!is_string($type)) {
+                continue;
+            }
+
+            $type = sanitize_text_field($type);
+            if ($type !== '' && in_array($type, $targets, true) && $this->mayPickFrom($type)) {
+                $allowed[] = $type;
+            }
+        }
+
+        $allowed = array_values(array_unique($allowed));
+
+        if ($allowed === []) {
+            return new \WP_Error(
+                'forbidden_post_type',
+                'You are not allowed to search these post types.',
+            );
+        }
+
+        $args = [
+            's'              => $search,
+            'post_type'      => $allowed,
+            'posts_per_page' => 20,
+        ];
+
+        // Attachments are stored `post_status = 'inherit'`, never `publish`,
+        // and the layer defaults to `publish` — so without this a relation
+        // field scoped to `attachment` renders a picker that can never return
+        // a result. Added alongside `publish` rather than replacing it, so a
+        // mixed search still finds the published rows of other types.
+        if (in_array('attachment', $allowed, true)) {
+            $args['post_status'] = ['publish', 'inherit'];
+        }
+
+        return ['results' => ntdst_get_formatted_posts($args)];
+    }
+
+    /**
+     * Every post type named as the target of a `relation` field, across all
+     * registered models. The allow-list is derived, never maintained.
+     *
+     * Unlike `getModelsWithRelations()` this does NOT restrict itself to
+     * `public` types: relation fields legitimately target non-public ones
+     * (`musician_profile` is `public => false` and is a declared target), and
+     * an editor must keep being able to pick them.
+     *
+     * @return string[]
+     */
+    private function relationTargetTypes(): array
+    {
+        $manager = ntdst_data();
+        $targets = [];
+
+        foreach (get_post_types([], 'names') as $post_type) {
+            if (!$manager->isRegistered($post_type)) {
+                continue;
+            }
+
+            foreach ($manager->get($post_type)->getSchema() as $field_config) {
+                if (!is_array($field_config) || ($field_config['type'] ?? '') !== 'relation') {
+                    continue;
+                }
+
+                $target = $field_config['post_type'] ?? '';
+                if (is_string($target) && $target !== '') {
+                    $targets[] = $target;
+                }
+            }
+        }
+
+        return array_values(array_unique($targets));
+    }
+
+    /**
+     * May the current caller pick from this type?
+     *
+     * The capability is read off the TYPE, so a CPT that remaps its map narrows
+     * this with it. Fail-closed on an unregistered type or a missing/non-string
+     * capability — a gate must never widen because a value was absent.
+     */
+    private function mayPickFrom(string $post_type): bool
+    {
+        $object = get_post_type_object($post_type);
+        if (!$object instanceof \WP_Post_Type) {
+            return false;
+        }
+
+        $edit_others = $object->cap->edit_others_posts ?? '';
+
+        return is_string($edit_others)
+            && $edit_others !== ''
+            && current_user_can($edit_others);
     }
 
     /**
@@ -277,13 +428,20 @@ final class NTDST_RelationField implements NTDST_Service_Meta
     }
 }
 
-// Auto-initialize when theme is ready
+// Auto-initialize. UNCONDITIONAL, and that is the change T11 makes.
+//
+// The old wrapper — `class_exists('NTDST_Theme')` + `ntdst_get()` — never
+// denied the picker. `class_exists` is always true (`ntdst-coreloader.php:29`
+// requires Theme), and `ntdst_get()` AUTOWIRES an unregistered class, filling
+// `array $config = []` (`Theme.php:79`) from its default. So on a Theme-less
+// boot it did not skip — it CONSTRUCTED a phantom `NTDST_Theme([])`, which
+// registers itself as the container's canonical Theme (`Theme.php:85`) and
+// hooks `after_setup_theme` + both `*_enqueue_scripts` @ 9999
+// (`Theme.php:120-127`): a site's Theme, as a side effect of building an admin
+// picker. That is what came off with the parameter — do not reinstate it.
+//
+// The hook and priority are deliberately UNCHANGED (`after_setup_theme` @ 20):
+// only the guard is removed, so registration order stays where it was.
 add_action('after_setup_theme', function () {
-    // Only initialize if Theme is available
-    if (class_exists('NTDST_Theme')) {
-        $theme = ntdst_get(NTDST_Theme::class);
-        if ($theme) {
-            new NTDST_RelationField($theme);
-        }
-    }
-}, 20); // Priority 20 to ensure theme is fully initialized
+    new NTDST_RelationField();
+}, 20);

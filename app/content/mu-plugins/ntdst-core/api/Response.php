@@ -12,34 +12,19 @@ defined('ABSPATH') || exit;
 class NTDST_Response
 {
     protected array $data = [];
-    protected array $template_paths = [];
     protected ?string $error = null;
     protected int $status = 200;
     protected ?string $template = null;
 
     /**
-     * Cached template paths (shared across all instances)
+     * Per-call template directories added via addPath(), searched (highest
+     * priority first) ahead of the registry when THIS response resolves a
+     * template. Transient and instance-private — not a path registry: the one
+     * registry lives on NTDST_Template_Loader, which owns all resolution.
+     *
+     * @var list<string>
      */
-    protected static ?array $cached_paths = null;
-
-    /** @var array<string, true> Paths added via the instance addPath() — excluded from the shared template cache. */
-    protected array $instance_paths = [];
-
-    /**
-     * Drop the per-request path snapshot (and the resolved-template cache,
-     * whose entries depend on it). Called by NTDST_Template_Loader::addPath
-     * so late path registrations are picked up by subsequent Responses.
-     */
-    public static function resetCachedPaths(): void
-    {
-        self::$cached_paths = null;
-        self::$template_cache = [];
-    }
-
-    /**
-     * Template location cache (shared across all instances)
-     */
-    protected static array $template_cache = [];
+    protected array $extra_paths = [];
 
     /**
      * MIME type mappings
@@ -73,19 +58,6 @@ class NTDST_Response
         'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     ];
 
-    public function __construct()
-    {
-        if (self::$cached_paths === null) {
-            self::$cached_paths = NTDST_Template_Loader::getCustomPaths();
-            self::$cached_paths = array_merge(self::$cached_paths, [
-                get_stylesheet_directory() . '/templates',
-                get_template_directory() . '/templates',
-            ]);
-        }
-
-        $this->template_paths = self::$cached_paths;
-    }
-
     /**
      * Reset state for reuse
      */
@@ -96,15 +68,6 @@ class NTDST_Response
         $this->status = 200;
         $this->template = null;
         return $this;
-    }
-
-    /**
-     * Clear template path cache
-     */
-    public static function clearPathCache(): void
-    {
-        self::$cached_paths = null;
-        self::$template_cache = [];
     }
 
     /**
@@ -136,18 +99,33 @@ class NTDST_Response
     }
 
     /**
-     * Add template path (prepend - highest priority)
+     * Refuse the request as Not Found (HTTP 404), with no body of its own.
      *
-     * Instance-private: resolutions through a path added here are NOT
-     * written to the shared static template cache (a PDF generator's
-     * private 'quote' template must never hijack another Response's
-     * 'quote' lookup in the same request).
+     * A route callback returns this to say "no": the Router honours the 404
+     * status by leaving WordPress's not-found state intact, so WordPress's own
+     * 404 template renders. Reads cleaner at the call site than error('', 404)
+     * and sets no error message — this is a refusal that defers to WordPress's
+     * 404 page, not an error body to render.
+     */
+    public function notFound(): self
+    {
+        $this->status = 404;
+        return $this;
+    }
+
+    /**
+     * Add a per-call template directory (prepended — highest priority) for
+     * THIS response's render()/html() resolution only.
+     *
+     * These are handed to NTDST_Template_Loader::locate() as extra paths, which
+     * searches them ahead of the registry and never writes them to the shared
+     * cache — so a PDF generator's private 'quote' template cannot hijack
+     * another caller's 'quote' lookup. Not a registry: it holds no shared or
+     * static state and does not survive the response.
      */
     public function addPath(string $path): self
     {
-        $path = rtrim($path, '/');
-        array_unshift($this->template_paths, $path);
-        $this->instance_paths[$path] = true;
+        array_unshift($this->extra_paths, rtrim($path, '/'));
         return $this;
     }
 
@@ -168,6 +146,16 @@ class NTDST_Response
         return $this->template;
     }
 
+    /**
+     * The HTTP status this response carries. Read by the Router to honour a
+     * route callback's decision: a >=400 status refuses (leave WordPress's
+     * not-found state intact), a 2xx succeeds (clear it and render).
+     */
+    public function getStatus(): int
+    {
+        return $this->status;
+    }
+
     // =========================================================================
     // OUTPUT METHODS
     // =========================================================================
@@ -184,11 +172,7 @@ class NTDST_Response
         http_response_code($this->status);
         header('Content-Type: application/json');
 
-        $payload = $this->error
-            ? ['success' => false, 'error' => $this->error]
-            : ['success' => true, 'data' => $this->data];
-
-        $body = json_encode($payload);
+        $body = json_encode($this->jsonPayload());
         if ($body === false) {
             $body = json_encode([
                 'success' => false,
@@ -198,6 +182,45 @@ class NTDST_Response
 
         echo $body;
         exit;
+    }
+
+    /** API envelope builders — the ONE place the {success,…} wire shapes are decided. */
+    public static function apiSuccess(array $data): array
+    {
+        return ['success' => true, 'data' => $data];
+    }
+
+    // Deliberately a DIFFERENT error wire shape than jsonPayload(): apiError()
+    // → {success:false,data:{message,code}} (Endpoints/ntdstAPI JS clients) vs
+    // jsonPayload() → {success:false,error:string} (json() clients). Do not
+    // "unify" — each shape has live consumers.
+    public static function apiError(string $message, string $code = 'error'): array
+    {
+        return ['success' => false, 'data' => ['message' => $message, 'code' => $code]];
+    }
+
+    /**
+     * The api envelope AS a REST response — the emission Endpoints lacked.
+     *
+     * Deliberately NOT jsonPayload()'s {success,error} shape: these carry the
+     * apiSuccess()/apiError() {success,data} shape the ntdstAPI JS client
+     * reads. Same status mechanism, different (and pinned-distinct) wire shape.
+     */
+    public static function apiSuccessResponse(array $data): WP_REST_Response
+    {
+        return new WP_REST_Response(self::apiSuccess($data), 200);
+    }
+
+    public static function apiErrorResponse(string $message, string $code = 'error', int $status = 400): WP_REST_Response
+    {
+        return new WP_REST_Response(self::apiError($message, $code), $status);
+    }
+
+    protected function jsonPayload(): array
+    {
+        return $this->error
+            ? ['success' => false, 'error' => $this->error]
+            : ['success' => true, 'data' => $this->data];
     }
 
     /**
@@ -228,7 +251,7 @@ class NTDST_Response
             $this->renderError();
         }
 
-        $file = $this->locate($template);
+        $file = NTDST_Template_Loader::locate($template, $this->extra_paths);
 
         if (!$file) {
             $this->error("Template not found: {$template}", 404)->renderError();
@@ -250,7 +273,7 @@ class NTDST_Response
             return $this->getErrorHtml();
         }
 
-        $file = $this->locate($template);
+        $file = NTDST_Template_Loader::locate($template, $this->extra_paths);
 
         if (!$file) {
             return $this->error("Template not found: {$template}", 404)->getErrorHtml();
@@ -365,69 +388,6 @@ class NTDST_Response
         self::$mimeTypes[strtolower($extension)] = $mimeType;
     }
 
-    // =========================================================================
-    // TEMPLATE HELPERS
-    // =========================================================================
-
-    /**
-     * Locate template file.
-     *
-     * Defense-in-depth: ensures the resolved file is inside its declared
-     * template base. Stride's templates are hardcoded strings, but if any
-     * future caller passes a user-influenced template name, this prevents
-     * traversal like `../../../../etc/passwd`.
-     */
-    protected function locate(string $template): ?string
-    {
-        if (!str_ends_with($template, '.php')) {
-            $template .= '.php';
-        }
-
-        if (isset(self::$template_cache[$template])) {
-            return self::$template_cache[$template];
-        }
-
-        foreach ($this->template_paths as $path) {
-            $file = $path . '/' . $template;
-            if (file_exists($file) && $this->isInside($file, $path)) {
-                // Only globally-registered paths populate the shared cache —
-                // instance-added paths (see addPath) resolve for this
-                // Response only.
-                if (!isset($this->instance_paths[$path])) {
-                    self::$template_cache[$template] = $file;
-                }
-                return $file;
-            }
-        }
-
-        $located = locate_template([$template]);
-
-        // Cache HITS only. A cached negative poisons the whole request: one
-        // early "not found" (e.g. before a path registration) makes the
-        // template unresolvable for every later caller — page-dependent
-        // breakage that is miserable to diagnose (2026-06-12, questionnaire
-        // field rendering).
-        if ($located) {
-            self::$template_cache[$template] = $located;
-            return $located;
-        }
-
-        return null;
-    }
-
-    /**
-     * Check that a resolved file lives within an allowed base directory.
-     */
-    protected function isInside(string $file, string $base): bool
-    {
-        $realFile = realpath($file);
-        $realBase = realpath($base);
-        if ($realFile === false || $realBase === false) {
-            return false;
-        }
-        return str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR);
-    }
-
     /**
      * Render error page
      */
@@ -435,7 +395,7 @@ class NTDST_Response
     {
         http_response_code($this->status);
 
-        $error_file = $this->locate('error');
+        $error_file = NTDST_Template_Loader::locate('error', $this->extra_paths);
 
         if ($error_file) {
             $error = $this->error;
@@ -472,6 +432,30 @@ if (!function_exists('ntdst_response')) {
     function ntdst_response(): NTDST_Response
     {
         return new NTDST_Response();
+    }
+}
+
+/**
+ * Read what a route passed to NTDST_Template_Loader::page(), from inside the
+ * template WordPress included.
+ *
+ * This is the template-side half of the stash and it is LIVE — a
+ * `template_include`d file runs at the top level of WordPress's template
+ * loader, where no caller-supplied variables are in scope, so this helper is
+ * the only way it can see the model the route already built.
+ *
+ * Reads the loader directly. It used to hop through NTDST_Response::pageData(),
+ * a forwarder onto exactly this call; S9 removed the hop along with the
+ * forwarder.
+ *
+ * @example $viewModel = ntdst_page_data('viewModel', []);
+ */
+if (!function_exists('ntdst_page_data')) {
+    function ntdst_page_data(?string $key = null, mixed $default = null): mixed
+    {
+        $data = NTDST_Template_Loader::pageData();
+
+        return $key === null ? $data : ($data[$key] ?? $default);
     }
 }
 
@@ -518,21 +502,143 @@ if (!function_exists('ntdst_inline')) {
 
 final class NTDST_Template_Loader
 {
+    /** The ONE template path registry. Read live on every locate(). */
     protected static array $custom_paths = [];
+
+    /** Resolved-template cache (shared). Positive hits only — see locate(). */
+    protected static array $template_cache = [];
+
+    /** @var array<string, mixed> Data page() hands to the template WordPress includes later. */
+    protected static array $page_data = [];
 
     public static function addPath(string $path): void
     {
+        // One live registry: locate() reads $custom_paths on every call, so a
+        // path registered after an earlier resolution is seen with no cache
+        // reset — the ordering hazard the old resetCachedPaths() papered over.
         self::$custom_paths[] = rtrim($path, '/');
-
-        // Invalidate the per-request snapshot Response instances copy at
-        // construction — without this, a path registered after the first
-        // Response was built is invisible for the rest of the request.
-        NTDST_Response::resetCachedPaths();
     }
 
     public static function getCustomPaths(): array
     {
         return self::$custom_paths;
+    }
+
+    /**
+     * Serve a WordPress-rendered page from a route.
+     *
+     * Resolves $template through locate() and returns its path so
+     * `template_include` includes it and wp_head()/wp_footer() still fire —
+     * the one thing render() (echoes and exits) and html() (returns a string)
+     * cannot do — while stashing $data for the template to read back with
+     * ntdst_page_data(). Null when nothing resolves, so a route can fail closed
+     * instead of returning a guessed path.
+     *
+     * @param array<string, mixed> $data       Carried across to the include.
+     * @param list<string>         $extraPaths Per-call priority dirs (a Response's addPath).
+     */
+    public static function page(string $template, array $data = [], array $extraPaths = []): ?string
+    {
+        $file = self::locate($template, $extraPaths);
+
+        if ($file === null) {
+            return null;
+        }
+
+        self::$page_data = $data;
+
+        return $file;
+    }
+
+    /**
+     * The data page() stashed. A request includes exactly one template_include
+     * template, so one stash is the whole mechanism — no keying by path.
+     */
+    public static function pageData(): array
+    {
+        return self::$page_data;
+    }
+
+    /**
+     * Locate a template file across the single registry (+ the theme's
+     * templates dirs), optionally preceded by per-call $extraPaths.
+     *
+     * Defense-in-depth: isInside() ensures the resolved file lives within the
+     * base it matched, so a user-influenced name cannot traverse out
+     * (`../../../../etc/passwd`). The registry is read LIVE here, which is what
+     * eliminates the old seed-once ordering hazard.
+     *
+     * @param list<string> $extraPaths Searched first, never cached.
+     */
+    public static function locate(string $template, array $extraPaths = []): ?string
+    {
+        if (!str_ends_with($template, '.php')) {
+            $template .= '.php';
+        }
+
+        if (isset(self::$template_cache[$template])) {
+            return self::$template_cache[$template];
+        }
+
+        // Per-call directories (a Response's addPath) resolve for this call
+        // only and never populate the shared cache — a private template must
+        // not hijack another caller's lookup of the same name.
+        foreach ($extraPaths as $path) {
+            $path = rtrim($path, '/');
+            $file = $path . '/' . $template;
+            if (file_exists($file) && self::isInside($file, $path)) {
+                return $file;
+            }
+        }
+
+        foreach (self::searchPaths() as $path) {
+            $file = $path . '/' . $template;
+            if (file_exists($file) && self::isInside($file, $path)) {
+                self::$template_cache[$template] = $file;
+                return $file;
+            }
+        }
+
+        $located = locate_template([$template]);
+
+        // Cache HITS only. A cached negative poisons the whole request: one
+        // early "not found" (e.g. before a path registration) makes the
+        // template unresolvable for every later caller — page-dependent
+        // breakage that is miserable to diagnose (2026-06-12, questionnaire
+        // field rendering).
+        if ($located) {
+            self::$template_cache[$template] = $located;
+            return $located;
+        }
+
+        return null;
+    }
+
+    /**
+     * The live registry, plus the theme's templates directories (lowest
+     * priority). Read fresh on every locate() — no snapshot.
+     *
+     * @return list<string>
+     */
+    private static function searchPaths(): array
+    {
+        return array_merge(self::$custom_paths, [
+            get_stylesheet_directory() . '/templates',
+            get_template_directory() . '/templates',
+        ]);
+    }
+
+    /**
+     * Check that a resolved file lives within an allowed base directory.
+     */
+    private static function isInside(string $file, string $base): bool
+    {
+        $realFile = realpath($file);
+        $realBase = realpath($base);
+        if ($realFile === false || $realBase === false) {
+            return false;
+        }
+        return str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR);
     }
 
     public static function init(): void

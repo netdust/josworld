@@ -199,7 +199,7 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
 
         $this->assertNotWPError($created);
 
-        $reread = $model->find($created->ID, true);
+        $reread = $model->find($created->ID, 'any');
         $this->assertNotWPError($reread);
 
         $takeaways = $reread->fields['takeaways'] ?? null;

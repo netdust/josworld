@@ -9,22 +9,62 @@ defined('ABSPATH') || exit;
 // ========================================
 
 /**
- * Hook + filter naming conventions:
- *  - Actions: `ntdst_*` for new code
- *  - Module filters (config / enabled / before / after): `netdust_{module}_*` —
- *    historical, kept for compatibility with Bootstrap.php. Do not propagate
- *    this naming to new APIs.
+ * The theme's wiring surface — a facade over exactly ONE subject: the theme's
+ * own wiring (its config, assets, hooks, template paths, which template renders
+ * which type, and the helpers templates call). The fluent, chainable style is
+ * deliberate — composing that wiring in one readable chain is the value this
+ * facade provides, and the only reason a facade exists here at all.
+ *
+ * THE GOVERNING RULE — apply it before adding anything to this class:
+ *
+ *     A method belongs on NTDST_Theme iff its subject dies when you switch themes.
+ *
+ * Name the thing the method is *about*, then ask whether that thing survives a
+ * `switch_theme()`. Theme hook wiring, template paths, template selection and
+ * template helpers do not survive — they ARE the theme, so they belong here. A
+ * post type, a taxonomy, an api_data action, a service: all of those survive.
+ * Each has its own owner, and a door onto them from here is not a convenience,
+ * it is a second door onto someone else's concern.
+ *
+ * The rule agrees with the dependency graph, which is the sign it is real rather
+ * than merely tidy: services register CPTs and api_data actions and cannot reach
+ * Theme (they hold no reference to it), while nothing but a theme registers theme
+ * hooks. Both tests fail for the same members — and those members are gone:
+ *  - register()  -> `ntdst_data()->register(...)` — a CPT outlives the theme.
+ *  - taxonomy()  -> the `taxonomies` config key, or
+ *                   `NTDST_Data_Manager::registerTaxonomy(...)`.
+ *  - apiAction() -> the global `ntdst_api_action(...)` helper, which is also
+ *                   where the api_data capability floor lives.
+ *  - module()    -> retired outright, not relocated. See the mixin rules below.
+ *
+ * Those owners stay REACHABLE and that is deliberate — do not "fix" it:
+ * wireMixins() proxies `data`/`router`/`response`/`log`/`mail`, so
+ * `$theme->data()->register(...)` is byte-for-byte what the deleted register()
+ * did, and ThemeSubjectNarrowingTest pins that proxy. The rule governs what
+ * earns a NAMED METHOD here (a second surface to keep in sync), not what is
+ * reachable at one hop through an owner named out loud.
  *
  * Mixin rules:
+ *  - mixin() supersedes the retired module() DSL: `$theme->mixin('slug', $svc)`
+ *    then `$theme->slug()` replaces the old `$theme->module('slug')->get()`, and
+ *    a service's config/enable filters are registered directly.
  *  - Method-injection mixins are dispatched via __call(), so they cannot
  *    override methods that already exist on NTDST_Theme. To override a
  *    built-in method, extend the class instead.
- *  - $theme->module('slug')->get() resolves the slug through the DI
- *    container. Stride registers services by FQCN, not slug, so get() only
- *    works for modules that explicitly bind by slug.
- *  - $theme->module('slug')->disable() registers an enabled-false filter at
- *    priority 999, which is intentionally overridable. A later filter at
- *    priority 1000+ wins.
+ *
+ * The accepted cost — four forwarders. templatePath(), single(), page() and
+ * archive() forward onto NTDST_Template_Loader and NTDST_Router. They pass the
+ * rule (their subject is the theme; Router and the loader are only the mechanism)
+ * so they stay — but they are a SECOND public surface that has to track its
+ * owner's signature, and that tax has already been paid twice: S7 had to repair
+ * apiAction() after it drifted to literal-cap-only, and S8 had to update
+ * taxonomy() in the same change. Whenever NTDST_Router or NTDST_Template_Loader
+ * changes shape, check these four — they can go stale without anything here
+ * failing to load.
+ *
+ * Hook + filter naming conventions:
+ *  - Actions: `ntdst_*` for new code. Theme registers no `netdust_*` hook of
+ *    its own; service config/enable filters are Bootstrap's API, not Theme's.
  *
  * I18n note: register_nav_menus receives translated labels via __($desc).
  * Because the descriptions come from a variable, xgettext/wp i18n make-pot
@@ -275,12 +315,6 @@ class NTDST_Theme
             'sidebars' => [],
             'excerpt' => ['length' => 55, 'more' => ''],
             'assets' => ['styles' => [], 'scripts' => []],
-            'module_settings' => [
-                'security' => [],
-                'performance' => [],
-                'cookie_manager' => [],
-                'barba' => [],
-            ],
         ];
 
         // Force expected shapes for keys we iterate later — fail upfront
@@ -306,16 +340,6 @@ class NTDST_Theme
             $merged['assets'] = ['styles' => [], 'scripts' => []];
         }
 
-        // Ensure module_settings has all keys
-        if (isset($merged['module_settings']) && is_array($merged['module_settings'])) {
-            $merged['module_settings'] = array_merge(
-                $defaults['module_settings'],
-                $merged['module_settings'],
-            );
-        } else {
-            $merged['module_settings'] = $defaults['module_settings'];
-        }
-
         return $merged;
     }
 
@@ -331,103 +355,16 @@ class NTDST_Theme
     }
 
     /**
-     * Configure a module's settings
-     * Adds a filter for 'netdust_{module}_config'
-     * This runs AFTER database settings are loaded, allowing you to override them
-     *
-     * @param string $module Module slug (e.g., 'schema', 'barba', 'security')
-     * @return object Module configuration helper
-     *
-     * Example:
-     *   $theme->module('barba')->config(function($config) {
-     *       if (is_front_page()) $config['animationDuration'] = 400;
-     *       return $config;
-     *   });
-     */
-    public function module(string $module): object
-    {
-        return new class ($module, $this) {
-            private readonly string $module;
-            private readonly NTDST_Theme $theme;
-
-            public function __construct(string $module, NTDST_Theme $theme)
-            {
-                $this->module = sanitize_key($module);
-                $this->theme = $theme;
-            }
-
-            /**
-             * Get the module service instance
-             */
-            public function get(): object
-            {
-                return ntdst_get($this->module);
-            }
-
-            /**
-             * Call a method on the service fluently
-             */
-            public function call(string $method, ...$args): mixed
-            {
-                return $this->get()->$method(...$args);
-            }
-
-            // Configure module settings
-            public function config(callable $callback, int $priority = 20): NTDST_Theme
-            {
-                add_filter("netdust_{$this->module}_config", $callback, $priority);
-                return $this->theme;
-            }
-
-            // Customize module asset path
-            public function path(callable $callback, int $priority = 10): NTDST_Theme
-            {
-                add_filter("netdust_{$this->module}_path", $callback, $priority);
-                return $this->theme;
-            }
-
-            // Add custom actions before module initialization
-            public function before(callable $callback, int $priority = 10): NTDST_Theme
-            {
-                add_action("netdust_{$this->module}_before", $callback, $priority);
-                return $this->theme;
-            }
-
-            // Add custom actions after module initialization
-            public function after(callable $callback, int $priority = 10): NTDST_Theme
-            {
-                add_action("netdust_{$this->module}_after", $callback, $priority);
-                return $this->theme;
-            }
-
-            // Disable module programmatically
-            public function disable(): NTDST_Theme
-            {
-                add_filter("netdust_{$this->module}_enabled", '__return_false', 999);
-                return $this->theme;
-            }
-
-            // Enable module programmatically
-            public function enable(): NTDST_Theme
-            {
-                add_filter("netdust_{$this->module}_enabled", '__return_true', 999);
-                return $this->theme;
-            }
-
-            /**
-             * Magic call: $theme->module('analytics')->track()
-             */
-            public function __call(string $method, array $args): mixed
-            {
-                return $this->call($method, ...$args);
-            }
-        };
-    }
-
-    /**
      * Add WordPress action with fluent API
      *
-     * @param string   $action   Action name
+     * The hook name is passed through VERBATIM — this wrapper is transparent
+     * (FR-11). WordPress does not sanitise hook names: they are keys in
+     * `$wp_filter`, not output, not a query, not a capability. Normalising one
+     * would silently register `myPlugin_Action` as `myplugin_action` and strip
+     * the `/` out of a namespaced `ntdst/...` name, so the callback would never
+     * fire under the name the caller wrote.
+     *
+     * @param string   $action   Action name (used exactly as given)
      * @param callable $callback Callback function
      * @param int      $priority Priority (default: 10)
      * @param int      $args     Number of arguments (default: 1)
@@ -440,14 +377,19 @@ class NTDST_Theme
      */
     public function on(string $action, callable $callback, int $priority = 10, int $args = 1): self
     {
-        add_action(sanitize_key($action), $callback, $priority, $args);
+        add_action($action, $callback, $priority, $args);
         return $this;
     }
 
     /**
      * Add WordPress filter with fluent API
      *
-     * @param string   $filter   Filter name
+     * The filter name is passed through VERBATIM, for the same reason `on()`
+     * does (FR-11) — and it matters more here, because this framework's own
+     * filter vocabulary is namespaced (`ntdst/api/public_actions`) and a
+     * normaliser would strip the separators straight out of it.
+     *
+     * @param string   $filter   Filter name (used exactly as given)
      * @param callable $callback Callback function
      * @param int      $priority Priority (default: 10)
      * @param int      $args     Number of arguments (default: 1)
@@ -461,7 +403,7 @@ class NTDST_Theme
      */
     public function filter(string $filter, callable $callback, int $priority = 10, int $args = 1): self
     {
-        add_filter(sanitize_key($filter), $callback, $priority, $args);
+        add_filter($filter, $callback, $priority, $args);
         return $this;
     }
 
@@ -474,7 +416,7 @@ class NTDST_Theme
      *
      * Example:
      *   $theme->when(fn() => is_front_page(), function($theme) {
-     *       $theme->module('barba')->config(fn($c) => array_merge($c, ['animationDuration' => 400]));
+     *       $theme->filter('body_class', fn($c) => [...$c, 'is-front']);
      *   });
      */
     public function when(callable $condition, callable $callback): self
@@ -482,112 +424,6 @@ class NTDST_Theme
         if ($condition()) {
             $callback($this);
         }
-        return $this;
-    }
-
-    /**
-     * Register custom API endpoint action
-     * Uses the fast REST API alternative to AJAX (endpoints.php)
-     *
-     * @param string   $action   Action name
-     * @param callable $callback Callback function that receives $data and $params
-     * @param array|int $args    Priority (int) or array ['priority' => 10, 'capability' => 'edit_posts']
-     * @return $this
-     *
-     * Example (public action):
-     *   $theme->apiAction('get_portfolio', function($data, $params) {
-     *       $category = sanitize_text_field($params['category'] ?? '');
-     *       $posts = get_posts(['category_name' => $category]);
-     *       return ['posts' => $posts];
-     *   });
-     *
-     * Example (requires capability):
-     *   $theme->apiAction('save_project', function($data, $params) {
-     *       // Save logic here
-     *   }, ['capability' => 'edit_posts']);
-     *
-     * Then call from JavaScript:
-     *   ntdstAPI.call('get_portfolio', { category: 'design' })
-     *       .then(data => console.log(data.posts));
-     */
-    public function apiAction(string $action, callable $callback, array|int $args = 10): self
-    {
-        // Parse arguments
-        $priority = 10;
-        $capability = null;
-
-        if (is_array($args)) {
-            $priority = $args['priority'] ?? 10;
-            $capability = $args['capability'] ?? null;
-        } elseif (is_int($args)) {
-            $priority = $args;
-        }
-
-        // Wrap callback with capability check if needed. Capability failures
-        // return a WP_Error so Endpoints::handle_action sends a proper error
-        // response — returning an array would look like a success body.
-        $wrapped_callback = function ($data, $params) use ($callback, $capability) {
-            if ($capability && !current_user_can($capability)) {
-                return new \WP_Error('forbidden', 'Insufficient permissions', ['status' => 403]);
-            }
-
-            return $callback($data, $params);
-        };
-
-        add_filter('ntdst/api_data/' . sanitize_key($action), $wrapped_callback, $priority, 2);
-        return $this;
-    }
-
-    /**
-     * Register a data model (post type with schema)
-     *
-     * @param string $name Post type name
-     * @param array  $config Configuration array
-     * @return NTDST_Data_Model
-     *
-     * Example:
-     *   $theme->register('projects', [
-     *       'label' => 'Projects',
-     *       'public' => true,
-     *       'fields' => [
-     *           'client_name' => 'string',
-     *           'project_year' => 'integer',
-     *       ],
-     *   ]);
-     */
-    public function register(string $name, array $config = []): NTDST_Data_Model
-    {
-        return $this->data()->register($name, $config);
-    }
-
-    /**
-     * Register a taxonomy
-     *
-     * @param string $taxonomy Taxonomy name
-     * @param string|array $post_types Post type(s) to attach to
-     * @param array $args Taxonomy arguments
-     * @return $this
-     *
-     * Example:
-     *   $theme->taxonomy('project_category', 'portfolio', [
-     *       'label' => 'Project Categories',
-     *       'hierarchical' => true,
-     *   ]);
-     */
-    public function taxonomy(string $taxonomy, string|array $post_types, array $args = []): self
-    {
-        $defaults = [
-            'public' => true,
-            'hierarchical' => false,
-            'show_ui' => true,
-            'show_in_rest' => true,
-            'rewrite' => ['slug' => $taxonomy],
-        ];
-
-        $args = array_merge($defaults, $args);
-
-        register_taxonomy($taxonomy, $post_types, $args);
-
         return $this;
     }
 
@@ -602,17 +438,22 @@ class NTDST_Theme
      */
     public function templatePath(string $path): self
     {
+        // One live registry (S5): the loader reads it on every resolution, so
+        // a path registered here is picked up without a cache-clear workaround.
         NTDST_Template_Loader::addPath($path);
-        // Clear Response cache so new path is picked up
-        NTDST_Response::clearPathCache();
         return $this;
     }
 
     /**
      * Register single template handler
      *
-     * @param string|callable|null $post_type Post type or callback
-     * @param callable|null $callback Handler function
+     * The post type is `?string` — NOT `string|callable`. This signature tracks
+     * its owner NTDST_Router::single() exactly; a wider one here would advertise
+     * a callable-first form the owner refuses under strict_types, raising a
+     * TypeError from a class the caller never named (Cluster B review, F1).
+     *
+     * @param string|null   $post_type Post type, or null for every single view
+     * @param callable|null $callback  Handler function
      * @return $this
      *
      * Example:
@@ -620,7 +461,7 @@ class NTDST_Theme
      *       return ntdst_response()->with('project', $post)->template('project/detail');
      *   });
      */
-    public function single(string|callable|null $post_type = null, ?callable $callback = null): self
+    public function single(?string $post_type = null, ?callable $callback = null): self
     {
         $this->router()->single($post_type, $callback);
         return $this;
@@ -647,8 +488,12 @@ class NTDST_Theme
     /**
      * Register archive template handler
      *
-     * @param string|callable|null $post_type Post type or callback
-     * @param callable|null $callback Handler function
+     * The post type is `?string` — NOT `string|callable`, for the same reason
+     * `single()` above is not: this signature tracks its owner
+     * NTDST_Router::archive() exactly (Cluster B review, F1).
+     *
+     * @param string|null   $post_type Post type, or null for every archive view
+     * @param callable|null $callback  Handler function
      * @return $this
      *
      * Example:
@@ -657,7 +502,7 @@ class NTDST_Theme
      *       return ntdst_response()->with('projects', $projects)->template('project/archive');
      *   });
      */
-    public function archive(string|callable|null $post_type = null, ?callable $callback = null): self
+    public function archive(?string $post_type = null, ?callable $callback = null): self
     {
         $this->router()->archive($post_type, $callback);
         return $this;

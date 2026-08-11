@@ -322,15 +322,16 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
                 return true;
             }
 
-            class NTDST_Theme {
-                public function taxonomy(string \$taxonomy, \$objectType, array \$args = []): void {}
+            // TeamService::closeSingleView() registers its redirect route at
+            // construction via ntdst_router()->single(). Registration is all
+            // that happens at boot — the callback (and redirect()) only fire
+            // on a matched front-end request, which this harness never makes.
+            class NTDST_Router {
+                public function single(string \$postType, callable \$callback): self { return \$this; }
             }
-            \$GLOBALS['__ntdst_theme'] = new NTDST_Theme();
-            function ntdst_get(string \$class) {
-                if (\$class === NTDST_Theme::class) {
-                    return \$GLOBALS['__ntdst_theme'];
-                }
-                throw new RuntimeException("unexpected ntdst_get(\$class) in harness");
+            function ntdst_router(): NTDST_Router {
+                static \$router = null;
+                return \$router ??= new NTDST_Router();
             }
 
             final class NTDST_Data_Manager {

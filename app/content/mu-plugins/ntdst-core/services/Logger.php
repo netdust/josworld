@@ -22,9 +22,9 @@ declare(strict_types=1);
  *    `netdust_*` prefix to new filters; use `ntdst_*` instead.
  *
  * Production note:
- *  - Log files land in WP_CONTENT_DIR/logs, which sits inside the webroot on
- *    both stacks (Bedrock and stackedWP alike). .htaccess + index.html block
- *    direct access on Apache; on Nginx, the server config MUST deny /logs.
+ *  - Log files land in WP_CONTENT_DIR/logs. On Bedrock that's web/app/logs,
+ *    which sits inside the webroot. .htaccess + index.html block direct
+ *    access on Apache; on Nginx, the server config MUST deny /logs.
  *
  * Usage:
  *   ntdst_log()->info('User logged in', ['user_id' => 123]);

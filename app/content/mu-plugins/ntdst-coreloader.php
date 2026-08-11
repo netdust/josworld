@@ -9,7 +9,12 @@
  * Architecture:
  * - core/     → Foundation (Container, Bootstrap, Theme, Router)
  * - api/      → Request Flow (Endpoints, Data, Response)
+ * - admin/    → Admin UI (MetaboxGenerator, RelationField)
  * - services/ → Built-in services (Logger, Mailer)
+ *
+ * Loading is this explicit require_once list, NOT a directory scan — a file
+ * that is not named here does not exist, and a stale path is an immediate
+ * fatal rather than a silent drop.
  */
 
 defined('ABSPATH') || exit;
@@ -29,7 +34,10 @@ require_once NTDST_PATH . '/core/Bootstrap.php';
 // Load API layer (request flow)
 require_once NTDST_PATH . '/api/Data.php';
 require_once NTDST_PATH . '/api/Response.php';
-require_once NTDST_PATH . '/api/MetaboxGenerator.php';
+
+// Load admin UI (edit-screen rendering + persistence)
+require_once NTDST_PATH . '/admin/MetaboxGenerator.php';
+require_once NTDST_PATH . '/admin/RelationField.php';
 
 // Load and initialize endpoints system
 require_once NTDST_PATH . '/api/Endpoints.php';
@@ -38,7 +46,6 @@ ntdst_endpoints(); // Initialize endpoints to register REST routes
 // Load services
 require_once NTDST_PATH . '/services/Logger.php';
 require_once NTDST_PATH . '/services/Mailer.php';
-require_once NTDST_PATH . '/services/RelationField.php';
 
 // Register singleton instances that can't be auto-wired
 ntdst_set(NTDST_SectorRegistry::class, fn() => ntdst_sectors());

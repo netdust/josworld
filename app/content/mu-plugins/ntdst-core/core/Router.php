@@ -78,12 +78,20 @@ class NTDST_Router
      * the named URL placeholders. Query-string parameters are NOT passed;
      * callbacks must read $_GET directly when needed.
      *
-     * Return contract:
-     *  - string (existing file path) → used as the resolved template
-     *  - null  → callback handled output itself; the request is exited
-     *  - true  → same as null
-     *  - false → fall through to the next matching route
-     *  - anything else → ignored, original $template is returned
+     * Return contract (resolved by resolveRouteResult(), shared with the
+     * template()/when() paths):
+     *  - string (existing file path) → success: the 404 WordPress pre-set is
+     *    cleared, a 200 committed, and the path used as the resolved template
+     *  - NTDST_Response, 2xx → success: 404 cleared, then rendered (exits)
+     *  - NTDST_Response, >=400 → REFUSE: WordPress's not-found state is left
+     *    intact and its own 404 template renders — the route says "no" through
+     *    the output class, with no status_header() hand-rolling in the callback
+     *  - null / true → the callback handled its own output (status included);
+     *    the request exits. A callback that STREAMS and returns null must set
+     *    its own status before it echoes — the 404 commit is deferred, not
+     *    pre-sent, so nothing sets 200 on its behalf beforehand
+     *  - false / anything else → no match: the 404 is left intact, fall
+     *    through to the next matching route
      *
      * @param string $pattern URL pattern (/path/:param/:id)
      * @param callable $callback Handler function
@@ -271,34 +279,116 @@ class NTDST_Router
                 // Extract named parameters
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
 
-                // Reset 404 state — WordPress marked this as 404 before routing
-                global $wp_query;
-                if ($wp_query && $wp_query->is_404()) {
-                    $wp_query->is_404 = false;
-                    status_header(200);
-                }
-
-                // Execute callback
+                // The 404 commit is DEFERRED to resolveRouteResult(): WordPress
+                // marked this request 404 before routing, and that 404 is only
+                // cleared once the callback's RESULT proves the route handled
+                // the request. That is the whole seam — a callback can now
+                // refuse (return a >=400 Response) and WordPress renders its
+                // own not-found template, instead of the route having to
+                // hand-roll status_header(404) back after a premature 200.
                 $result = call_user_func($route['callback'], $params, $template);
 
-                // If string, use as template
-                if (is_string($result) && file_exists($result)) {
-                    return $result;
+                $resolved = $this->resolveRouteResult($result, $template);
+                if ($resolved === false) {
+                    continue;
                 }
-
-                // If null/true, assume callback handled output
-                if ($result === null || $result === true) {
+                if ($resolved === null) {
                     exit;
                 }
 
-                // Continue to next route if false
-                if ($result === false) {
-                    continue;
-                }
+                return $resolved;
             }
         }
 
         return $template;
+    }
+
+    /**
+     * Turn a route callback's return value into a routing decision.
+     *
+     * Path-agnostic on purpose: the input is only (callback-result,
+     * original-template) and the output is a pure decision, so all three
+     * dispatch mechanisms — this regex path plus the template()/when()
+     * hierarchy filters — can share ONE implementation. (template()/when()
+     * still carry their own inline block today; wiring them to call this is a
+     * separate follow-up. This handler is already shaped for it.)
+     *
+     * Returns:
+     *  - string → render this template path (caller returns it to WordPress)
+     *  - null   → handled / exit (caller exits)
+     *  - false  → no match, pass through to the next candidate
+     *
+     * It OWNS the status/404 side effects so every caller gets them identically
+     * (see the register() docblock for the full contract). The Response arm
+     * honours getStatus(): a 2xx renders, a >=400 refuses — leaving is_404
+     * intact and handing back WordPress's own not-found template — regardless
+     * of whether the Response names a template.
+     */
+    protected function resolveRouteResult(mixed $result, string $template): string|false|null
+    {
+        if ($result instanceof NTDST_Response) {
+            if ($result->getStatus() >= 400) {
+                // Refuse: keep the 404 WordPress already set, honour the
+                // status, and let WordPress render its own not-found template.
+                status_header($result->getStatus());
+
+                return $template;
+            }
+
+            // Success: clear the pre-set 404, then render (render() exits when
+            // a template is set; with none, the caller exits — when() parity).
+            $this->commitOk();
+            $this->renderResponse($result);
+
+            return null;
+        }
+
+        if (is_string($result) && file_exists($result)) {
+            $this->commitOk();
+
+            return $result;
+        }
+
+        if ($result === null || $result === true) {
+            // Handled output: the callback owns its status. commitOk() is a
+            // no-op if the callback already committed (a streaming callback
+            // must, since the 404 commit is deferred).
+            $this->commitOk();
+
+            return null;
+        }
+
+        // false or any unrecognized type → leave the 404 intact, pass through.
+        return false;
+    }
+
+    /**
+     * Commit the "OK" status: clear the 404 WordPress pre-set for an unmatched
+     * URL and send a 200. Guarded, so it is a safe no-op when nothing set 404
+     * or a streaming callback already committed.
+     */
+    protected function commitOk(): void
+    {
+        global $wp_query;
+        if ($wp_query && $wp_query->is_404()) {
+            $wp_query->is_404 = false;
+            status_header(200);
+        }
+    }
+
+    /**
+     * Render a Response returned by a route callback.
+     *
+     * render() never returns (it exits). A Response with no template renders
+     * nothing — the caller then exits, in parity with template()/when().
+     * Protected so tests (and the future template()/when() callers) can seam it.
+     */
+    protected function renderResponse(NTDST_Response $response): void
+    {
+        $template_name = $response->getTemplate();
+        if ($template_name) {
+            $response->render($template_name); // never returns
+        }
     }
 
     /**

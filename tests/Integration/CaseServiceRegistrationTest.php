@@ -70,7 +70,7 @@ final class CaseServiceRegistrationTest extends WP_UnitTestCase
 
         $this->assertNotWPError($created);
 
-        $reread = $model->find($created->ID, true);
+        $reread = $model->find($created->ID, 'any');
         $this->assertNotWPError($reread);
 
         $impact = $reread->fields['impact'] ?? null;
@@ -110,7 +110,7 @@ final class CaseServiceRegistrationTest extends WP_UnitTestCase
 
         // Reading back still resolves cleanly (no error, no fatal) with the
         // schema-driven default rather than an empty string.
-        $reread = $model->find($created->ID, true);
+        $reread = $model->find($created->ID, 'any');
         $this->assertNotWPError($reread);
         $this->assertSame([], $reread->fields['takeaways']);
         $this->assertSame([], $reread->fields['interview']);

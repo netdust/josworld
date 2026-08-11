@@ -574,7 +574,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
         $_POST = [];
 
         $model = ntdst_data()->get('case');
-        $persisted = $model->find($postId);
+        // 'any': the fixture is a DRAFT and find() now defaults publish-only.
+        $persisted = $model->find($postId, 'any');
 
         $this->assertFalse(is_wp_error($persisted), 'precondition: the case must be findable after saving');
         $this->assertSame(
@@ -632,7 +633,10 @@ final class ModelConventionsTest extends WP_UnitTestCase
     private function assertNothingPersistedForClientField(int $postId, string $message): void
     {
         $model = ntdst_data()->get('case');
-        $persisted = $model->find($postId);
+        // 'any': the fixture is a draft; publish-only would 404 the row and
+        // make this denial assertion pass vacuously instead of proving the
+        // field itself stayed empty.
+        $persisted = $model->find($postId, 'any');
 
         $clientValue = is_wp_error($persisted) ? null : ($persisted->fields['client'] ?? null);
 

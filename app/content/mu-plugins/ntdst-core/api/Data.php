@@ -2,15 +2,26 @@
 
 /**
  * NTDST Data Layer - Minimal ORM
- * Fast, cached, secure, zero dependencies
  *
- * Version 2.1 - Enhanced security, error handling, and extensibility
+ * A chain API over WP_Query plus the CPT/field vocabulary the metabox
+ * generator reads. Nothing else.
+ *
+ * THE LAYER HOLDS NO PERFORMANCE OPINION (T04). It sets no query flags of its
+ * own, primes no caches, and keeps no cache of its own — WordPress already
+ * caches post queries (`post-queries`, salted on `$last_changed`), post
+ * objects, post meta and object terms, and invalidates all four on write. A
+ * second cache on top of those was a second thing to be wrong, and measurement
+ * showed it bought nothing this site ever observed: `resolveCacheTime()`
+ * returned 0 on every `WP_DEBUG` environment, so the whole bespoke cache was
+ * inert wherever a developer had ever looked at it.
+ *
+ * A consumer that needs a specific optimisation asks WordPress for it directly
+ * — `update_post_thumbnail_cache()`, `wp_cache_*`, a `no_found_rows` arg passed
+ * through this API — with a measurement attached, at the call site that can
+ * justify it.
  */
 
 defined('ABSPATH') || exit;
-
-// Load QueryCache dependency
-require_once __DIR__ . '/QueryCache.php';
 
 class NTDST_Data_Model
 {
@@ -43,23 +54,32 @@ class NTDST_Data_Model
     protected string $post_type;
     protected array $schema;
     protected array $query_args = [];
-    protected int $cache_time;
-    protected string $cache_group;
     protected array $sanitizers = [];
     protected array $validators = [];
     protected string $meta_prefix = '';
+    protected array $public_shape = [];
 
-    public function __construct(string $post_type, array $schema = [], int $cache_time = 3600, string $meta_prefix = '')
-    {
+    /**
+     * Reusable, named query fragments declared by this model — each a
+     * `fn(NTDST_Data_Model $q, ...$args)` that NARROWS the builder (applies
+     * CONSTRAINTS, never shape). Resolved model-first-then-global by scope().
+     *
+     * @var array<string, callable>
+     */
+    protected array $scopes = [];
+
+    public function __construct(
+        string $post_type,
+        array $schema = [],
+        string $meta_prefix = '',
+        array $public_shape = [],
+        array $scopes = [],
+    ) {
         $this->post_type = $post_type;
         $this->schema = $schema;
-        $this->cache_group = 'ntdst_' . $post_type;
         $this->meta_prefix = $meta_prefix;
-
-        // Delegate cache time resolution to QueryCache
-        $query_cache = NTDST_Query_Cache::instance();
-        $this->cache_time = $query_cache->resolveCacheTime($cache_time);
-        $query_cache->registerMetaPrefix($this->meta_prefix);
+        $this->public_shape = $public_shape;
+        $this->scopes = $scopes;
 
         $this->setupSanitizers();
         $this->setupValidators();
@@ -82,6 +102,15 @@ class NTDST_Data_Model
     }
 
     /**
+     * The structural keys an anonymous read of this model may carry, as
+     * declared by `public_fields`. Empty means the model declared none.
+     */
+    public function getPublicShape(): array
+    {
+        return $this->public_shape;
+    }
+
+    /**
      * Setup default sanitizers based on schema types
      */
     protected function setupSanitizers(): void
@@ -90,6 +119,18 @@ class NTDST_Data_Model
             // Extract sanitizer if provided as array ['type' => 'string', 'sanitizer' => 'callback']
             if (is_array($type)) {
                 $extracted_type = $type['type'] ?? 'string';
+
+                // T15: a repeater's sub-fields declare types too, and they were
+                // ignored on both sides — sanitizeRepeater() ran
+                // sanitize_text_field() over every value regardless. Bind the
+                // sub-field config here so the declared types actually apply.
+                if ($extracted_type === 'repeater') {
+                    $subFields = $type['sub_fields'] ?? [];
+                    $this->sanitizers[$field] = $type['sanitizer']
+                        ?? fn($v) => is_array($v) ? $this->sanitizeRepeater($v, $subFields) : [];
+                    continue;
+                }
+
                 $this->sanitizers[$field] = $type['sanitizer'] ?? $this->getDefaultSanitizer($extracted_type);
                 // DON'T simplify schema - preserve full config for metadata access
                 // $this->schema[$field] = $extracted_type;  // ← REMOVED: This destroyed field metadata
@@ -135,7 +176,27 @@ class NTDST_Data_Model
             'relation' => fn($v) => is_array($v) ? array_map('absint', array_filter($v)) : (!empty($v) ? [absint($v)] : []),
             'gallery' => fn($v) => is_array($v) ? array_map('absint', array_filter($v)) : [],
             'repeater' => fn($v) => is_array($v) ? $this->sanitizeRepeater($v) : [],
-            default => 'sanitize_text_field',
+
+            // Types this helper has always ADVERTISED but never sanitised —
+            // they fell through to sanitize_text_field, silently. daan alone
+            // declares these in 20 places. A CPT helper that accepts a type
+            // name and then ignores it is lying about its own vocabulary.
+            'select'        => fn($v) => sanitize_text_field((string) $v),
+            'date'          => fn($v) => $this->sanitizeDate($v),
+            'wysiwyg'       => fn($v) => wp_kses_post($v),
+            'image', 'file' => fn($v) => $this->sanitizeAttachmentId($v),
+            'person', 'post_relation' => fn($v) => is_array($v)
+                ? array_map('absint', array_filter($v))
+                : (!empty($v) ? [absint($v)] : []),
+
+            // An unknown type is a typo, and a typo that silently becomes
+            // sanitize_text_field is how a `wysiwig` field loses its markup
+            // with nothing failing. Fail loudly at registration instead.
+            default => throw new InvalidArgumentException(
+                "Unknown field type '{$type}'. Supported: int, float, bool, email, url, "
+                . "text, textarea, html, array, json, relation, gallery, repeater, "
+                . "select, date, wysiwyg, image, file, person, post_relation.",
+            ),
         };
     }
 
@@ -223,7 +284,40 @@ class NTDST_Data_Model
      * @param array $rows Array of repeater rows
      * @return array Sanitized repeater data
      */
-    protected function sanitizeRepeater(array $rows): array
+    /**
+     * A date field holds a date. Junk is rejected rather than stored as text.
+     */
+    protected function sanitizeDate($value): string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return '';
+        }
+        $ts = strtotime($raw);
+
+        return $ts === false ? '' : gmdate('Y-m-d', $ts);
+    }
+
+    /**
+     * An image/file field holds an attachment ID — and one that exists.
+     *
+     * absint() alone would happily store 999999, or the ID of a blog post,
+     * and the field would read back as a number that resolves to nothing.
+     */
+    protected function sanitizeAttachmentId($value): int
+    {
+        $id = absint($value);
+
+        return ($id > 0 && get_post_type($id) === 'attachment') ? $id : 0;
+    }
+
+    /**
+     * @param array $subFields The repeater's declared sub-field config, so each
+     *                         sub-value is sanitised as ITS type rather than as
+     *                         text. Empty config falls back to text, which is
+     *                         what every repeater got before T15.
+     */
+    protected function sanitizeRepeater(array $rows, array $subFields = []): array
     {
         if (empty($rows) || !is_array($rows)) {
             return [];
@@ -238,7 +332,28 @@ class NTDST_Data_Model
 
             $sanitized_row = [];
             foreach ($row as $sub_field => $value) {
-                // Sanitize each sub-field value
+                $config = $subFields[$sub_field] ?? null;
+                $subType = is_array($config) ? ($config['type'] ?? null) : $config;
+
+                if ($subType === 'image' || $subType === 'file') {
+                    // sanitizeAttachmentId() returns 0 for "nothing selected",
+                    // and 0 reads as a real id to every consumer that absint()s
+                    // the cell. An empty media cell stores what an empty text
+                    // cell stores. Scoped to the repeater path deliberately —
+                    // a top-level image/file field keeps returning int.
+                    $id = $this->sanitizeAttachmentId($value);
+                    $sanitized_row[$sub_field] = $id > 0 ? $id : '';
+                    continue;
+                }
+
+                if (is_string($subType) && $subType !== '') {
+                    // The declared type does what it says — an `image`
+                    // sub-field stores a verified attachment id, a `wysiwyg`
+                    // sub-field keeps its markup.
+                    $sanitized_row[$sub_field] = ($this->getDefaultSanitizer($subType))($value);
+                    continue;
+                }
+
                 $sanitized_row[$sub_field] = sanitize_text_field($value);
             }
 
@@ -368,7 +483,9 @@ class NTDST_Data_Model
      * Validate data based on schema rules
      *
      * @param array $data Data to validate
-     * @param bool $isUpdate Whether this is an update operation (skips required validation for missing fields)
+     * @param bool $isUpdate Whether this is an update operation. Relaxes the required
+     *        check for OMITTED fields only — a required field that IS supplied must
+     *        still be non-empty, on update as on create.
      * @return true|WP_Error True if valid, WP_Error if validation fails
      */
     protected function validateData(array $data, bool $isUpdate = false)
@@ -380,8 +497,25 @@ class NTDST_Data_Model
             $value = $has_value ? $data[$field] : null;
             $is_empty = $value === null || $value === '' || (is_array($value) && $value === []);
 
-            // Check required - only for create operations. For updates, missing fields keep existing values.
-            if ($rules['required'] && !$isUpdate && (!$has_value || $is_empty)) {
+            // Check required. Two distinct refusals, and the distinction is the
+            // whole point:
+            //
+            //   OMITTED on update  -> ALLOWED. Omission means "keep the existing
+            //     value"; partial updates across the fleet depend on it. This is
+            //     why the guard cannot simply be `$rules['required'] && $is_empty`.
+            //   SUPPLIED as empty  -> REFUSED, on create AND update. The caller
+            //     named the field and handed it '' | null | [], which is an
+            //     instruction to blank a field the schema says may never be empty.
+            //     `!$isUpdate` used to disable the guard for the WHOLE update path,
+            //     so that instruction was obeyed silently — data loss on exactly
+            //     the fields declared un-emptyable.
+            //
+            // `$has_value` (array_key_exists) is what separates the two: it is
+            // true for an explicit null, which `isset()` would have missed.
+            $missing_on_create  = !$has_value && !$isUpdate;
+            $explicitly_emptied = $has_value && $is_empty;
+
+            if ($rules['required'] && ($missing_on_create || $explicitly_emptied)) {
                 $errors[$field][] = sprintf('%s is required', $field);
                 continue;
             }
@@ -473,18 +607,20 @@ class NTDST_Data_Model
         foreach ($this->extractMetaData($data) as $key => $value) {
             if (!$this->updateMetaValue($post_id, $key, $value)) {
                 wp_delete_post($post_id, true);
-                $this->clearCache($post_id);
                 return new WP_Error('meta_update_failed', sprintf('Failed to update meta field %s', $key), ['status' => 500]);
             }
         }
-
-        $this->clearCache($post_id);
 
         // Fire after hook
         do_action('ntdst_model_create_after', $this->post_type, $post_id, $data);
 
         // Return the newly created post with meta/fields
-        return $this->find($post_id, true);
+        // 'any': create() must return the row it just wrote, whatever status
+        // it was written with. Hydrating through the publish-only default would
+        // make create(['post_status' => 'draft']) write the row and then return
+        // WP_Error — the caller concludes nothing was written, and the row
+        // orphans. Found by mutation before it shipped.
+        return $this->find($post_id, 'any');
     }
 
     /**
@@ -541,37 +677,77 @@ class NTDST_Data_Model
             if (!$this->updateMetaValue($id, $key, $value)) {
                 $this->restorePostData($id, $previous_post_data);
                 $this->restoreMetaData($id, $previous_meta);
-                $this->clearCache($id);
                 return new WP_Error('meta_update_failed', sprintf('Failed to update meta field %s', $key), ['status' => 500]);
             }
         }
 
-        $this->clearCache($id);
-
         // Fire after hook
         do_action('ntdst_model_update_after', $this->post_type, $id, $data);
 
-        // Return fresh data (skip cache since we just mutated)
-        return $this->find($id, true);
+        // Return fresh data. `wp_update_post()` / `update_post_meta()` already
+        // cleaned core's post and post_meta caches, so this re-read is the
+        // database's current answer without the layer arranging anything.
+        // 'any' — same reason as create(): update() returns what it wrote.
+        return $this->find($id, 'any');
     }
 
     /**
      * Find a post by ID
      *
+     * Always the database's current answer: the layer keeps no cache of its
+     * own, and core invalidates its post/post_meta entries on every write.
+     * (T04 removed the `$skipCache` parameter with the cache it referred to.)
+     *
      * @param int $id Post ID
-     * @param bool $skipCache Skip cache (use after mutations)
      * @return object|WP_Error Post object or error
      */
-    public function find(int $id, bool $skipCache = false)
+    /**
+     * Read one row by id.
+     *
+     * `$status` defaults to the SAME publish-only rule the query methods use.
+     * It used to be status-blind while `get()` was publish-only — two read
+     * paths on one ORM with opposite defaults, which is what taught consumers
+     * the layer gated for them. It doesn't, consistently, and that
+     * misunderstanding produced live disclosures in two site services.
+     *
+     * Pass an explicit `$status` (`['publish','draft']`, or `'any'`) when you
+     * genuinely want unpublished rows — an admin screen does; a public read
+     * does not. The layer does not decide that for you, it just stops
+     * pretending it has.
+     *
+     * @param int          $id
+     * @param string|array $status Post statuses to accept. Default: publish only.
+     */
+    public function find(int $id, $status = 'publish')
     {
+        // `find($id, true)` used to mean "skip the cache". T04 deleted that
+        // cache, and this parameter took its position — so a leftover call
+        // would silently mean "accept the status `true`", which matches
+        // nothing and denies every row. Fail-closed but invisible is the worst
+        // shape available, so it fails LOUDLY instead.
+        if (is_bool($status)) {
+            throw new InvalidArgumentException(
+                'find()\'s second argument is now a post status, not the removed '
+                . '$skipCache flag. Pass a status (e.g. "any", "publish", '
+                . '["publish","draft"]) or drop the argument.',
+            );
+        }
+
         $post = get_post($id);
         if (!$post || $post->post_type !== $this->post_type) {
-            NTDST_Data_Manager::clearCache($id);
             return new WP_Error('not_found', 'Post not found', ['status' => 404]);
         }
 
-        $cache_time = $skipCache ? 0 : $this->cache_time;
-        $post->meta = NTDST_Data_Manager::getPostMetaFromCache($id, $cache_time);
+        if ($status !== 'any') {
+            $accepted = (array) $status;
+            if (!in_array($post->post_status, $accepted, true)) {
+                // Same error as a missing row: a caller who may not see this
+                // status learns nothing about whether it exists.
+                return new WP_Error('not_found', 'Post not found', ['status' => 404]);
+            }
+        }
+
+        $post->meta = NTDST_Data_Manager::getPostMeta($id);
         $post->fields = $this->formatMeta($post->meta);
 
         return $post;
@@ -580,14 +756,32 @@ class NTDST_Data_Model
     /**
      * Get meta value(s) for a post - convenience method with automatic error handling
      *
-     * @param int $id Post ID
-     * @param string|null $key Meta key (null = return all meta)
-     * @param mixed $default Default value if not found or error
-     * @return mixed Meta value, all meta array, or default
+     * `$status` is the SAME argument, with the SAME default, as `find()`. That
+     * is the whole point of it existing: this method used to hard-code `'any'`,
+     * so `find($id)` refused an unpublished row while `getMeta($id, 'x')`
+     * served its meta — one model, one row, two read paths, opposite answers.
+     * A service that gated with the first and read with the second had a
+     * bypass, and nothing about the call site looked wrong.
+     *
+     * That is the defect `find()`'s own docblock describes and claims to have
+     * fixed ("two read paths on one ORM with opposite defaults... produced live
+     * disclosures in two site services"). The fix landed one method up and
+     * reintroduced itself one method down.
+     *
+     * One rule for the layer, so it can be held in the head: THE DEFAULT ANSWER
+     * IS THE SAFE ONE. An admin screen that wants an unpublished row says so.
+     *
+     * @param int          $id
+     * @param string|null  $key     Meta key (null = return all fields)
+     * @param mixed        $default Returned when the row is absent, of another
+     *                              type, NOT VISIBLE at $status, or the key is
+     *                              unset
+     * @param string|array $status  Post statuses to accept. Default: publish only.
+     * @return mixed Meta value, all fields, or $default
      */
-    public function getMeta(int $id, ?string $key = null, $default = null)
+    public function getMeta(int $id, ?string $key = null, $default = null, $status = 'publish')
     {
-        $post = $this->find($id);
+        $post = $this->find($id, $status);
 
         // Return default on error
         if (is_wp_error($post)) {
@@ -699,9 +893,6 @@ class NTDST_Data_Model
             return new WP_Error('meta_update_failed', sprintf('Failed to update meta field %s', $metaKey), ['status' => 500]);
         }
 
-        // Clear cache for this post
-        $this->clearCache($id);
-
         return true;
     }
 
@@ -709,7 +900,7 @@ class NTDST_Data_Model
      * Update multiple meta values for a post at once.
      *
      * This is the batch version of updateMeta() - use this when updating
-     * multiple fields to avoid repeated cache clearing and validation.
+     * multiple fields to avoid repeated validation.
      *
      * @param int $id Post ID
      * @param array<string, mixed> $data Associative array of key => value pairs (unprefixed)
@@ -744,13 +935,9 @@ class NTDST_Data_Model
 
             if (!$this->updateMetaValue($id, $metaKey, $value)) {
                 $this->restoreMetaData($id, $previousMeta);
-                $this->clearCache($id);
                 return false;
             }
         }
-
-        // Clear cache once after all updates
-        $this->clearCache($id);
 
         return true;
     }
@@ -773,9 +960,6 @@ class NTDST_Data_Model
         // Delete meta with prefix
         $metaKey = $this->prefixMetaKey($key);
         $result = delete_post_meta($id, $metaKey);
-
-        // Clear cache for this post
-        $this->clearCache($id);
 
         return $result;
     }
@@ -804,12 +988,44 @@ class NTDST_Data_Model
             return new WP_Error('delete_failed', 'Failed to delete post', ['status' => 500]);
         }
 
-        $this->clearCache($id);
-
         // Fire after hook
         do_action('ntdst_model_delete_after', $this->post_type, $id);
 
         return true;
+    }
+
+    /**
+     * Apply a named query scope — a reusable CONSTRAINT fragment.
+     *
+     * A scope is a `fn(NTDST_Data_Model $q, ...$args)` that NARROWS the builder
+     * (calls the same `where*`/`orderBy`/`limit` chain and returns) — it never
+     * changes result SHAPE. The `public_fields`/`publicRows()` projection stays
+     * independent; a caller wanting the public constraints AND the public shape
+     * composes `->scope('public')->publicRows()`.
+     *
+     * Resolution is MODEL-FIRST-THEN-GLOBAL: the model's own scopes are tried
+     * before the global registry, so a model can shadow a global of the same
+     * name with a stricter local rule.
+     *
+     * An unknown name FAILS LOUDLY (like getDefaultSanitizer()'s throw on an
+     * unknown type): a silent no-op would let a typo'd scope name drop the very
+     * constraint it was meant to add — a fail-open a public read cannot afford.
+     */
+    public function scope(string $name, ...$args): self
+    {
+        $scope = $this->scopes[$name] ?? NTDST_Data_Manager::getScope($name);
+
+        if (!is_callable($scope)) {
+            throw new InvalidArgumentException(
+                "Unknown query scope '{$name}' on '{$this->post_type}'. Declare it in the "
+                . "model's 'scopes' config, or register it globally via "
+                . 'NTDST_Data_Manager::addScope().',
+            );
+        }
+
+        $scope($this, ...$args);
+
+        return $this;
     }
 
     /**
@@ -1101,8 +1317,6 @@ class NTDST_Data_Model
             return $result;
         }
 
-        $this->clearCache($post_id);
-        NTDST_Data_Manager::clearCache($post_id);
         return true;
     }
 
@@ -1148,8 +1362,6 @@ class NTDST_Data_Model
             return $result;
         }
 
-        $this->clearCache($post_id);
-        NTDST_Data_Manager::clearCache($post_id);
         return true;
     }
 
@@ -1182,35 +1394,137 @@ class NTDST_Data_Model
     }
 
     /**
-     * Set custom cache time for this query
-     *
-     * @param int $seconds Cache duration in seconds (0 = no cache)
-     * @return self
-     *
-     * Example:
-     * $posts = $model->cache(7200)->get(); // 2 hours
-     * $posts = $model->cache(0)->get(); // No cache
-     */
-    public function cache(int $seconds): self
-    {
-        $this->query_args['cache_time'] = $seconds;
-        return $this;
-    }
-
-    /**
      * Execute query and get results
      */
     public function get(): array
     {
         try {
-            // Use our super-fast query system
-            return NTDST_Data_Manager::getPostsFast(array_merge([
+            return $this->projectRowsMeta(NTDST_Data_Manager::getFormattedPosts(array_merge([
                 'post_type' => $this->post_type,
-                'cache_time' => $this->cache_time,
-            ], $this->query_args));
+            ], $this->query_args)));
         } finally {
             $this->query_args = [];
         }
+    }
+
+    /**
+     * Run each row's `meta` bag through the model's declared schema.
+     *
+     * THE MISSING HALF OF THE READ SURFACE. `formatMeta()` has always given
+     * `find()` a projected shape under `->fields`; the query builder had NO
+     * projected form at all, only the raw bag `getFormattedPosts()` builds from
+     * `getPostMeta()`. So a service writing a list handler could not obtain a
+     * safe shape from `get()` — its only options were the raw bag, or
+     * re-reading every row through `find()`.
+     *
+     * That is a missing API, not a discipline problem, and the repo proves it:
+     * `ProjectService` is the one correct list handler and being correct cost
+     * it an N+1 (it discards the rows and re-fetches each one), while
+     * `DiscographyService` and `TourService` did the obvious thing, returned
+     * the rows, and leaked every undeclared meta key to anonymous callers.
+     *
+     * THE KEY IS DELIBERATELY STILL `meta`, not `fields`. Renaming it to match
+     * `find()`'s vocabulary was the plan and was rejected on evidence: a survey
+     * across daan, stride and stride-output-reshape found 13 consumers reading
+     * `['meta']`, two of which would have broken SILENTLY AND FAIL-OPEN —
+     * `TourService::excludeCancelled()` (cancelled gigs reappear publicly) and
+     * stride's `exclude_from_catalog` filter. A cleanup whose likeliest failure
+     * mode is a silent security regression is not a cleanup. Every consumer
+     * reading a DECLARED field keeps working; only undeclared keys disappear,
+     * which is exactly the set that should never have been there.
+     *
+     * `formatMeta()` also resolves `meta_prefix`, so a prefixed model now reads
+     * back under its unprefixed schema names — the same keys `find()` reports.
+     * Hand-rolled filters over the raw bag got that wrong and narrowed to
+     * nothing, which looks like "no data" rather than a bug.
+     *
+     * KNOWN AND DELIBERATE: a model with NO declared schema passes through
+     * unprojected. There is no declaration to project through, so `withMeta()`
+     * on such a model is exactly the raw request it appears to be. Registering
+     * a schema is what turns the projection on.
+     *
+     * @param  array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    protected function projectRowsMeta(array $rows): array
+    {
+        if ($this->schema === []) {
+            return $rows;
+        }
+
+        foreach ($rows as $index => $row) {
+            if (isset($row['meta']) && is_array($row['meta'])) {
+                $rows[$index]['meta'] = $this->formatMeta($row['meta']);
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Read rows through the model's DECLARED PUBLIC SHAPE.
+     *
+     * `public_fields` names the structural keys an anonymous read may carry;
+     * this method and `publicRow()` are the only way out, so a key nobody
+     * declared cannot appear. The framework holds no opinion about WHICH keys
+     * those are — the model says.
+     *
+     * The declaration also decides what is FETCHED: naming `meta` or `terms`
+     * sets their flags here, so a row cannot come out narrower because a
+     * caller forgot `withMeta()`.
+     *
+     * A model that declares nothing is not narrowed. There is no declaration
+     * to project through — the same rule `projectRowsMeta()` applies to an
+     * empty schema — so every existing consumer reads exactly as it did.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function publicRows(): array
+    {
+        if ($this->public_shape === []) {
+            return $this->get();
+        }
+
+        $this->query_args['include_meta'] = in_array('meta', $this->public_shape, true);
+        $this->query_args['include_terms'] = in_array('terms', $this->public_shape, true);
+
+        $rows = $this->get();
+
+        foreach ($rows as $index => $row) {
+            $public = [];
+
+            foreach ($this->public_shape as $key) {
+                if (array_key_exists($key, $row)) {
+                    $public[$key] = $row[$key];
+                }
+            }
+
+            $rows[$index] = $public;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * One row in the shape `publicRows()` returns — it IS that read with an id
+     * filter, so a single-item handler and a list handler cannot drift apart.
+     *
+     * `$status` is `find()`'s argument with `find()`'s default, and the miss
+     * is `find()`'s error: a caller who may not see this status learns nothing
+     * about whether the row exists.
+     *
+     * @param  string|array $status Post statuses to accept. Default: publish only.
+     * @return array<string, mixed>|WP_Error
+     */
+    public function publicRow(int $id, $status = 'publish')
+    {
+        $this->query_args['post__in'] = [$id];
+        $this->query_args['post_status'] = $status;
+        $this->query_args['posts_per_page'] = 1;
+
+        $rows = $this->publicRows();
+
+        return $rows[0] ?? new WP_Error('not_found', 'Post not found', ['status' => 404]);
     }
 
     /**
@@ -1218,13 +1532,12 @@ class NTDST_Data_Model
      */
     public function first()
     {
-        $cache_time = $this->query_args['cache_time'] ?? $this->cache_time;
         $results = $this->limit(1)->get();
         if (!$results) {
             return null;
         }
 
-        return $this->hydratePostFromResult($results[0], $cache_time);
+        return $this->hydratePostFromResult($results[0]);
     }
 
     /**
@@ -1241,7 +1554,7 @@ class NTDST_Data_Model
     public function count(): int
     {
         try {
-            return $this->cachedCount($this->query_args);
+            return $this->countMatching($this->query_args);
         } finally {
             $this->query_args = [];
         }
@@ -1262,17 +1575,16 @@ class NTDST_Data_Model
 
         try {
             // Get total count first
-            $total = $this->cachedCount($this->query_args);
+            $total = $this->countMatching($this->query_args);
             $total_pages = (int) ceil($total / $per_page);
 
             // Get paginated results
             $this->query_args['posts_per_page'] = $per_page;
             $this->query_args['offset'] = $offset;
 
-            $posts = NTDST_Data_Manager::getPostsFast(array_merge([
+            $posts = $this->projectRowsMeta(NTDST_Data_Manager::getFormattedPosts(array_merge([
                 'post_type' => $this->post_type,
-                'cache_time' => $this->cache_time,
-            ], $this->query_args));
+            ], $this->query_args)));
 
             return [
                 'data' => $posts,
@@ -1291,13 +1603,15 @@ class NTDST_Data_Model
     }
 
     /**
-     * Count matching posts with the same versioned QueryCache used for data queries.
+     * Count matching posts.
+     *
+     * `no_found_rows => false` is not a performance flag — it is what makes
+     * `found_posts` exist at all, which is the number being asked for. Core's
+     * own `post-queries` cache serves the repeat call.
      */
-    protected function cachedCount(array $query_args): int
+    protected function countMatching(array $query_args): int
     {
-        $queryCache = NTDST_Query_Cache::instance();
-        $cache_time = $queryCache->resolveCacheTime($query_args['cache_time'] ?? $this->cache_time);
-        unset($query_args['cache_time'], $query_args['include_meta'], $query_args['include_terms']);
+        unset($query_args['include_meta'], $query_args['include_terms']);
 
         $count_args = array_merge([
             'post_type' => $this->post_type,
@@ -1305,36 +1619,17 @@ class NTDST_Data_Model
             'fields' => 'ids',
             'posts_per_page' => 1,
             'no_found_rows' => false,
-            'cache_count' => true,
         ]);
 
-        $cache_key = $queryCache->generateKey($count_args, $this->post_type);
-        $cache_group = $queryCache->getGroup($this->post_type);
+        $query = new WP_Query($count_args);
 
-        if ($cache_time > 0) {
-            $cached = $queryCache->get($cache_key, $cache_group);
-            if ($cached !== false) {
-                return (int) $cached;
-            }
-        }
-
-        $wp_query_args = $count_args;
-        unset($wp_query_args['cache_count']);
-
-        $query = new WP_Query($wp_query_args);
-        $total = (int) $query->found_posts;
-
-        if ($cache_time > 0) {
-            $queryCache->set($cache_key, $cache_group, $total, $cache_time);
-        }
-
-        return $total;
+        return (int) $query->found_posts;
     }
 
     /**
-     * Hydrate a fast-query result into the same WP_Post shape returned by find().
+     * Hydrate a formatted query result into the same WP_Post shape returned by find().
      */
-    protected function hydratePostFromResult(array $item, ?int $cache_time = null)
+    protected function hydratePostFromResult(array $item)
     {
         $id = (int) ($item['id'] ?? $item['ID'] ?? 0);
         if ($id <= 0) {
@@ -1343,38 +1638,21 @@ class NTDST_Data_Model
 
         $post = get_post($id);
         if (!$post || $post->post_type !== $this->post_type) {
-            NTDST_Data_Manager::clearCache($id);
             return null;
         }
 
-        $post->meta = $item['meta'] ?? NTDST_Data_Manager::getPostMetaFromCache($id, $cache_time ?? $this->cache_time);
+        // Read raw meta rather than reusing `$item['meta']`. Since get() now
+        // projects that bag through the schema, reusing it would make first()'s
+        // `->meta` the PROJECTED set while find()'s `->meta` stays raw — a new
+        // asymmetry between two methods documented as returning the same shape.
+        // One cache read (already primed by the query above) buys exact parity.
+        $post->meta = NTDST_Data_Manager::getPostMeta($id);
         $post->fields = $this->formatMeta($post->meta);
         if (isset($item['terms'])) {
             $post->terms = $item['terms'];
         }
 
         return $post;
-    }
-
-    /**
-     * Clear cache for a specific post or all posts of this type
-     *
-     * For single post: clears item cache and invalidates query caches via version bump
-     * Without ID: invalidates all query caches for this post type
-     */
-    protected function clearCache(?int $id = null): void
-    {
-        $cache = NTDST_Query_Cache::instance();
-
-        if ($id !== null) {
-            // Clear specific item cache
-            wp_cache_delete('item_' . $id, $this->cache_group);
-            // Clear manager caches for this post
-            NTDST_Data_Manager::clearCache($id);
-        }
-
-        // Invalidate all query caches for this post type via version bump
-        $cache->invalidatePostType($this->post_type);
     }
 
     /**
@@ -1489,6 +1767,15 @@ class NTDST_Data_Model
                 'relation' => array_map('intval', $this->decodeArrayField($value)),
                 'gallery' => array_map('intval', $this->decodeArrayField($value)),
                 'repeater' => $this->formatRepeaterField($value),
+
+                // T14: the read side needs the same arms the write side gained,
+                // or a field sanitised as an int reads back as a string and the
+                // declared type is still decorative — just one layer further on.
+                'image', 'file' => (int) $value,
+                'person', 'post_relation' => array_map('intval', $this->decodeArrayField($value)),
+
+                // select, date and wysiwyg are strings on the way out; the
+                // default arm below already handles them correctly.
                 default => is_array($value) ? json_encode($value) : (string) ($value ?? ''),
             };
 
@@ -1511,13 +1798,76 @@ class NTDST_Data_Manager
     protected static array $models = [];
 
     /**
+     * Global query scopes — applicable to ANY model, resolved by
+     * NTDST_Data_Model::scope() only AFTER the model's own scopes (a model
+     * shadows a global of the same name). Static, like $models.
+     *
+     * @var array<string, callable>
+     */
+    protected static array $globalScopes = [];
+
+    /**
+     * Register a global query scope, applicable to any model.
+     *
+     * The MECHANISM the operator asked for; no production global scope is
+     * registered on top of it (nothing needs one yet). A model-local scope
+     * declared in its `scopes` config is preferred over a global of the same
+     * name.
+     */
+    public static function addScope(string $name, callable $scope): void
+    {
+        self::$globalScopes[$name] = $scope;
+    }
+
+    /**
+     * Resolve a global scope by name, or null when none is registered.
+     */
+    public static function getScope(string $name): ?callable
+    {
+        return self::$globalScopes[$name] ?? null;
+    }
+
+    /**
+     * Log a registration failure at the point it happens.
+     *
+     * INV-4 says register() must never swallow the failure, and it doesn't — it
+     * returns the WP_Error. But register() is called for its SIDE EFFECT from
+     * service constructors, so in practice every call site in this codebase
+     * discards the return (6/6 in daan-core, verified). The contract was
+     * therefore being defeated by the API's shape rather than by any one
+     * caller's carelessness, and a model that failed to register vanished
+     * without a trace.
+     *
+     * Logging HERE makes fail-loud hold regardless of caller discipline. The
+     * return value is deliberately unchanged: callers that do check keep
+     * working, and this is purely additive.
+     */
+    private function logRegistrationFailure(string $name, string $stage, WP_Error $error): void
+    {
+        if (!function_exists('ntdst_log')) {
+            return;
+        }
+
+        ntdst_log('data')->error(
+            sprintf('Failed to register %s for model "%s": %s', $stage, $name, $error->get_error_message()),
+            [
+                'model' => $name,
+                'stage' => $stage,
+                'code'  => $error->get_error_code(),
+            ],
+        );
+    }
+
+    /**
      * Register a new data model
      *
-     * @param string $name Post type name
-     * @param array $config Configuration
-     * @return NTDST_Data_Model
+     * @param  string $name   Post type name
+     * @param  array  $config Configuration
+     * @return NTDST_Data_Model|WP_Error `WP_Error` when register_post_type()
+     *         refuses the name — the caller gets the failure rather than a
+     *         model whose post type does not exist (INV-4).
      */
-    public function register(string $name, array $config = []): NTDST_Data_Model
+    public function register(string $name, array $config = [])
     {
         // Fire hook so services can add their filters (e.g., PriceableFieldsService)
         do_action('ntdst/model/registering', $name, $config);
@@ -1527,18 +1877,60 @@ class NTDST_Data_Manager
         $config['field_groups'] = apply_filters("ntdst/{$name}/field_groups", $config['field_groups'] ?? []);
 
         if (isset($config['label'])) {
-            register_post_type($name, array_merge([
-                'public' => true,
-                'has_archive' => true,
-                'supports' => ['title', 'editor', 'thumbnail'],
-            ], array_diff_key($config, array_flip(['fields', 'cache_time', 'field_groups', 'meta_prefix', 'auto_metabox']))));
+            // PRIVATE BY DEFAULT. Silence is not privacy: this used to merge the
+            // caller's config OVER `public => true, has_archive => true`, so a
+            // model registered without visibility flags was published, archived
+            // and queryable. That default is why every non-public CPT on this
+            // codebase had to state six denials by hand, and why forgetting one
+            // was a disclosure. Opt IN to public; never opt out of it.
+            $registered = register_post_type($name, array_merge([
+                'public'       => false,
+                'has_archive'  => false,
+                'supports'     => ['title', 'editor', 'thumbnail'],
+            ], array_diff_key($config, array_flip([
+                'fields',
+                'field_groups',
+                'meta_prefix',
+                'auto_metabox',
+                'public_fields',
+                'scopes',
+                'taxonomies',
+            ]))));
+
+            // Never swallow the failure. register_post_type() returns WP_Error
+            // for an invalid name or a reserved key; the old code discarded it
+            // and built the model anyway, leaving isRegistered() true while
+            // post_type_exists() was false — a half-registered phantom that
+            // reports healthy. INV-4: fail closed, and loudly.
+            if (is_wp_error($registered)) {
+                $this->logRegistrationFailure($name, 'post type', $registered);
+                return $registered;
+            }
+
+            // Taxonomies declared WITH the model, collapsing the hand-rolled
+            // register_taxonomy() calls the services used to carry. Each is
+            // attached to THIS model's post type ($name) and registered only
+            // AFTER register_post_type() above succeeded. registerTaxonomy()
+            // holds the shared defaults and seeds any `terms` idempotently; a
+            // registration failure is returned, never swallowed (INV-4).
+            foreach ($config['taxonomies'] ?? [] as $taxonomy => $taxConfig) {
+                $terms = $taxConfig['terms'] ?? [];
+                unset($taxConfig['terms']);
+
+                $taxResult = $this->registerTaxonomy($taxonomy, $name, $taxConfig, $terms);
+                if (is_wp_error($taxResult)) {
+                    $this->logRegistrationFailure($name, sprintf('taxonomy "%s"', $taxonomy), $taxResult);
+                    return $taxResult;
+                }
+            }
         }
 
         $model = new NTDST_Data_Model(
             $name,
             $config['fields'] ?? [],
-            $config['cache_time'] ?? 3600,
             $config['meta_prefix'] ?? '',
+            $config['public_fields'] ?? [],
+            $config['scopes'] ?? [],
         );
 
         self::$models[$name] = $model;
@@ -1558,6 +1950,51 @@ class NTDST_Data_Manager
     }
 
     /**
+     * Register a taxonomy with the layer's defaults, and optionally seed terms.
+     *
+     * THE single implementation of taxonomy registration. Its declarative front
+     * door is register()'s `taxonomies` config key, whose loop calls this once
+     * per declared taxonomy; callers may also invoke it directly. The defaults
+     * below are shaped the way they are because they were lifted verbatim from
+     * the `Theme::taxonomy()` wrapper S9 retired (a taxonomy outlives a theme
+     * switch, so registering one was never Theme's job) — changing them changes
+     * every taxonomy that relied on the wrapper's shape. Caller $args merge OVER
+     * them. Returns WP_Error on failure rather than swallowing it (INV-4) — the
+     * register() loop propagates that out.
+     *
+     * @param string       $taxonomy   Taxonomy name.
+     * @param string|array $post_types Post type(s) to attach to.
+     * @param array        $args       Taxonomy args, merged over the defaults.
+     * @param array        $terms      Optional slug => Display Name terms, seeded idempotently.
+     * @return WP_Error|null WP_Error when register_taxonomy() refuses; null on success.
+     */
+    public function registerTaxonomy(string $taxonomy, string|array $post_types, array $args = [], array $terms = [])
+    {
+        $registered = register_taxonomy($taxonomy, $post_types, array_merge([
+            'public'       => true,
+            'hierarchical' => false,
+            'show_ui'      => true,
+            'show_in_rest' => true,
+            'rewrite'      => ['slug' => $taxonomy],
+        ], $args));
+
+        if (is_wp_error($registered)) {
+            return $registered;
+        }
+
+        // Seed default terms idempotently — insert only when absent. This is
+        // the logic the services' ensureDefaultTerms/addDefaultProjectTypes
+        // helpers held, now in one place.
+        foreach ($terms as $slug => $name) {
+            if (!term_exists($slug, $taxonomy)) {
+                wp_insert_term($name, $taxonomy, ['slug' => $slug]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Get a registered data model
      *
      * @param string $name Model name
@@ -1565,7 +2002,23 @@ class NTDST_Data_Manager
      */
     public function get(string $name): NTDST_Data_Model
     {
-        return self::$models[$name] ?? $this->register($name);
+        // Asking about a model does not create one. This used to
+        // auto-register a phantom on every miss — into a STATIC array — so a
+        // caller-supplied type name on a public endpoint could register
+        // whatever it liked, and isRegistered() could never tell a real model
+        // from something someone once mistyped.
+        // Note it is NOT stored: caching it here is what made isRegistered()
+        // report true for a name someone once mistyped.
+        //
+        // T10: and it is CLONED. $models is static, so every caller used to
+        // share one mutable model — an abandoned ->where() (one that never
+        // reached a terminal method, so never hit the reset in the `finally`)
+        // stayed on the instance and silently narrowed the NEXT query from
+        // anywhere in the process. A clone per acquisition costs nothing and
+        // makes the leak unrepresentable.
+        return isset(self::$models[$name])
+            ? clone self::$models[$name]
+            : new NTDST_Data_Model($name, [], '');
     }
 
     /**
@@ -1581,29 +2034,17 @@ class NTDST_Data_Manager
     }
 
     /**
-     * Get post meta from WordPress cache (after update_postmeta_cache primed it)
+     * Read a post's meta as a flat key => value map.
      *
-     * This is the optimized version that reads from primed cache.
-     * Falls back to getCachedPostMeta() if cache is not primed.
+     * Prefers core's `post_meta` cache — primed by `WP_Query` on any read and
+     * invalidated by core on any write — and falls back to one SQL statement
+     * when it is cold. The layer stores nothing of its own either way (T04).
      *
      * @param int $post_id Post ID
-     * @param int $cache_time Cache duration in seconds
      * @return array Post meta data
      */
-    public static function getPostMetaFromCache(int $post_id, int $cache_time = 3600): array
+    public static function getPostMeta(int $post_id): array
     {
-        $key = "post_meta_{$post_id}";
-        $cache_group = 'ntdst_posts';
-
-        // Only check ntdst cache if caching is enabled (cache_time > 0)
-        if ($cache_time > 0) {
-            $cached = wp_cache_get($key, $cache_group);
-            if ($cached !== false) {
-                return $cached;
-            }
-        }
-
-        // Try WordPress's primed meta cache (from update_postmeta_cache)
         $wp_cached = wp_cache_get($post_id, 'post_meta');
         if ($wp_cached !== false && is_array($wp_cached)) {
             $meta = [];
@@ -1612,48 +2053,40 @@ class NTDST_Data_Manager
                 $meta[$meta_key] = maybe_unserialize($values[0] ?? $values);
             }
 
-            // Store in our cache for consistency
-            if ($cache_time > 0) {
-                wp_cache_set($key, $meta, $cache_group, $cache_time);
-            }
-
             return $meta;
         }
 
-        // Fallback to the original method (raw SQL) if WP cache not available
-        return self::getCachedPostMeta($post_id, $cache_time);
+        global $wpdb;
+        $results = $wpdb->get_results($wpdb->prepare(
+            "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d",
+            $post_id,
+        ));
+
+        $meta = [];
+        foreach ($results as $row) {
+            $meta[$row->meta_key] = maybe_unserialize($row->meta_value);
+        }
+
+        return $meta;
     }
 
     /**
-     * Get post terms from WordPress cache (after update_object_term_cache primed it)
+     * Read a post's terms, grouped by taxonomy and reduced to id/name/slug.
      *
-     * This is the optimized version that reads from primed cache.
-     * Falls back to getCachedPostTerms() if cache is not primed.
+     * Prefers core's `{$taxonomy}_relationships` cache — primed by `WP_Query`
+     * and invalidated by core on any term write — and falls back to one SQL
+     * statement when it is cold. Stores nothing of its own (T04).
      *
      * @param int $post_id Post ID
      * @param string $post_type Post type for taxonomy lookup
-     * @param int $cache_time Cache duration in seconds
      * @return array Post terms grouped by taxonomy
      */
-    public static function getPostTermsFromCache(int $post_id, string $post_type, int $cache_time = 3600): array
+    public static function getPostTerms(int $post_id, string $post_type): array
     {
-        $key = "post_terms_{$post_id}";
-        $cache_group = 'ntdst_posts';
-
-        // Only check ntdst cache if caching is enabled (cache_time > 0)
-        if ($cache_time > 0) {
-            $cached = wp_cache_get($key, $cache_group);
-            if ($cached !== false) {
-                return $cached;
-            }
-        }
-
-        // Get all taxonomies for this post type
         $taxonomies = get_object_taxonomies($post_type);
         $terms = [];
 
         foreach ($taxonomies as $taxonomy) {
-            // Try WordPress's primed term cache (from update_object_term_cache)
             $wp_cached = wp_cache_get($post_id, "{$taxonomy}_relationships");
             if ($wp_cached !== false && is_array($wp_cached)) {
                 foreach ($wp_cached as $term) {
@@ -1672,68 +2105,8 @@ class NTDST_Data_Manager
             }
         }
 
-        // If we found terms from WP cache, store in our cache
         if (!empty($terms)) {
-            if ($cache_time > 0) {
-                wp_cache_set($key, $terms, $cache_group, $cache_time);
-            }
             return $terms;
-        }
-
-        // Fallback to the original method (raw SQL) if WP cache not available
-        return self::getCachedPostTerms($post_id, $cache_time);
-    }
-
-    /**
-     * Get cached post meta (fallback with raw SQL - used when cache not primed)
-     *
-     * @param int $post_id Post ID
-     * @param int $cache_time Cache duration in seconds
-     * @return array Post meta data
-     */
-    public static function getCachedPostMeta(int $post_id, int $cache_time = 3600): array
-    {
-        $key = "post_meta_{$post_id}";
-        $cache_group = 'ntdst_posts';
-        $cached = wp_cache_get($key, $cache_group);
-
-        if ($cached !== false) {
-            return $cached;
-        }
-
-        global $wpdb;
-        $results = $wpdb->get_results($wpdb->prepare(
-            "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d",
-            $post_id,
-        ));
-
-        $meta = [];
-        foreach ($results as $row) {
-            $meta[$row->meta_key] = maybe_unserialize($row->meta_value);
-        }
-
-        if ($cache_time > 0) {
-            wp_cache_set($key, $meta, $cache_group, $cache_time);
-        }
-
-        return $meta;
-    }
-
-    /**
-     * Get cached post terms (fallback with raw SQL - used when cache not primed)
-     *
-     * @param int $post_id Post ID
-     * @param int $cache_time Cache duration in seconds
-     * @return array Post terms grouped by taxonomy
-     */
-    public static function getCachedPostTerms(int $post_id, int $cache_time = 3600): array
-    {
-        $key = "post_terms_{$post_id}";
-        $cache_group = 'ntdst_posts';
-        $cached = wp_cache_get($key, $cache_group);
-
-        if ($cached !== false) {
-            return $cached;
         }
 
         global $wpdb;
@@ -1755,36 +2128,33 @@ class NTDST_Data_Manager
             ];
         }
 
-        if ($cache_time > 0) {
-            wp_cache_set($key, $terms, $cache_group, $cache_time);
-        }
-
         return $terms;
     }
 
     /**
-     * Super-fast post query with aggressive caching
+     * Run a WP_Query with core's defaults and format the rows.
      *
-     * Optimized WP_Query with intelligent caching at multiple levels.
+     * That is the whole job, and the name says so (T04 renamed this from
+     * `getPostsFast()`, which advertised a speed property it did not have —
+     * the priming it did was itself the cost, and it is gone).
+     *
+     * The only defaults set here are the SHAPE of the answer: which type,
+     * which status, how many, what order. Everything WordPress decides about
+     * priming, counting and caching, WordPress keeps deciding — a caller who
+     * wants `no_found_rows` or a warm thumbnail cache asks for it here, at a
+     * call site that can justify it.
      *
      * @param array $args Query arguments (WP_Query compatible)
      * @return array Array of post data
      */
-    public static function getPostsFast(array $args = []): array
+    public static function getFormattedPosts(array $args = []): array
     {
-        global $wpdb;
-
         // Extract custom args
         $include_meta = (bool) ($args['include_meta'] ?? false);
         $include_terms = (bool) ($args['include_terms'] ?? false);
-        $cache_time = (int) ($args['cache_time'] ?? 3600);
-
-        // Delegate cache time resolution to QueryCache
-        $queryCache = NTDST_Query_Cache::instance();
-        $cache_time = $queryCache->resolveCacheTime($cache_time);
 
         // Remove custom args so WP_Query doesn't get confused
-        unset($args['include_meta'], $args['include_terms'], $args['cache_time']);
+        unset($args['include_meta'], $args['include_terms']);
 
         // Set defaults
         $defaults = [
@@ -1793,10 +2163,6 @@ class NTDST_Data_Manager
             'posts_per_page' => 10,
             'orderby' => 'date',
             'order' => 'DESC',
-            'no_found_rows' => true, // Performance: skip SQL_CALC_FOUND_ROWS
-            'update_post_term_cache' => false, // Skip term cache updates
-            'update_post_meta_cache' => false, // Skip meta cache updates
-            'suppress_filters' => true, // CRITICAL: Skip all filters!
             'ignore_sticky_posts' => true, // Skip sticky posts logic
             'fields' => '', // Get all fields (important!)
         ];
@@ -1811,100 +2177,54 @@ class NTDST_Data_Manager
             unset($args['p']);
         }
 
-        // Generate cache key using QueryCache (includes version for invalidation).
+        // WP_Query primes the post, meta and term caches for this result set
+        // itself — its `update_post_meta_cache` / `update_post_term_cache`
+        // defaults are TRUE, and T04 stopped overriding them. Nothing is
+        // primed here on top of that.
         //
-        // WP_Query accepts `post_type` as a string OR an array, and callers do
-        // pass arrays — `search_posts` (Endpoints.php) has always sent
-        // ['post', 'page'] by default. But generateKey()/getGroup() are both
-        // typed `string $post_type`, so every multi-type call fataled with
-        // "Argument #2 must be of type string, array given" before reaching
-        // the query. That made ntdst_get_posts_fast() unusable for ANY
-        // multi-type search — including the relation-field autocomplete,
-        // whose only UI is that endpoint.
-        //
-        // Collapsed to a single deterministic string for cache-keying only:
-        // sorted so ['post','page'] and ['page','post'] share a cache entry
-        // (same query, same results), and joined so two different type sets
-        // never collide. The query itself still receives the original array
-        // via $args — this normalisation is used ONLY for the cache key and
-        // group.
-        $post_type_arg = $args['post_type'] ?? 'post';
-        if (is_array($post_type_arg)) {
-            $sorted = array_map('strval', $post_type_arg);
-            sort($sorted);
-            $post_type = implode('+', $sorted);
-        } else {
-            $post_type = (string) $post_type_arg;
-        }
-
-        $cache_args = $args;
-        $cache_args['include_meta'] = $include_meta;
-        $cache_args['include_terms'] = $include_terms;
-        $cache_key = $queryCache->generateKey($cache_args, $post_type);
-        $cache_group = $queryCache->getGroup($post_type);
-
-        // Try to get from cache
-        if ($cache_time > 0) {
-            $cached = $queryCache->get($cache_key, $cache_group);
-            if ($cached !== false) {
-                return $cached;
-            }
-        }
-
-        // Use WP_Query to get posts
-        // We still use WP_Query but with optimizations to skip unnecessary operations
+        // The thumbnail prime is gone with them. Core does not prime thumbnails
+        // by default; a consumer that needs it calls
+        // `update_post_thumbnail_cache()` itself. So is the author prime, which
+        // ran `get_users(['include' => $author_ids])` unconditionally — for
+        // rows with `post_author = 0` that is `WHERE ID IN (0)`, a statement
+        // per read that can never return anything. `get_the_author_meta()`
+        // below reads core's user cache and answers the same question.
         $query = new WP_Query($args);
         $raw_posts = $query->posts;
 
         if (empty($raw_posts)) {
-            // Cache empty results too
-            if ($cache_time > 0) {
-                $queryCache->set($cache_key, $cache_group, [], $cache_time);
-            }
             return [];
         }
 
-        // PERFORMANCE: Batch load all post IDs for cache priming
-        $post_ids = wp_list_pluck($raw_posts, 'ID');
-        $post_type = $args['post_type'] ?? 'post';
-
-        // Prime thumbnail cache (single query for all posts)
-        update_post_thumbnail_cache($query);
-
-        // Prime meta cache if needed (single query for all posts)
-        if ($include_meta) {
-            update_postmeta_cache($post_ids);
-        }
-
-        // Prime term cache if needed (single query for all posts)
-        if ($include_terms) {
-            // Get all taxonomies for this post type
-            $taxonomies = get_object_taxonomies($post_type);
-            if (!empty($taxonomies)) {
-                update_object_term_cache($post_ids, $post_type);
-            }
-        }
-
-        // Prime author cache (single query for all unique authors)
-        $author_ids = array_unique(wp_list_pluck($raw_posts, 'post_author'));
-        if (!empty($author_ids)) {
-            // This primes the user cache for all authors at once
-            $users = get_users(['include' => $author_ids, 'fields' => ['ID', 'display_name']]);
-            $author_names = [];
-            foreach ($users as $user) {
-                $author_names[$user->ID] = $user->display_name;
-            }
-        }
-
-        // Format results (minimal processing - caches are already primed)
+        // Format results
         $posts = [];
         foreach ($raw_posts as $post) {
+            // A post password is enforced by WordPress at the DISPLAY layer —
+            // `the_content` swaps the body for `get_the_password_form()` when
+            // `post_password_required()` says so. `WP_Query` returns the row
+            // either way, so a projection that reads `post_content` off the
+            // row publishes precisely what the password withholds. Reproduced
+            // anonymously over the wire on 2026-08-07 before this line existed.
+            //
+            // The two predicates are core's own and are deliberately different:
+            // the REDACTION asks whether THIS viewer has supplied the password
+            // (so a reader who has stays served), while the `protected` MARKER
+            // states whether the post has one at all. Both are copied from
+            // `WP_REST_Posts_Controller::prepare_item_for_response()` rather
+            // than reasoned out again here — the layer's job is to ask
+            // WordPress its question, not to re-derive the answer.
+            $requires_password = post_password_required($post);
+
             $post_data = [
                 'id' => (int) $post->ID,
                 'title' => $post->post_title,
-                // Fallback excerpt generation
-                'excerpt' => $post->post_excerpt ?: wp_trim_words(strip_tags($post->post_content), 55),
-                'content' => $post->post_content,
+                // Fallback excerpt generation. Withheld with the body it trims:
+                // an excerpt derived from protected content leaks the same text.
+                'excerpt' => $requires_password
+                    ? ''
+                    : ($post->post_excerpt ?: wp_trim_words(strip_tags($post->post_content), 55)),
+                'content' => $requires_password ? '' : $post->post_content,
+                'protected' => (bool) $post->post_password,
                 'permalink' => get_permalink($post->ID),
                 'slug' => $post->post_name,
                 // ISO 8601 date format for consistency
@@ -1912,11 +2232,10 @@ class NTDST_Data_Manager
                 'modified' => mysql2date('c', $post->post_modified),
                 'author' => [
                     'id' => (int) $post->post_author,
-                    'name' => $author_names[$post->post_author] ?? get_the_author_meta('display_name', $post->post_author),
+                    'name' => get_the_author_meta('display_name', $post->post_author),
                 ],
             ];
 
-            // Get thumbnail (now served from primed cache - no additional query)
             $thumbnail_id = get_post_thumbnail_id($post->ID);
             if ($thumbnail_id) {
                 $post_data['thumbnail'] = [
@@ -1928,51 +2247,22 @@ class NTDST_Data_Manager
                 $post_data['thumbnail'] = null;
             }
 
-            // Include post meta if requested (now served from primed cache)
+            // Include post meta if requested (served from core's primed cache)
             if ($include_meta) {
-                $post_data['meta'] = self::getPostMetaFromCache($post->ID, $cache_time);
+                $post_data['meta'] = self::getPostMeta($post->ID);
             }
 
-            // Include taxonomy terms if requested (now served from primed cache)
+            // Include taxonomy terms if requested (served from core's primed cache).
+            // Keyed off the ROW's own type, not the query's: `post_type` may be
+            // an array, and getPostTerms() takes one type.
             if ($include_terms) {
-                $post_data['terms'] = self::getPostTermsFromCache($post->ID, $post_type, $cache_time);
+                $post_data['terms'] = self::getPostTerms($post->ID, $post->post_type);
             }
 
             $posts[] = $post_data;
         }
 
-        // Cache results using QueryCache
-        if ($cache_time > 0) {
-            $queryCache->set($cache_key, $cache_group, $posts, $cache_time);
-        }
-
         return $posts;
-    }
-
-    /**
-     * Clear posts cache
-     *
-     * If $post_id is provided, clears specific meta/terms caches.
-     * If null, attempts to clear all general query caches (if environment supports it).
-     *
-     * @param int|null $post_id Specific post ID to clear, or null for all
-     * @return void
-     */
-    public static function clearCache(int $post_id = null): void
-    {
-        $cache_group = 'ntdst_posts';
-
-        if ($post_id !== null) {
-            // Clear specific item meta and terms caches used by getPostsFast
-            wp_cache_delete("post_meta_{$post_id}", $cache_group);
-            wp_cache_delete("post_terms_{$post_id}", $cache_group);
-        } else {
-            // Clear all query caches by flushing the group (if supported by the backend)
-            // This is the only reliable way to clear all query results.
-            if (function_exists('wp_cache_flush_group')) {
-                wp_cache_flush_group($cache_group);
-            }
-        }
     }
 }
 
@@ -1986,46 +2276,12 @@ function ntdst_data(): NTDST_Data_Manager
 }
 
 /**
- * Global helper - fast post query (backward compatibility)
+ * Global helper - run a WP_Query with core's defaults and format the rows
  *
  * @param array $args Query arguments
  * @return array Array of post data
  */
-function ntdst_get_posts_fast(array $args = []): array
+function ntdst_get_formatted_posts(array $args = []): array
 {
-    return NTDST_Data_Manager::getPostsFast($args);
-}
-
-/**
- * Global helper - clear posts cache (backward compatibility)
- *
- * @param int|null $post_id Post ID to clear, or null for all
- * @return void
- */
-function ntdst_clear_posts_cache(?int $post_id = null): void
-{
-    NTDST_Data_Manager::clearCache($post_id);
-}
-
-/**
- * Global helper - invalidate all cached queries for a post type
- *
- * Use this when you've made bulk changes outside the normal CRUD flow.
- *
- * @param string $post_type Post type to invalidate
- * @return void
- */
-function ntdst_invalidate_post_type(string $post_type): void
-{
-    NTDST_Query_Cache::instance()->invalidatePostType($post_type);
-}
-
-/**
- * Global helper - get query cache instance
- *
- * @return NTDST_Query_Cache
- */
-function ntdst_query_cache(): NTDST_Query_Cache
-{
-    return NTDST_Query_Cache::instance();
+    return NTDST_Data_Manager::getFormattedPosts($args);
 }

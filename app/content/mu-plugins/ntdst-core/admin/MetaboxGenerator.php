@@ -7,6 +7,19 @@ declare(strict_types=1);
  * Automatically generates metaboxes from registered field definitions
  * Works with NTDST Data.php ORM
  *
+ * OUTPUT CONTRACT — 'wysiwyg' field type:
+ * A 'wysiwyg' field is sanitized on save with wp_kses_post(), which
+ * preserves a safe HTML subset (<p>, <a href>, <strong>, <em>, <ul>/<li>,
+ * <br>, ...) rather than stripping all markup like 'textarea' does. Because
+ * the stored value legitimately CONTAINS HTML, any template/consumer that
+ * outputs a 'wysiwyg' field MUST escape it with wp_kses_post() again at
+ * render time — NEVER with esc_html() (which encodes the HTML and renders
+ * literal "<p>" tags to the visitor instead of a paragraph break) and NEVER
+ * with a raw echo (which would defeat the sanitization boundary entirely if
+ * the stored value is ever hand-edited via wp_update_post()/direct DB
+ * access outside this class's own save path). This is the rule that must
+ * exist BEFORE any template consumes a 'wysiwyg' field.
+ *
  * @package NTDST
  * @version 1.0.0
  */
@@ -18,11 +31,53 @@ final class NTDST_MetaboxGenerator
     private static ?self $instance = null;
     private array $registered_models = [];
 
+    /**
+     * Post-scoped transient prefix carrying a failed-save error across the
+     * save_post redirect to the next admin request, where
+     * render_save_error_notice() renders and deletes it (read-once). The key is
+     * `<prefix><post_id>`.
+     */
+    private const SAVE_ERROR_TRANSIENT_PREFIX = 'ntdst_metabox_save_error_';
+
+    /**
+     * Field types whose `required` indication is VISUAL + `aria-required`
+     * only, never the native `required` attribute.
+     *
+     * The native attribute is a browser constraint, and a constraint on a
+     * control the browser cannot focus or validate does not fail loudly — it
+     * makes the entire post form permanently unsubmittable, reporting only
+     * "An invalid form control ... is not focusable" to the console. Strictly
+     * worse than the missing indication it would be fixing. Per type:
+     *
+     *   boolean/bool     required on a checkbox means "must be TICKED", which
+     *                    silently rewrites "mandatory" into "must be Yes";
+     *                    the arm also emits a companion hidden input, so the
+     *                    field is never absent from the POST anyway.
+     *   wysiwyg          wp_editor() hides the underlying textarea behind
+     *                    TinyMCE — unfocusable, so the form would never submit.
+     *   relation         the value lives in hidden inputs; the only visible
+     *                    control is an unnamed autocomplete search box that is
+     *                    not the value.
+     *   gallery/repeater composite widgets built from hidden inputs and
+     *   image/file       media-picker buttons; nothing here is validatable.
+     */
+    private const MARKER_ONLY_REQUIRED_TYPES = [
+        'boolean',
+        'bool',
+        'wysiwyg',
+        'relation',
+        'gallery',
+        'repeater',
+        'image',
+        'file',
+    ];
+
     private function __construct()
     {
         add_action('add_meta_boxes', [$this, 'register_metaboxes']);
         add_action('save_post', [$this, 'save_metabox_data'], 10, 2);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_metabox_scripts']);
+        add_action('admin_notices', [$this, 'render_save_error_notice']);
     }
 
     /**
@@ -186,6 +241,8 @@ final class NTDST_MetaboxGenerator
      */
     private function register_tabbed_metabox(string $model_name, array $config, array $all_fields, array $field_groups): void
     {
+        $this->warn_discarded_group_placement($model_name, $field_groups);
+
         add_meta_box(
             "ntdst_{$model_name}_tabbed",
             $config['metabox_title'] ?? ucwords(str_replace('_', ' ', $model_name)),
@@ -197,6 +254,79 @@ final class NTDST_MetaboxGenerator
                 'model_name' => $model_name,
                 'fields' => $all_fields,
                 'field_groups' => $field_groups,
+            ],
+        );
+    }
+
+    /**
+     * Warn when a tabbed model declares per-group placement that is discarded.
+     *
+     * `context` and `priority` on a field group are read by exactly one
+     * caller — register_grouped_metaboxes(), the `use_tabs` FALSY branch. A
+     * tabbed model registers ONE metabox at the model-level `tabs_context` /
+     * `tabs_priority` and passes the groups through as tab definitions only,
+     * so a group declaring `'context' => 'side'` under `use_tabs` is dropped
+     * on the floor. It read as effective and did nothing, with no warning, no
+     * error and no log — daan alone shipped four models in that state.
+     *
+     * DIAGNOSTIC ONLY. This does not fix the caller's config and does not
+     * start honouring the discarded keys: making `use_tabs` place per group
+     * is a rendering change across every ntdst site, not this one. Called
+     * from register_tabbed_metabox() rather than from the branch in
+     * register_metaboxes(), so it fires on exactly the path that discards —
+     * the grouped path (where the keys ARE honoured) and the
+     * `auto_metabox => false` opt-out cannot reach it, which is a structural
+     * guarantee rather than a duplicated condition that can drift.
+     *
+     * Mechanism: `ntdst_log('metabox')->warning()`, not `_doing_it_wrong()`.
+     * See NTDST_Data_Model::warnUnregisteredKeys() — the framework's existing
+     * answer to this exact situation (a caller passed config the framework
+     * silently drops), same channel-scoped warning, same `function_exists`
+     * guard. `_doing_it_wrong()` appears nowhere in ntdst-core, and under
+     * WP_DEBUG it raises E_USER_WARNING, which would turn a diagnostic into
+     * suite failures for consumers running PHPUnit with failOnWarning.
+     *
+     * @param array<array-key, mixed> $field_groups
+     */
+    private function warn_discarded_group_placement(string $model_name, array $field_groups): void
+    {
+        $offending = [];
+
+        foreach ($field_groups as $group_key => $group_config) {
+            if (!is_array($group_config)) {
+                continue;
+            }
+
+            // One entry per GROUP, not per discarded key: a group declaring
+            // both is one misconfiguration, not two log lines.
+            if (isset($group_config['context']) || isset($group_config['priority'])) {
+                // `field_groups` is a LIST on real services (e.g. a
+                // getFieldGroups() that returns unkeyed group arrays), where
+                // (string) $group_key degrades to "0, 1, 2, 3" and names
+                // nothing the developer can search for — which is the entire
+                // purpose of this warning. Fall back to the group's title.
+                $offending[] = is_int($group_key)
+                    ? ($group_config['title'] ?? "#{$group_key}")
+                    : (string) $group_key;
+            }
+        }
+
+        if (empty($offending) || !function_exists('ntdst_log')) {
+            return;
+        }
+
+        ntdst_log('metabox')->warning(
+            sprintf(
+                'Model "%s" sets use_tabs, so the per-group "context"/"priority" declared by '
+                    . 'group(s) [%s] are ignored — a tabbed model registers ONE metabox at the '
+                    . 'model-level tabs_context/tabs_priority. Set tabs_context/tabs_priority on '
+                    . 'the model, or drop use_tabs to get one placed metabox per group.',
+                $model_name,
+                implode(', ', $offending),
+            ),
+            [
+                'model' => $model_name,
+                'groups' => $offending,
             ],
         );
     }
@@ -217,7 +347,8 @@ final class NTDST_MetaboxGenerator
 
         // Get current values
         if ($is_data_model) {
-            $data = ntdst_data()->get($model_name)->find($post->ID);
+            // 'any': the edit screen renders whatever status the row has.
+            $data = ntdst_data()->get($model_name)->find($post->ID, 'any');
             $values = ($data && !is_wp_error($data)) ? $data->fields : [];
         } else {
             $values = [];
@@ -272,7 +403,18 @@ final class NTDST_MetaboxGenerator
 
             foreach ($group_fields_keys as $field_key) {
                 if (isset($all_fields[$field_key])) {
-                    $this->render_field($field_key, $all_fields[$field_key], $values[$field_key] ?? null);
+                    // No native `required` in a tabbed box: every inactive
+                    // panel is display:none (and the tab JS hides the active
+                    // one on the next switch), so a native constraint would
+                    // land on an unfocusable control and the browser would
+                    // refuse to submit the post at all. Marker + aria-required
+                    // still tell the editor.
+                    $this->render_field(
+                        $field_key,
+                        $all_fields[$field_key],
+                        $values[$field_key] ?? null,
+                        false,
+                    );
                 }
             }
 
@@ -453,6 +595,13 @@ final class NTDST_MetaboxGenerator
     private function render_shared_field_styles(): void
     {
         echo '<style>
+            /* Required-field marker */
+            .ntdst-required {
+                color: #d63638;
+                font-weight: 700;
+                margin-left: 2px;
+            }
+
             /* Relation Field Styles */
             .ntdst-relation-field {
                 margin-top: 8px;
@@ -555,7 +704,8 @@ final class NTDST_MetaboxGenerator
         // Get current values
         if ($is_data_model) {
             // Use Data.php ORM for registered models
-            $data = ntdst_data()->get($model_name)->find($post->ID);
+            // 'any': the edit screen renders whatever status the row has.
+            $data = ntdst_data()->get($model_name)->find($post->ID, 'any');
             $values = ($data && !is_wp_error($data)) ? $data->fields : [];
         } else {
             // Use WordPress native functions for unregistered/native post types
@@ -625,9 +775,19 @@ final class NTDST_MetaboxGenerator
      * from CPT-config field keys (developer-controlled, not user input), but
      * we esc_attr/esc_html them anyway so a typo'd or third-party CPT
      * registration can't introduce an XSS path.
+     *
+     * $allow_native_required is OFF for the tabbed render path. A `required`
+     * control inside a `display:none` panel cannot be focused, so the browser
+     * refuses the submit outright with only a console message and the post
+     * never saves. See MARKER_ONLY_REQUIRED_TYPES below for the same rule
+     * applied per field type.
      */
-    private function render_field(string $name, mixed $type, mixed $value): void
-    {
+    private function render_field(
+        string $name,
+        mixed $type,
+        mixed $value,
+        bool $allow_native_required = true,
+    ): void {
         $label = ucwords(str_replace('_', ' ', $name));
         $field_id = "ntdst_field_{$name}";
         $field_name = "ntdst_fields[{$name}]";
@@ -640,18 +800,37 @@ final class NTDST_MetaboxGenerator
         // Handle array types (could be extended)
         $options = [];
         $readonly = false;
+        $required = false;
         if (is_array($type)) {
-            // For relation, gallery, repeater, and callback fields, use the entire $type as options
+            // For relation, gallery, repeater, callback and media fields, use the entire $type as options
             // For other fields, extract from 'options' key
             $field_type = $type['type'] ?? 'text';
-            if (in_array($field_type, ['relation', 'gallery', 'repeater', 'callback'], true)) {
+            if (in_array($field_type, ['relation', 'gallery', 'repeater', 'callback', 'image', 'file'], true)) {
                 $options = $type;  // Pass entire config
             } else {
                 $options = $type['options'] ?? [];
             }
             $readonly = $type['readonly'] ?? false;
+            $required = !empty($type['required']);
             $type = $field_type;
         }
+
+        // Native constraint validation is only safe on a control the browser
+        // can focus AND that actually carries the value. Everything else gets
+        // the visual + aria indication only — see the class constant.
+        $native_required = $required
+            && $allow_native_required
+            && !$readonly
+            && !in_array($type, self::MARKER_ONLY_REQUIRED_TYPES, true);
+
+        // Emitted on the control for natively-validatable types, and on the
+        // .ntdst-field wrapper otherwise, so the constraint is always exposed
+        // to assistive tech even where `required` itself would be harmful.
+        $required_attrs = $native_required ? ' required aria-required="true"' : '';
+        $wrapper_attrs = ($required && !$native_required) ? ' aria-required="true"' : '';
+        $label_marker = $required
+            ? ' <span class="ntdst-required" aria-hidden="true">*</span>'
+            : '';
 
         // Callback fields handle their own rendering entirely
         if ($type === 'callback') {
@@ -662,8 +841,8 @@ final class NTDST_MetaboxGenerator
             return;
         }
 
-        echo '<div class="ntdst-field">';
-        echo '<label for="' . $field_id_attr . '">' . esc_html($label) . '</label>';
+        echo '<div class="ntdst-field"' . $wrapper_attrs . '>';
+        echo '<label for="' . $field_id_attr . '">' . esc_html($label) . $label_marker . '</label>';
 
         // If readonly and not a select, just display as text
         if ($readonly && $type !== 'select' && $type !== 'array' && $type !== 'json') {
@@ -684,7 +863,7 @@ final class NTDST_MetaboxGenerator
 
         switch ($type) {
             case 'select':
-                echo '<select id="' . $field_id_attr . '" name="' . $field_name_attr . '" class="regular-text"' . ($readonly ? ' disabled' : '') . '>';
+                echo '<select id="' . $field_id_attr . '" name="' . $field_name_attr . '" class="regular-text"' . ($readonly ? ' disabled' : '') . $required_attrs . '>';
                 foreach ($options as $opt_value => $opt_label) {
                     $selected = ($safe_value == $opt_value) ? ' selected' : '';
                     echo '<option value="' . esc_attr($opt_value) . '"' . $selected . '>' . esc_html($opt_label) . '</option>';
@@ -698,55 +877,74 @@ final class NTDST_MetaboxGenerator
 
             case 'text':
             case 'string':
-                echo '<input type="text" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '" class="regular-text">';
+                echo '<input type="text" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '" class="regular-text"' . $required_attrs . '>';
                 break;
 
             case 'email':
-                echo '<input type="email" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '" class="regular-text">';
+                echo '<input type="email" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '" class="regular-text"' . $required_attrs . '>';
                 break;
 
             case 'integer':
             case 'int':
                 $int_value = $value !== null && $value !== '' ? esc_attr($value) : '';
-                echo '<input type="number" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . $int_value . '" step="1" class="small-text">';
+                echo '<input type="number" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . $int_value . '" step="1" class="small-text"' . $required_attrs . '>';
                 break;
 
             case 'float':
             case 'decimal':
                 $float_value = $value !== null && $value !== '' ? esc_attr($value) : '';
-                echo '<input type="number" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . $float_value . '" step="0.01" class="small-text">';
+                echo '<input type="number" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . $float_value . '" step="0.01" class="small-text"' . $required_attrs . '>';
                 break;
 
             case 'boolean':
             case 'bool':
                 $checked = $value ? ' checked' : '';
+                // Posts the off state. It comes FIRST so the checkbox wins when
+                // ticked; without it an unticked box submits nothing at all and
+                // save_metabox_data() leaves the old value standing (T56).
+                echo '<input type="hidden" name="' . $field_name_attr . '" value="0">';
                 echo '<label><input type="checkbox" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="1"' . $checked . '> Yes</label>';
                 break;
 
             case 'textarea':
             case 'longtext':
-                echo '<textarea id="' . $field_id_attr . '" name="' . $field_name_attr . '" rows="5" class="large-text">' . esc_textarea($safe_value) . '</textarea>';
+                echo '<textarea id="' . $field_id_attr . '" name="' . $field_name_attr . '" rows="5" class="large-text"' . $required_attrs . '>' . esc_textarea($safe_value) . '</textarea>';
+                break;
+
+            case 'wysiwyg':
+                // wp_editor() echoes its own markup directly and requires a
+                // unique editor ID that is lowercase alphanumeric/underscores
+                // only (no dashes, no brackets) — $field_id is already
+                // "ntdst_field_{$name}" from a developer-controlled field
+                // key, so sanitize_key() is defence-in-depth, not a fix for
+                // untrusted input here.
+                wp_editor($safe_value, sanitize_key($field_id), [
+                    'textarea_name' => $field_name,
+                    'textarea_rows' => 10,
+                    'media_buttons' => false,
+                    'teeny' => true,
+                ]);
                 break;
 
             case 'array':
             case 'json':
                 $json_value = is_array($value) ? json_encode($value, JSON_PRETTY_PRINT) : ($value ?? '');
                 echo '<div class="ntdst-field-array">';
-                echo '<textarea id="' . $field_id_attr . '" name="' . $field_name_attr . '" rows="8" class="large-text code">' . esc_textarea($json_value) . '</textarea>';
+                echo '<textarea id="' . $field_id_attr . '" name="' . $field_name_attr . '" rows="8" class="large-text code"' . $required_attrs . '>' . esc_textarea($json_value) . '</textarea>';
                 echo '<p class="description">Enter valid JSON array. Example: ["value1", "value2"]</p>';
                 echo '</div>';
                 break;
 
             case 'date':
-                echo '<input type="date" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '">';
+                echo '<input type="date" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '"' . $required_attrs . '>';
                 break;
 
             case 'datetime':
-                echo '<input type="datetime-local" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '">';
+                echo '<input type="datetime-local" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '"' . $required_attrs . '>';
                 break;
 
             case 'url':
-                echo '<input type="url" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '" class="regular-text">';
+                echo '<input type="url" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '" class="regular-text"' . $required_attrs . '>';
                 break;
 
             case 'relation':
@@ -764,9 +962,19 @@ final class NTDST_MetaboxGenerator
                 $this->render_repeater_field($field_id, $field_name, $name, $value, $options);
                 break;
 
+            case 'image':
+            case 'file':
+                // T45's cell, reused verbatim. Storage is deliberately NOT
+                // touched: sanitizeAttachmentId() still returns an int (0 for
+                // nothing), unlike the repeater arm's empty-string marker —
+                // ProfileService's four fields already hold live values in the
+                // int shape on every ntdst site.
+                $this->render_repeater_media_cell($field_id, $field_name, $safe_value, $type, $options);
+                break;
+
             default:
                 // Default to text input
-                echo '<input type="text" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '" class="regular-text">';
+                echo '<input type="text" id="' . $field_id_attr . '" name="' . $field_name_attr . '" value="' . esc_attr($safe_value) . '" class="regular-text"' . $required_attrs . '>';
                 break;
         }
 
@@ -1373,6 +1581,17 @@ final class NTDST_MetaboxGenerator
                     echo '<input type="url" id="' . esc_attr($sub_field_id) . '" name="' . esc_attr($sub_field_full_name) . '" value="' . esc_attr($sub_field_value) . '" class="ntdst-repeater-input">';
                     break;
 
+                case 'image':
+                case 'file':
+                    $this->render_repeater_media_cell(
+                        $sub_field_id,
+                        $sub_field_full_name,
+                        $sub_field_value,
+                        $type,
+                        is_array($sub_field_type) ? $sub_field_type : [],
+                    );
+                    break;
+
                 default:
                     echo '<input type="text" id="' . esc_attr($sub_field_id) . '" name="' . esc_attr($sub_field_full_name) . '" value="' . esc_attr($sub_field_value) . '" class="ntdst-repeater-input">';
                     break;
@@ -1387,6 +1606,151 @@ final class NTDST_MetaboxGenerator
         echo '</td>';
 
         echo '</tr>';
+    }
+
+    /**
+     * Render one single-attachment media picker.
+     *
+     * Same mechanism as render_gallery_field() — wp_enqueue_media() plus a
+     * wp.media frame — but single-valued: the field holds ONE attachment, so
+     * there is no ordered set and no drag-and-drop.
+     *
+     * Serves BOTH switches since T47: a repeater cell (render_repeater_row())
+     * and a top-level `image`/`file` field (render_field()). The name is T45's;
+     * one cell, one selector set, one delegated handler pair for both.
+     *
+     * The submitted value is still the bare attachment id under the same field
+     * name, so storage is unchanged by this render.
+     *
+     * @param array<string, mixed> $config The field's own declaration.
+     */
+    private function render_repeater_media_cell(string $field_id, string $field_name, mixed $value, string $type, array $config): void
+    {
+        wp_enqueue_media();
+        $this->render_media_picker_assets();
+
+        $attachment_id = absint($value);
+        $is_image = ($type === 'image');
+        $is_attachment = $attachment_id > 0 && get_post_type($attachment_id) === 'attachment';
+        $button_text = $config['button_text'] ?? ($is_image ? 'Select Image' : 'Select File');
+
+        echo '<div class="ntdst-repeater-media" data-media-type="' . esc_attr($type) . '">';
+        echo '<input type="hidden" id="' . esc_attr($field_id) . '" name="' . esc_attr($field_name) . '" value="' . esc_attr($is_attachment ? (string) $attachment_id : '') . '" class="ntdst-repeater-media-input">';
+
+        echo '<div class="ntdst-repeater-media-preview">';
+        if ($is_attachment) {
+            $thumbnail = $is_image ? wp_get_attachment_image_url($attachment_id, 'thumbnail') : '';
+
+            if ($thumbnail) {
+                echo '<img src="' . esc_url($thumbnail) . '" alt="">';
+            }
+
+            echo '<span class="ntdst-repeater-media-name">' . esc_html(get_the_title($attachment_id)) . '</span>';
+        }
+        echo '</div>';
+
+        echo '<button type="button" class="button ntdst-repeater-media-select">' . esc_html($button_text) . '</button>';
+        echo '<button type="button" class="button-link ntdst-repeater-media-clear"' . ($is_attachment ? '' : ' hidden') . '>Remove</button>';
+        echo '</div>';
+    }
+
+    /**
+     * The picker's own CSS and delegated click handlers, once per request.
+     *
+     * Emitted from the cell rather than from render_repeater_field(), where T45
+     * put it: ProfileService declares four `image`/`file` fields and no repeater
+     * at all, so a screen can carry pickers with no repeater block to inherit
+     * the handlers from. Delegated on `document`, so rows cloned from a
+     * repeater's hidden row template are wired without re-binding.
+     */
+    private function render_media_picker_assets(): void
+    {
+        static $assets_rendered = false;
+
+        if ($assets_rendered) {
+            return;
+        }
+
+        $assets_rendered = true;
+
+        echo '<style>
+            .ntdst-repeater-media {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                white-space: nowrap;
+            }
+            .ntdst-repeater-media-preview {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .ntdst-repeater-media-preview img {
+                width: 40px;
+                height: 40px;
+                object-fit: cover;
+                border: 1px solid #ddd;
+                border-radius: 3px;
+                display: block;
+            }
+            .ntdst-repeater-media-name {
+                font-size: 12px;
+                color: #50575e;
+                max-width: 160px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .ntdst-repeater-media-clear[hidden] {
+                display: none;
+            }
+        </style>';
+
+        echo '<script>
+        jQuery(document).ready(function($) {
+            $(document).on("click", ".ntdst-repeater-media-select", function(e) {
+                e.preventDefault();
+
+                var $cell = $(this).closest(".ntdst-repeater-media");
+                var mediaType = $cell.data("media-type");
+                var frame = wp.media({
+                    title: mediaType === "image" ? "Select Image" : "Select File",
+                    button: { text: "Use this file" },
+                    multiple: false,
+                    library: mediaType === "image" ? { type: "image" } : {}
+                });
+
+                frame.on("select", function() {
+                    var attachment = frame.state().get("selection").first().toJSON();
+                    var thumbnail = (attachment.sizes && attachment.sizes.thumbnail)
+                        ? attachment.sizes.thumbnail.url
+                        : "";
+
+                    $cell.find(".ntdst-repeater-media-input").val(attachment.id);
+
+                    var $preview = $cell.find(".ntdst-repeater-media-preview").empty();
+                    if (mediaType === "image" && thumbnail) {
+                        $preview.append($("<img>").attr({ src: thumbnail, alt: "" }));
+                    }
+                    // .text(), not string concatenation: an attachment title is
+                    // user-supplied content.
+                    $preview.append($("<span>").addClass("ntdst-repeater-media-name").text(attachment.title));
+
+                    $cell.find(".ntdst-repeater-media-clear").prop("hidden", false);
+                });
+
+                frame.open();
+            });
+
+            $(document).on("click", ".ntdst-repeater-media-clear", function(e) {
+                e.preventDefault();
+
+                var $cell = $(this).closest(".ntdst-repeater-media");
+                $cell.find(".ntdst-repeater-media-input").val("");
+                $cell.find(".ntdst-repeater-media-preview").empty();
+                $(this).prop("hidden", true);
+            });
+        });
+        </script>';
     }
 
     /**
@@ -1470,7 +1834,12 @@ final class NTDST_MetaboxGenerator
             // Save using Data.php ORM for registered models
             try {
                 $model = ntdst_data()->get($model_name);
-                $existing = $model->find($post_id);
+                // 'any' is load-bearing. With the publish-only default this
+                // returns WP_Error for a draft, the branch below falls through
+                // to create(), and create() cannot honour post_id — so every
+                // draft save would fork a NEW published row. Pinned by
+                // DataLayerCharacterizationTest's metabox fork test.
+                $existing = $model->find($post_id, 'any');
 
                 if ($existing && !is_wp_error($existing)) {
                     // Update existing
@@ -1481,12 +1850,36 @@ final class NTDST_MetaboxGenerator
                     $result = $model->create($sanitized_data);
                 }
 
-                // Fire hook for extensibility
-                do_action("ntdst/metabox_saved/{$model_name}", $post_id, $sanitized_data);
-            } catch (\Throwable $e) {
-                if (function_exists('ntdst_log')) {
-                    ntdst_log('metabox')->error("Save failed for {$model_name}: " . $e->getMessage());
+                // update()/create() RETURN WP_Error on a failed validate/persist
+                // (validation_failed, meta_update_failed status 500). The catch
+                // below only traps \Throwable, so a WP_Error RETURN was captured
+                // into $result and discarded — a silent "saved". Surface it to
+                // the editor instead of firing the saved hook.
+                if (is_wp_error($result)) {
+                    $this->record_save_error($post_id, $model_name, $result);
+                } else {
+                    // Fire hook for extensibility only on a genuine save.
+                    do_action("ntdst/metabox_saved/{$model_name}", $post_id, $sanitized_data);
                 }
+            } catch (\Throwable $e) {
+                // Converge on the same surfacing channel as a WP_Error RETURN
+                // above: record_save_error() both sets the post-scoped
+                // transient (so the editor sees the failure instead of a
+                // silent "saved") and logs it — no separate inline log here,
+                // or the failure would be recorded twice. The editor-facing
+                // message is GENERIC: a DB-layer throw can carry table/column
+                // names that don't belong on an edit screen. The raw
+                // exception text rides in the WP_Error's data slot, which
+                // record_save_error() logs but never surfaces.
+                $this->record_save_error(
+                    $post_id,
+                    $model_name,
+                    new \WP_Error(
+                        'metabox_save_exception',
+                        'Saving failed — see logs.',
+                        $e->getMessage(),
+                    ),
+                );
             }
         } else {
             // Use WordPress native functions for unregistered/native post types
@@ -1508,16 +1901,132 @@ final class NTDST_MetaboxGenerator
     }
 
     /**
+     * Surface a failed ORM save to the editor. Writes a post-scoped transient
+     * (the contract channel — read once on the next admin request by
+     * render_save_error_notice()) and logs it. Both failure modes converge
+     * here: a WP_Error RETURN from update()/create() and a \Throwable from
+     * the same calls (wrapped in a WP_Error by the catch). Only the error's
+     * MESSAGE is editor-facing; string error data, when present, is detail
+     * for the log alone (the catch parks the raw exception text there).
+     *
+     * No same-request settings-error is registered: this runs inside save_post,
+     * and the redirect WordPress issues immediately afterwards discards any
+     * notice queued for the current request before anything can render it. The
+     * transient is what actually carries the message across that redirect.
+     */
+    private function record_save_error(int $post_id, string $model_name, \WP_Error $error): void
+    {
+        $message = $error->get_error_message();
+
+        set_transient(self::SAVE_ERROR_TRANSIENT_PREFIX . $post_id, $message, MINUTE_IN_SECONDS * 5);
+
+        if (function_exists('ntdst_log')) {
+            $context = ['code' => $error->get_error_code()];
+
+            $detail = $error->get_error_data();
+            if (is_string($detail) && $detail !== '') {
+                $context['detail'] = $detail;
+            }
+
+            ntdst_log('metabox')->error(
+                "Save failed for {$model_name} (post {$post_id}): {$message}",
+                $context,
+            );
+        }
+    }
+
+    /**
+     * Render (and delete — read-once) a failed-save error for the post currently
+     * on the edit screen. Hooked to admin_notices; the transient set by
+     * record_save_error() carries the message across the save_post redirect.
+     *
+     * Authorized on `edit_post` for the target post, mirroring the same check
+     * save_metabox_data() already makes on the write side: the message is the
+     * edit screen's own, so whoever may edit that post may read it — and nobody
+     * else. The post id comes from an unauthenticated `$_GET`, so without this
+     * the notice rendered for any logged-in user who loaded `?post=<id>` inside
+     * the 5-minute window.
+     */
+    public function render_save_error_notice(): void
+    {
+        $post_id = 0;
+        if (isset($_GET['post'])) {
+            $post_id = absint(wp_unslash($_GET['post'])); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only, read-once notice keyed to the current edit screen.
+        } elseif (isset($GLOBALS['post']) && $GLOBALS['post'] instanceof \WP_Post) {
+            $post_id = (int) $GLOBALS['post']->ID;
+        }
+
+        if ($post_id <= 0) {
+            return;
+        }
+
+        // Authorize BEFORE the read, not after it. The read below is DESTRUCTIVE
+        // (delete_transient — the notice is read-once), so a gate placed after
+        // get_transient() would still consume the message: an unauthorized viewer
+        // would render nothing while silently destroying the notice, and the
+        // editor who actually needs it would never learn their save failed.
+        // Placed after the `$post_id <= 0` guard so no meta-cap is resolved for
+        // an id that was already rejected.
+        if (!current_user_can('edit_post', $post_id)) {
+            return;
+        }
+
+        $key = self::SAVE_ERROR_TRANSIENT_PREFIX . $post_id;
+        $message = get_transient($key);
+
+        if ($message === false || $message === '') {
+            return;
+        }
+
+        delete_transient($key);
+
+        printf(
+            '<div class="notice notice-error is-dismissible"><p>%s</p></div>',
+            esc_html((string) $message),
+        );
+    }
+
+    /**
      * Check if this model has a Data-layer schema (ORM-backed).
      *
-     * We check our OWN registry rather than calling NTDST_Data_Manager::get(),
-     * which auto-creates an empty model entry as a side effect. Auto-creating
-     * a phantom model would persist across the request and shadow later
-     * registrations.
+     * Delegates to NTDST_Data_Manager::isRegistered(), which checks the
+     * ORM's own registry without auto-creating a phantom empty model as a
+     * side effect (unlike NTDST_Data_Manager::get()). This class's own
+     * $registered_models only tracks metabox field/render config — a model
+     * can be registered there (e.g. a test isolating the metabox generator
+     * from a real CPT service, or any future caller of this class's own
+     * register()) without ever being a Data-ORM model, so checking for a
+     * non-empty 'fields' key here was a false positive: it routed native
+     * post types with no ORM schema into the ORM save branch, where
+     * NTDST_Data_Manager::get() auto-registered a phantom empty-schema
+     * model and silently dropped every submitted field
+     * (see NTDST_Data_Model::warnUnregisteredKeys()).
      */
     private function isDataModel(string $model_name): bool
     {
-        return !empty($this->registered_models[$model_name]['fields'] ?? []);
+        return function_exists('ntdst_data') && ntdst_data()->isRegistered($model_name);
+    }
+
+    /**
+     * Remove <script> and <style> elements ENTIRELY, including their inner
+     * content, before running wp_kses_post().
+     *
+     * wp_kses_post() strips disallowed tags (script/style are not in
+     * wp_kses_allowed_html('post')) but, by KSES design, leaves each
+     * stripped tag's inner TEXT content behind — `<script>alert(1)</script>`
+     * becomes the literal text `alert(1)`, not an empty string. That is
+     * correct/safe once the value is later output through wp_kses_post()
+     * again (no executable tag remains), but it fails a stricter "the
+     * payload text itself must not survive in the stored value" contract,
+     * and is needless noise in a bio field regardless. wp_strip_all_tags()
+     * does exactly this (content-aware script/style removal) but strips ALL
+     * tags, which would defeat the wysiwyg type entirely — so we run a
+     * targeted pre-pass for just script/style, then let wp_kses_post()
+     * handle every other disallowed tag/attribute/URL scheme.
+     */
+    private static function strip_script_and_style_blocks(string $value): string
+    {
+        return (string) preg_replace('#<(script|style)\b[^>]*>.*?</\1\s*>#is', '', $value);
     }
 
     /**
@@ -1548,6 +2057,17 @@ final class NTDST_MetaboxGenerator
             case 'textarea':
             case 'longtext':
                 return sanitize_textarea_field($value);
+
+            case 'wysiwyg':
+                // Deliberately the OPPOSITE of 'textarea': preserves the
+                // WordPress "post" safe HTML subset (<p>, <a href>,
+                // <strong>, <em>, <ul>/<li>, <br>, ...) while still
+                // stripping <script>/<style> tags, on*="" event-handler
+                // attributes, and javascript: URLs. See the OUTPUT CONTRACT
+                // note in this class's docblock: consumers MUST output a
+                // wysiwyg field with wp_kses_post(), never esc_html() or a
+                // raw echo.
+                return wp_kses_post(self::strip_script_and_style_blocks((string) $value));
 
             case 'array':
             case 'json':
@@ -1626,6 +2146,16 @@ final class NTDST_MetaboxGenerator
                                 break;
                             case 'textarea':
                                 $sanitized_row[$sub_field] = sanitize_textarea_field($sub_value);
+                                break;
+                            case 'image':
+                            case 'file':
+                                // An unselected picker stores nothing, not 0:
+                                // `0` reads as a real attachment id to every
+                                // consumer that does absint($row['file']).
+                                $attachment_id = absint($sub_value);
+                                $sanitized_row[$sub_field] = ($attachment_id > 0 && get_post_type($attachment_id) === 'attachment')
+                                    ? $attachment_id
+                                    : '';
                                 break;
                             default:
                                 $sanitized_row[$sub_field] = sanitize_text_field($sub_value);

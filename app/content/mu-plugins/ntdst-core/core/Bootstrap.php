@@ -23,8 +23,59 @@ defined('ABSPATH') || exit;
  * Hook + filter naming conventions:
  *  - Actions: `ntdst/*` (e.g. `ntdst/core_ready`)
  *  - Database options: `ntdst_service_*`
- *  - Filters: `netdust_*` — historical, kept for backwards compatibility.
- *    DO NOT propagate this naming to new filters; use `ntdst_*` instead.
+ *  - Filters: `ntdst_service_{slug}_config` and `ntdst_service_{slug}_enabled` —
+ *    the per-service extension API, keyed by service slug, matching the option
+ *    prefix above.
+ *
+ * RETIRED NAMES (S9/T02, 2026-08). Before this rename the two filters above were
+ * spelled `netdust_{slug}_config` and `netdust_{slug}_enabled`. There is no shim:
+ * a listener on either retired name is now silently inert. Note especially that
+ * the `_enabled` filter is a DENY filter, so the rename FAILS OPEN — a fork
+ * carrying `add_filter` on the retired `_enabled` name to disable a service will
+ * find that service booting again. The full mapping lands in
+ * `docs/architecture/ntdst-core-migration-S9-S10.md` (S9/T13, not yet written);
+ * until it exists, this paragraph is the record.
+ *
+ * A service's config override is declared at
+ * `config['services']['overrides'][$slug]`. It nests under the existing
+ * `services` key rather than replacing it — `services.discovery_paths` and
+ * friends already live there.
+ *
+ * SLUG DERIVATION — read this before writing an override. `{slug}` above is NOT
+ * the class name lowercased. When a service declares no `metadata()['name']`,
+ * `getServiceSlugCached()` strips EVERY occurrence of `Service` — not just a
+ * trailing one — and converts the rest from camelCase to snake_case, keeping a
+ * run of consecutive capitals together as ONE token:
+ *
+ *     AdminUIService     -> admin_ui
+ *     APIRouterService   -> api_router
+ *     CacheHeadersService-> cache_headers
+ *     ProfileService     -> profile
+ *
+ * "Every occurrence" is literal (`str_replace`, not an anchored `/Service$/`),
+ * and it is stated because the difference only shows on names nobody has
+ * written yet: `ServiceRegistryService -> registry`, `MyServiceHandlerService ->
+ * my_handler`, and `ServiceService -> ''` — an EMPTY slug, i.e. the filter
+ * `ntdst_service__enabled` and the option `ntdst_service_`. Declare
+ * `metadata()['name']` on any such class rather than relying on the derivation.
+ *
+ * To pin a slug that the derivation would not produce, declare it —
+ * `metadata()['name']` takes precedence over the derivation entirely (it is
+ * whitespace-split and lowercased, never collapsed), but note that in the real
+ * registration flow `isServiceEnabled()` derives and caches the slug from the
+ * CLASS NAME first, so the metadata name only takes effect if nothing warmed
+ * the cache before it.
+ *
+ * RETIRED DERIVATION (S9/T14, 2026-08). Before this fix a `_` was inserted
+ * before EVERY internal capital, so consecutive capitals each got their own
+ * separator: `AdminUIService -> admin_u_i`, `APIRouterService -> a_p_i_router`.
+ * Every slug that contained no consecutive capitals is UNMOVED. There is no
+ * shim: a listener on a mangled key is now inert, and because `_enabled` is a
+ * DENY filter that FAILS OPEN — a fork disabling a service via
+ * `ntdst_service_admin_u_i_enabled` will find it booting again. This was
+ * harmless internal plumbing until T02 promoted the slug into the user-facing
+ * extension key, at which point the mangling became a broken public API: nobody
+ * guesses `ntdst_service_admin_u_i_config` on the first try.
  *
  * Boot order with equal priority is best-effort (PHP's uasort isn't stable).
  * If two services depend on each other, set their priorities — never rely on
@@ -50,9 +101,9 @@ class NTDST_Bootstrap
     private array $slugCache = [];
 
     /**
-     * PERFORMANCE: Pre-merged module configs (avoids filter overhead)
+     * PERFORMANCE: Pre-merged per-service config overrides (avoids filter overhead)
      */
-    private array $moduleConfigCache = [];
+    private array $serviceConfigCache = [];
 
     /**
      * Constructor
@@ -192,11 +243,14 @@ class NTDST_Bootstrap
             return;
         }
 
-        // PERFORMANCE: Pre-compute slug and cache module config
-        // This replaces the per-service filter with direct config lookup
+        // PERFORMANCE: Pre-compute slug and cache the service's config override
+        // This replaces the per-service filter with direct config lookup.
+        // Overrides nest UNDER the existing `services` key (beside `core`,
+        // `admin`, `conditional`, `auto_discover`, `discovery_paths`) rather
+        // than occupying it, which is already taken.
         $slug = $this->getServiceSlugCached($class, $metadata);
-        if (isset($this->config['modules'][$slug])) {
-            $this->moduleConfigCache[$slug] = $this->config['modules'][$slug];
+        if (isset($this->config['services']['overrides'][$slug])) {
+            $this->serviceConfigCache[$slug] = $this->config['services']['overrides'][$slug];
         }
 
         // Register in DI container
@@ -579,7 +633,7 @@ class NTDST_Bootstrap
 
         // Check filter
         $slug = $this->getServiceSlug($class);
-        $enabled = apply_filters("netdust_{$slug}_enabled", true);
+        $enabled = apply_filters("ntdst_service_{$slug}_enabled", true);
 
         if (!$enabled) {
             return false;
@@ -611,7 +665,20 @@ class NTDST_Bootstrap
         } else {
             $name = basename(str_replace('\\', '/', $class));
             $name = str_replace('Service', '', $name);
-            $slug = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $name));
+
+            // Standard camelCase -> snake_case, in this order. Rule 1 splits a
+            // run of capitals only before its LAST one, so an acronym stays one
+            // token and hands the following word back (APIRouter -> API_Router);
+            // rule 2 then breaks the ordinary lower/digit-to-upper boundaries
+            // (Admin_UI, Cache_Headers, T02_Probe). A trailing acronym is
+            // covered by rule 2 alone, since rule 1 needs a lowercase after the
+            // run (AdminUI -> Admin_UI). `\d` is in rule 2's first class so a
+            // digit closes a token the way a lowercase does (S3Storage ->
+            // S3_Storage).
+            $name = preg_replace('/([A-Z]+)([A-Z][a-z])/', '$1_$2', $name);
+            $name = preg_replace('/([a-z\d])([A-Z])/', '$1_$2', $name);
+
+            $slug = strtolower($name);
         }
 
         $this->slugCache[$class] = $slug;
@@ -630,15 +697,15 @@ class NTDST_Bootstrap
     }
 
     /**
-     * Get module configuration for a service
+     * Get the declared config override for a service
      * PERFORMANCE: Direct lookup instead of filter chain
      *
-     * @param string $slug Module slug
-     * @return array Module configuration
+     * @param string $slug Service slug
+     * @return array Service configuration override
      */
-    public function getModuleConfig(string $slug): array
+    public function getServiceConfig(string $slug): array
     {
-        return $this->moduleConfigCache[$slug] ?? [];
+        return $this->serviceConfigCache[$slug] ?? [];
     }
 
     /**
@@ -652,16 +719,16 @@ class NTDST_Bootstrap
     {
         $slug = $this->getServiceSlugCached($class);
 
-        // Skip if no module config exists for this service
-        if (!isset($this->moduleConfigCache[$slug])) {
+        // Skip if no config override exists for this service
+        if (!isset($this->serviceConfigCache[$slug])) {
             return;
         }
 
-        $moduleConfig = $this->moduleConfigCache[$slug];
+        $serviceConfig = $this->serviceConfigCache[$slug];
 
         // Register the filter with cached config (no closure over $this->config)
-        add_filter("netdust_{$slug}_config", function ($defaults) use ($moduleConfig) {
-            return array_merge($defaults, $moduleConfig);
+        add_filter("ntdst_service_{$slug}_config", function ($defaults) use ($serviceConfig) {
+            return array_merge($defaults, $serviceConfig);
         }, 1);
     }
 
@@ -678,7 +745,7 @@ class NTDST_Bootstrap
             return $this->config;
         }
 
-        // Support dot notation: 'modules.barba.animationDuration'
+        // Support dot notation: 'services.overrides.barba.animationDuration'
         // array_key_exists so a literal null value round-trips through config().
         $keys = explode('.', $key);
         $value = $this->config;
