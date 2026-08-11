@@ -27,6 +27,29 @@ What the port changed on the josworld side — the traps for future edits:
   d3ff09e), employment-type test values (stale since 543a7ec), and
   `team.bio` missing from `docs/content-model.md`.
 
+## ntdst-baseline converged with daan (2026-08-11, 9e123ae here / 18cb043 in daan)
+
+The two vendored copies are now byte-identical and the README states the
+policy: **a fix in one copy lands in the other in the same change.**
+Superset merge — josworld's hardening went to daan; daan's
+`purge_exclude_post_types` (S-2, inert here at default `[]`) and user-enum
+doc block came here. Behavioural tests stay where the threat is real
+(BaselinePurgeExclusionTest in daan's suite; input-handling and
+filter-namespace tests here). daan's dev DB carries a `timezone_string`,
+so ProductionReadinessBundleTest's gmt_offset precondition fails against
+it — pre-existing, not baseline-related.
+
+**Known gap (both sites): the metabox client JS.** The field interactions
+for ntdst-core's MetaboxGenerator (relation autocomplete, gallery,
+repeater) live ONLY in `josworld-core/assets/js/metabox-fields.js`,
+enqueued by josworld's AdminUIService. The core's own delivery path — a
+`theme-services.js` probe in the active theme's `assets/dist/` — matches
+nothing on either site, and daan's admin-ui.js bundle contains none of it:
+daan's relation/gallery/repeater fields currently have NO client-side
+behaviour. The clean fix is promoting metabox-fields.js into
+ntdst-core/assets/js/ with MetaboxGenerator enqueuing it — a framework
+change that belongs in daan (HEAD) first.
+
 stackedWP install running at https://josworld.ddev.site. `composer gate`: all
 9 tiers green (integration 79, unit 18, JS 12 mu-plugins + 5 theme, e2e 3/3).
 Admin `/wp/wp-admin` (admin/admin). Production domain + remote path are still
