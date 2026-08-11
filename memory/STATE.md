@@ -52,6 +52,13 @@ The theme routes ALL its wiring through the NTDST_Theme facade
 AssetHooks stores it and uses on()/filter()). Only NTDST_Bootstrap's boot
 hooks stay raw — framework boot, not theme wiring.
 
+Assets: NTDST_Theme's config-driven loader is GONE (720399f in daan,
+cf9ff59 here — zero consumers, ran empty at 9999 every request). Enqueue
+via the explicit `->style()`/`->script()` fluent helpers (thin
+wp_enqueue_* pass-throughs deferred to wp_enqueue_scripts; trailing
+priority arg — child CSS uses 20 to land after YOOtheme's own). There is
+no `assets` config key anymore.
+
 **Known gap (both sites): the metabox client JS.** The field interactions
 for ntdst-core's MetaboxGenerator (relation autocomplete, gallery,
 repeater) live ONLY in `josworld-core/assets/js/metabox-fields.js`,
