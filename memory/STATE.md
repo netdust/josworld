@@ -67,16 +67,16 @@ A Theme::bind() forwarder + NTDST_Theme_Hooks interface were tried and
 REVERTED same-day (7bf6ce5 daan / 98fb3e6 here): sugar over a one-line
 call, one implementer, no polymorphic call site — don't reintroduce.
 
-**Known gap (both sites): the metabox client JS.** The field interactions
-for ntdst-core's MetaboxGenerator (relation autocomplete, gallery,
-repeater) live ONLY in `josworld-core/assets/js/metabox-fields.js`,
-enqueued by josworld's AdminUIService. The core's own delivery path — a
-`theme-services.js` probe in the active theme's `assets/dist/` — matches
-nothing on either site, and daan's admin-ui.js bundle contains none of it:
-daan's relation/gallery/repeater fields currently have NO client-side
-behaviour. The clean fix is promoting metabox-fields.js into
-ntdst-core/assets/js/ with MetaboxGenerator enqueuing it — a framework
-change that belongs in daan (HEAD) first.
+**Metabox client JS: framework-owned since d226048 (daan) / 1c25594
+(here).** metabox-fields.js lives in `ntdst-core/assets/js/`;
+MetaboxGenerator enqueues it (`ntdst-metabox-fields`, deps
+jquery/jquery-ui-sortable/ntdst-api) on registered-model edit screens —
+the theme-services.js probe and josworld-core's private copy are gone.
+The ntdst-api transport is enqueued WITH it: nothing ever enqueued it
+before, so the relation picker was silently disabled on every site.
+josworld's AdminUIService keeps only the conditional-field layer,
+depending on the framework handle. Contract test:
+AdminUIServiceEnqueueTest (against the core's enqueue).
 
 stackedWP install running at https://josworld.ddev.site. `composer gate`: all
 9 tiers green (integration 79, unit 18, JS 12 mu-plugins + 5 theme, e2e 3/3).
