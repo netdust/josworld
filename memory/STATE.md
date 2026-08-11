@@ -124,8 +124,9 @@ silently drift the way a hand-copied table would.
 `tests/Integration/ModelConventionsTest.php`:
 1. Every model registers via `ntdst_data()->register()` — never a direct
    `register_post_type()`.
-2. `dienst` registers via `ntdst_get(\NTDST_Theme::class)->taxonomy()` —
-   never a direct `register_taxonomy()`.
+2. `dienst` registers via `register()`'s `taxonomies` config key (the
+   fa51984 core sync retired `NTDST_Theme::taxonomy()`) — never a direct
+   `register_taxonomy()`.
 Both are proven by a token-based static scan of the whole plugin directory
 (immune to commented-out calls / string-literal mentions), not a hand audit.
 
