@@ -39,6 +39,19 @@ filter-namespace tests here). daan's dev DB carries a `timezone_string`,
 so ProductionReadinessBundleTest's gmt_offset precondition fails against
 it — pre-existing, not baseline-related.
 
+## Docblock standard + theme facade (2026-08-11, db4293e + efb5af8)
+
+Docblocks are CONSTRAINTS-ONLY now (~4,400 comment lines → ~1,500):
+invariants, tripwires, non-obvious proof techniques, and the pragmas/
+annotations the gate needs. No review-finding IDs, no spec-clause
+citations, no restated framework internals, no histories — git holds
+those. Write new comments to this standard.
+
+The theme routes ALL its wiring through the NTDST_Theme facade
+(functions.php chains the CSS enqueue + YOOtheme bridge on the instance;
+AssetHooks stores it and uses on()/filter()). Only NTDST_Bootstrap's boot
+hooks stay raw — framework boot, not theme wiring.
+
 **Known gap (both sites): the metabox client JS.** The field interactions
 for ntdst-core's MetaboxGenerator (relation autocomplete, gallery,
 repeater) live ONLY in `josworld-core/assets/js/metabox-fields.js`,
