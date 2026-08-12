@@ -22,7 +22,7 @@
   "repositories": [
     {
       "type": "vcs",
-      "url": "/home/ntdst/Sites/ntdst-core"
+      "url": "git@github.com:netdust/ntdst-core.git"
     }
   ],
   "require": {

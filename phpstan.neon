@@ -2,10 +2,10 @@ includes:
     - vendor/szepeviktor/phpstan-wordpress/extension.neon
     # Pre-existing findings in the vendored framework + theme, frozen at gate
     # introduction. New code must be clean; do not add to this file.
-    # Coupling: the baseline references app/content/mu-plugins/ntdst-core + the theme —
-    # both live in THIS repo (netdust/wp-starter) and are rendered into a
-    # project by scaffold_wp_starter; regenerate with --generate-baseline
-    # after changing the vendored framework or theme.
+    # Coupling: the baseline references the theme only. ntdst-core became a
+    # composer package (2026-08-12) and is excluded wholesale below — its
+    # former baseline entries were removed; regenerate with --generate-baseline
+    # after changing the theme.
     - phpstan-baseline.neon
 
 parameters:
@@ -65,10 +65,9 @@ parameters:
         # statement) would otherwise fail its own analysis as a real file
         # under the `tests` path.
         - tests/phpstan-stubs/* (?)
-        # netdust/ntdst-core (composer package, T06) ships its OWN PHPUnit
-        # suite inside the cloned package — a `composer update` git-source
-        # install has no dist path yet, so tests/ lands on disk under
-        # content/mu-plugins/ntdst-core/. That suite is gated in the
-        # package's own repo (its own phpstan/phpunit), never loaded by WP,
-        # and not this project's to analyse — same posture as vendor/.
-        - app/content/mu-plugins/ntdst-core/tests/* (?)
+        # netdust/ntdst-core is a composer package with its own repo, gate,
+        # and reviewers (github.com/netdust/ntdst-core) — only OUR code is
+        # analysed here (ruling 2026-08-12). Same posture as vendor/ and the
+        # YOOtheme parent above. Its 209 pre-extraction baseline entries were
+        # removed together with this exclude.
+        - app/content/mu-plugins/ntdst-core/* (?)

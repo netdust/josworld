@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e04310e77a67793e6ae6d91c9b54ea61",
+    "content-hash": "9db775e80a44b64d2309d938f96a65d4",
     "packages": [
         {
             "name": "composer/installers",
@@ -219,8 +219,14 @@
             "version": "v2.2.1",
             "source": {
                 "type": "git",
-                "url": "/home/ntdst/Sites/ntdst-core",
+                "url": "git@github.com:netdust/ntdst-core.git",
                 "reference": "ec7435de8d7df49cfeea3f408fff7bb03fb9f69e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/netdust/ntdst-core/zipball/ec7435de8d7df49cfeea3f408fff7bb03fb9f69e",
+                "reference": "ec7435de8d7df49cfeea3f408fff7bb03fb9f69e",
+                "shasum": ""
             },
             "require": {
                 "php": ">=8.1"
