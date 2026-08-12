@@ -216,11 +216,11 @@
         },
         {
             "name": "netdust/ntdst-core",
-            "version": "v2.2.0",
+            "version": "v2.2.1",
             "source": {
                 "type": "git",
                 "url": "/home/ntdst/Sites/ntdst-core",
-                "reference": "be8f508ece4383dcf1c8f1686df2a1489e27d36e"
+                "reference": "ec7435de8d7df49cfeea3f408fff7bb03fb9f69e"
             },
             "require": {
                 "php": ">=8.1"
@@ -237,9 +237,13 @@
                 "lint": [
                     "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l"
                 ],
+                "guard": [
+                    "bash bin/guard.sh"
+                ],
                 "gate": [
                     "@lint",
-                    "@test"
+                    "@test",
+                    "@guard"
                 ]
             },
             "license": [
@@ -252,7 +256,7 @@
                 }
             ],
             "description": "NTDST Core Framework — DI container, Bootstrap, Router, Data layer, admin form layer for WordPress. Minimal layer: solid, secure code; features enter only with a named consumer.",
-            "time": "2026-08-12T12:30:50+00:00"
+            "time": "2026-08-12T13:22:00+00:00"
         },
         {
             "name": "phpoption/phpoption",

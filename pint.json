@@ -1,0 +1,7 @@
+{
+  "preset": "per",
+  "exclude": [
+    "app/wp",
+    "app/content/mu-plugins/ntdst-core"
+  ]
+}

@@ -82,6 +82,7 @@ Thumbs.db
 !bin/**
 !phpstan.neon
 !phpcs.xml
+!pint.json
 !phpunit.unit.xml
 !phpunit.integration.xml
 !playwright.config.ts
