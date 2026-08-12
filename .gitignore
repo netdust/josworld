@@ -173,3 +173,9 @@ app/content/themes/josworld/dist/
 # Re-assert (must stay last so it wins over whitelists)
 **/*:Zone.Identifier
 memory/.stop-hook-state.json
+.yoo-tools/
+
+# netdust/ntdst-core is now a composer package (app/composer.json), installed
+# via installer-paths into content/mu-plugins/ntdst-core/ — externally
+# managed like vendor/, never hand-edited or committed here.
+app/content/mu-plugins/ntdst-core/

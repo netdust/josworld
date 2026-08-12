@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "de6878bee9fb1c24f71b47fe67489e45",
+    "content-hash": "e04310e77a67793e6ae6d91c9b54ea61",
     "packages": [
         {
             "name": "composer/installers",
@@ -213,6 +213,46 @@
                 }
             ],
             "time": "2024-07-20T21:45:45+00:00"
+        },
+        {
+            "name": "netdust/ntdst-core",
+            "version": "v2.2.0",
+            "source": {
+                "type": "git",
+                "url": "/home/ntdst/Sites/ntdst-core",
+                "reference": "be8f508ece4383dcf1c8f1686df2a1489e27d36e"
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "brain/monkey": "^2.6",
+                "phpunit/phpunit": "^10.5"
+            },
+            "type": "wordpress-muplugin",
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "lint": [
+                    "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l"
+                ],
+                "gate": [
+                    "@lint",
+                    "@test"
+                ]
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Stefan Vandermeulen",
+                    "email": "stefan@netdust.be"
+                }
+            ],
+            "description": "NTDST Core Framework — DI container, Bootstrap, Router, Data layer, admin form layer for WordPress. Minimal layer: solid, secure code; features enter only with a named consumer.",
+            "time": "2026-08-12T12:30:50+00:00"
         },
         {
             "name": "phpoption/phpoption",
