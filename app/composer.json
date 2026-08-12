@@ -23,12 +23,17 @@
     {
       "type": "vcs",
       "url": "git@github.com:netdust/ntdst-core.git"
+    },
+    {
+      "type": "vcs",
+      "url": "git@github.com:netdust/ntdst-baseline.git"
     }
   ],
   "require": {
     "php": ">=8.1",
     "composer/installers": "^2.2",
     "netdust/ntdst-core": "^2.2",
+    "netdust/ntdst-baseline": "^1.0",
     "vlucas/phpdotenv": "^5.5"
   },
   "config": {

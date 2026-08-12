@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9db775e80a44b64d2309d938f96a65d4",
+    "content-hash": "da15cd3be72d5df195a6968f25aae5ff",
     "packages": [
         {
             "name": "composer/installers",
@@ -213,6 +213,48 @@
                 }
             ],
             "time": "2024-07-20T21:45:45+00:00"
+        },
+        {
+            "name": "netdust/ntdst-baseline",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:netdust/ntdst-baseline.git",
+                "reference": "67207697e5ed9e6d27bfa19cc41b554f853d1090"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/67207697e5ed9e6d27bfa19cc41b554f853d1090",
+                "reference": "67207697e5ed9e6d27bfa19cc41b554f853d1090",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "type": "wordpress-muplugin",
+            "scripts": {
+                "lint": [
+                    "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l"
+                ],
+                "guard": [
+                    "bash bin/guard.sh"
+                ],
+                "gate": [
+                    "@lint",
+                    "@guard"
+                ]
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Stefan Vandermeulen",
+                    "email": "stefan@netdust.be"
+                }
+            ],
+            "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
+            "time": "2026-08-12T14:15:42+00:00"
         },
         {
             "name": "netdust/ntdst-core",

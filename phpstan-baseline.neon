@@ -103,12 +103,6 @@ parameters:
 			path: app/content/mu-plugins/josworld-core/services/multilingual/MultilingualService.php
 
 		-
-			message: '#^Function ntdst_get not found\.$#'
-			identifier: function.notFound
-			count: 1
-			path: app/content/mu-plugins/ntdst-baseline/ntdst-baseline.php
-
-		-
 			message: '#^Function ntdst_set not found\.$#'
 			identifier: function.notFound
 			count: 1
@@ -191,6 +185,24 @@ parameters:
 			identifier: class.notFound
 			count: 1
 			path: tests/Integration/AttachmentSearchTest.php
+
+		-
+			message: '#^Class ntdst\\baseline\\services\\SchemaService not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: tests/Integration/BaselineBootTest.php
+
+		-
+			message: '#^Class ntdst\\baseline\\services\\SeoService not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: tests/Integration/BaselineBootTest.php
+
+		-
+			message: '#^Function ntdst\\baseline\\boot_modules not found\.$#'
+			identifier: function.notFound
+			count: 2
+			path: tests/Integration/BaselineBootTest.php
 
 		-
 			message: '#^Function ntdst_container not found\.$#'
@@ -337,10 +349,34 @@ parameters:
 			path: tests/Integration/YOOthemeSourcesBootWiringTest.php
 
 		-
+			message: '#^Class ntdst\\baseline\\services\\SchemaService not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: tests/Integration/ZZBaselineHookLeakGuardTest.php
+
+		-
+			message: '#^Class ntdst\\baseline\\services\\SeoService not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: tests/Integration/ZZBaselineHookLeakGuardTest.php
+
+		-
 			message: '#^Function ntdst_get not found\.$#'
 			identifier: function.notFound
 			count: 1
 			path: tests/Integration/ZZBaselineHookLeakGuardTest.php
+
+		-
+			message: '#^Call to static method matches\(\) on an unknown class ntdst\\baseline\\support\\CacheHeaderPolicy\.$#'
+			identifier: class.notFound
+			count: 1
+			path: tests/Unit/BaselineInputHandlingTest.php
+
+		-
+			message: '#^Call to static method resolve\(\) on an unknown class ntdst\\baseline\\support\\ClientIp\.$#'
+			identifier: class.notFound
+			count: 2
+			path: tests/Unit/BaselineInputHandlingTest.php
 
 		-
 			message: '#^Call to method forget\(\) on an unknown class NTDST_Container\.$#'

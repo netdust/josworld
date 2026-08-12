@@ -180,3 +180,8 @@ memory/.stop-hook-state.json
 # via installer-paths into content/mu-plugins/ntdst-core/ — externally
 # managed like vendor/, never hand-edited or committed here.
 app/content/mu-plugins/ntdst-core/
+
+# netdust/ntdst-baseline is now a composer package (app/composer.json),
+# installed via installer-paths into content/mu-plugins/ntdst-baseline/ —
+# externally managed like vendor/, never hand-edited or committed here.
+app/content/mu-plugins/ntdst-baseline/

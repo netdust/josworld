@@ -71,3 +71,8 @@ parameters:
         # YOOtheme parent above. Its 209 pre-extraction baseline entries were
         # removed together with this exclude.
         - app/content/mu-plugins/ntdst-core/* (?)
+        # netdust/ntdst-baseline is a composer package with its own repo,
+        # gate, and reviewers (github.com/netdust/ntdst-baseline) — only OUR
+        # code is analysed here (ruling 2026-08-12). Same posture as
+        # ntdst-core above.
+        - app/content/mu-plugins/ntdst-baseline/* (?)
