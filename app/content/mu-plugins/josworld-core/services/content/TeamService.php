@@ -45,18 +45,18 @@ final class TeamService
      * Close the per-member single view, keeping the archive open.
      *
      * 301 rather than 404: a leaked member URL should land on the archive,
-     * and crawlers should stop asking. NTDST_Router::redirect() goes
+     * and crawlers should stop asking. NTDST_Pages::redirect() goes
      * through wp_safe_redirect(), so the target is host-restricted.
      */
     private function closeSingleView(): void
     {
-        ntdst_router()->single('team', static function (): void {
+        ntdst_pages()->single('team', static function (): void {
             $archive = get_post_type_archive_link('team');
 
             // Fall back to the home page rather than returning: returning
             // would let the single render, which is the one outcome this
             // method exists to prevent.
-            ntdst_router()->redirect(
+            ntdst_pages()->redirect(
                 is_string($archive) && $archive !== '' ? $archive : home_url('/'),
                 301
             );
