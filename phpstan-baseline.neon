@@ -31,12 +31,6 @@ parameters:
 			path: app/content/mu-plugins/josworld-core/services/content/TeamService.php
 
 		-
-			message: '#^Function ntdst_router not found\.$#'
-			identifier: function.notFound
-			count: 2
-			path: app/content/mu-plugins/josworld-core/services/content/TeamService.php
-
-		-
 			message: '#^Parameter \$dataManager of method josworld\\services\\content\\TeamService\:\:__construct\(\) has invalid type NTDST_Data_Manager\.$#'
 			identifier: class.notFound
 			count: 1

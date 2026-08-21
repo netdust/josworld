@@ -55,6 +55,10 @@
         on the next sync. phpstan still analyses it; phpcs does not lint it.
     -->
     <exclude-pattern>*/app/content/mu-plugins/ntdst-core/*</exclude-pattern>
+    <!-- Also a composer package: analysis sees OUR code, not the framework's.
+         Without this, phpcs lints ntdst-baseline's own tests and the gate is red
+         for someone else's coding standard. -->
+    <exclude-pattern>*/app/content/mu-plugins/ntdst-baseline/*</exclude-pattern>
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>*/app/wp/*</exclude-pattern>
     <exclude-pattern>*/node_modules/*</exclude-pattern>
