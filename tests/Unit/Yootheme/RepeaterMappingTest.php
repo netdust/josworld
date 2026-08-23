@@ -135,7 +135,7 @@ final class RepeaterMappingTest extends TestCase
                 'sub_fields' => [
                     'title' => ['type' => 'text', 'label' => 'Titel'],
                     'body' => ['type' => 'textarea', 'label' => 'Tekst'],
-                    'featured' => ['type' => 'boolean', 'label' => 'Uitgelicht'],
+                    'featured' => ['type' => 'bool', 'label' => 'Uitgelicht'],
                 ],
             ],
         ];

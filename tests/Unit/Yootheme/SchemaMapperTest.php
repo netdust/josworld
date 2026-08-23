@@ -58,7 +58,7 @@ final class SchemaMapperTest extends TestCase
     public function test_boolean_maps_to_the_graphql_boolean_type(): void
     {
         $schema = [
-            'show_testimonial' => ['type' => 'boolean', 'label' => 'Toon testimonial'],
+            'show_testimonial' => ['type' => 'bool', 'label' => 'Toon testimonial'],
         ];
 
         $mapped = SchemaMapper::toObjectType($schema, self::PREFIX);
@@ -132,7 +132,7 @@ final class SchemaMapperTest extends TestCase
     {
         $schema = [
             'role' => ['type' => 'text', 'label' => 'Functie'],
-            'show_testimonial' => ['type' => 'boolean', 'label' => 'Toon testimonial'],
+            'show_testimonial' => ['type' => 'bool', 'label' => 'Toon testimonial'],
         ];
 
         $mapped = SchemaMapper::toObjectType($schema, self::PREFIX);
@@ -148,7 +148,7 @@ final class SchemaMapperTest extends TestCase
     {
         $schema = [
             'subtitle' => 'text',
-            'is_featured' => 'boolean',
+            'is_featured' => 'bool',
             'linked' => 'relation',
             'mystery' => 'wormhole',
         ];

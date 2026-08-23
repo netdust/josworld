@@ -57,7 +57,7 @@ final class SourcesServiceTest extends TestCase
             'fields' => [
                 'client' => ['type' => 'text', 'label' => 'Klant'],
                 'intro' => ['type' => 'textarea', 'label' => 'Intro'],
-                'featured' => ['type' => 'boolean', 'label' => 'Uitgelicht'],
+                'featured' => ['type' => 'bool', 'label' => 'Uitgelicht'],
                 'related_tool' => ['type' => 'relation', 'label' => 'Tool'],
                 'impact' => [
                     'type' => 'repeater',

@@ -78,7 +78,7 @@ final class FieldResolverTest extends TestCase
             'challenge_body' => ['type' => 'textarea', 'label' => 'Uitdaging — tekst'],
             'result_title' => ['type' => 'text', 'label' => 'Resultaat — titel'],
             'result_body' => ['type' => 'textarea', 'label' => 'Resultaat — tekst'],
-            'has_takeaways' => ['type' => 'boolean', 'label' => 'Heeft take-aways?'],
+            'has_takeaways' => ['type' => 'bool', 'label' => 'Heeft take-aways?'],
         ];
     }
 

@@ -57,7 +57,7 @@ final class SchemaMapper
         'textarea' => 'String',
         'email' => 'String',
         'select' => 'String',
-        'boolean' => 'Boolean',
+        'bool' => 'Boolean',
     ];
 
     /**

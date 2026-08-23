@@ -110,7 +110,7 @@ final class CaseService
             // is a UI toggle, never read by the save path — it decides only
             // whether the editor SAW the block, not whether values persist.
             'has_takeaways' => [
-                'type' => 'boolean',
+                'type' => 'bool',
                 'label' => __('Heeft take-aways?', JOSWORLD_CORE_TEXTDOMAIN),
             ],
             'takeaways' => [
@@ -147,7 +147,7 @@ final class CaseService
             // INTERVIEW — optional; same `condition`/round-trip contract as
             // takeaways above.
             'has_interview' => [
-                'type' => 'boolean',
+                'type' => 'bool',
                 'label' => __('Heeft interview?', JOSWORLD_CORE_TEXTDOMAIN),
             ],
             'interview' => [

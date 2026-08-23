@@ -145,13 +145,13 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
         $hasTakeawaysType = is_array($schema['has_takeaways'])
             ? $schema['has_takeaways']['type']
             : $schema['has_takeaways'];
-        $this->assertSame('boolean', $hasTakeawaysType);
+        $this->assertSame('bool', $hasTakeawaysType);
 
         $this->assertArrayHasKey('has_interview', $schema);
         $hasInterviewType = is_array($schema['has_interview'])
             ? $schema['has_interview']['type']
             : $schema['has_interview'];
-        $this->assertSame('boolean', $hasInterviewType);
+        $this->assertSame('bool', $hasInterviewType);
     }
 
     /**
