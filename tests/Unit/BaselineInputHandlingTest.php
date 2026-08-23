@@ -9,8 +9,18 @@ use ntdst\baseline\support\ClientIp;
 
 // ntdst-baseline is loaded by WP at boot, not Composer PSR-4, so this
 // no-WordPress tier requires the pure support classes directly.
+//
+// ntdst-baseline v2.0.0 dropped its own support/Cidr.php: ClientIp is now a
+// thin adapter that delegates to ntdst-core's canonical NTDST_ClientIp,
+// which in turn needs core's NTDST_Cidr for its CIDR trust matching. Both
+// must load from ntdst-core before baseline's ClientIp.php, or the
+// class_exists('NTDST_ClientIp') check inside it fails closed and the
+// magic-quoted-XFF assertion below resolves to REMOTE_ADDR instead of the
+// forwarded address.
 require_once dirname(__DIR__, 2)
-    . '/app/content/mu-plugins/ntdst-baseline/support/Cidr.php';
+    . '/app/content/mu-plugins/ntdst-core/support/Cidr.php';
+require_once dirname(__DIR__, 2)
+    . '/app/content/mu-plugins/ntdst-core/support/ClientIp.php';
 require_once dirname(__DIR__, 2)
     . '/app/content/mu-plugins/ntdst-baseline/support/ClientIp.php';
 require_once dirname(__DIR__, 2)
