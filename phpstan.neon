@@ -42,6 +42,16 @@ parameters:
         # makes the symbol analysable without changing the guarded, lazily-
         # loaded runtime shape.
         - tests/phpstan-stubs/ntdst_get_post_meta_from_cache.stub.php
+        # The excluded ntdst-core package is invisible to analysis, so the
+        # NTDST_Pages class and the function_exists()-guarded ntdst_pages()
+        # helper both read as not-found at their consumer call sites
+        # (TeamService::closeSingleView()). Scanning the REAL file supplies
+        # both — a scanned file's guarded declarations ARE reflected
+        # (verified empirically), unlike the lazily-required accessor above,
+        # whose file is reachable through no scan or analysis path without
+        # its stub. ntdst_data() needs nothing only because Data.php's
+        # symbols predate the package exclude and ride the frozen baseline.
+        - app/content/mu-plugins/ntdst-core/core/Pages.php
     paths:
         - app/content/mu-plugins
         - app/content/themes

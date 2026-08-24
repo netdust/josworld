@@ -269,15 +269,16 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
             }
 
             // TeamService::closeSingleView() registers its redirect route at
-            // construction via ntdst_router()->single(). Registration is all
-            // that happens at boot — the callback (and redirect()) only fire
-            // on a matched front-end request, which this harness never makes.
-            class NTDST_Router {
+            // construction via ntdst_pages()->single(). Registration is all
+            // that happens at boot — the callback (and the redirect inside
+            // it) only fires on a matched front-end request, which this
+            // harness never makes, so single() is the whole surface needed.
+            class NTDST_Pages {
                 public function single(string \$postType, callable \$callback): self { return \$this; }
             }
-            function ntdst_router(): NTDST_Router {
-                static \$router = null;
-                return \$router ??= new NTDST_Router();
+            function ntdst_pages(): NTDST_Pages {
+                static \$pages = null;
+                return \$pages ??= new NTDST_Pages();
             }
 
             final class NTDST_Data_Manager {

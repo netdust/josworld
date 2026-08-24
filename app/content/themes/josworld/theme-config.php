@@ -87,13 +87,8 @@ return [
     // ========================================
     'services' => [
         'core' => [],
-        'handlers' => [],
         'admin' => [],
         'conditional' => [],
-        'auto_discover' => false,
-        'discovery_paths' => [
-            __DIR__ . '/services',
-        ],
     ],
 
     // ========================================
