@@ -52,6 +52,13 @@ parameters:
         # its stub. ntdst_data() needs nothing only because Data.php's
         # symbols predate the package exclude and ride the frozen baseline.
         - app/content/mu-plugins/ntdst-core/core/Pages.php
+        # Same posture for the two classes the 5.0 migration made josworld
+        # call at NEW sites (TemplateHelperTest, the reworked ContainerTest):
+        # new code must be clean without baseline entries, so the classes
+        # must be discoverable. Their pre-existing baseline rows were pruned
+        # when discovery made them unmatched.
+        - app/content/mu-plugins/ntdst-core/core/TemplateLoader.php
+        - app/content/mu-plugins/ntdst-core/core/Container.php
     paths:
         - app/content/mu-plugins
         - app/content/themes

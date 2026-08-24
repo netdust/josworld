@@ -9,7 +9,7 @@ use ntdst\baseline\services\SeoService;
 use WP_UnitTestCase;
 
 /**
- * Cross-file state guard for BaselineBootTest: its tearDown must forget()
+ * Cross-file state guard for BaselineBootTest: its tearDown must evict (rebind)
  * the evicted singletons, never re-warm them — a re-warmed instance's
  * listeners are wiped by parent::tearDown()'s _restore_hooks(), leaving
  * the container holding services wired to nothing for every later file.

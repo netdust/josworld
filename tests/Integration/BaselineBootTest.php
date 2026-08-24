@@ -14,9 +14,9 @@ use WP_UnitTestCase;
  * ntdst_get() cannot be honestly undefined in-process.
  *
  * Shared-hook-queue hazard: the real boot already constructed every module
- * once, and those instances' `booted` marker registrations survive forget()
+ * once, and those instances' `booted` marker registrations survive eviction
  * — so presence in the marker list cannot answer "constructed again just
- * now". The disable test uses forget() + a marker COUNT DELTA instead, with
+ * now". The disable test uses a rebind eviction + a marker COUNT DELTA instead, with
  * an evicted-but-enabled sibling as positive control, and tearDown restores
  * the ORIGINAL evicted instances (re-warming or leaving the slot empty both
  * strand listeners — see tearDown).
@@ -35,7 +35,7 @@ final class BaselineBootTest extends WP_UnitTestCase
     ];
 
     /**
-     * Original instances evicted via forget(), restored verbatim in
+     * Original instances evicted via a one-arg set() rebind, restored verbatim in
      * tearDown — see there for why any other cleanup corrupts state.
      *
      * @var array<class-string, object>
@@ -47,7 +47,7 @@ final class BaselineBootTest extends WP_UnitTestCase
         // parent::tearDown()'s _restore_hooks() already removes any filter
         // this file added. Only the ORIGINAL instance stays wired after that
         // restore: re-warming here constructs a fresh instance whose
-        // listeners the restore then wipes, and forgetting defers the same
+        // listeners the restore then wipes, and evicting defers the same
         // broken end state to the next resolution — so put the exact
         // original references back.
         foreach ($this->originalServiceInstances as $id => $instance) {
@@ -86,8 +86,10 @@ final class BaselineBootTest extends WP_UnitTestCase
         $this->originalServiceInstances[$seoClass] = \ntdst_get($seoClass);
         $this->originalServiceInstances[$schemaClass] = \ntdst_get($schemaClass);
 
-        \ntdst_container()->forget($seoClass);
-        \ntdst_container()->forget($schemaClass);
+        // 5.0 removed forget(); a one-arg rebind clears the resolved cache
+        // for the ID, so the next resolution constructs fresh.
+        \ntdst_container()->set($seoClass);
+        \ntdst_container()->set($schemaClass);
 
         // A constructor REGISTERS one more marker closure; the count delta
         // per key is therefore constructions since this read.

@@ -35,7 +35,10 @@ final class DataLayerRoundTripTest extends WP_UnitTestCase
         ]);
 
         $listener_calls = 0;
-        add_action('ntdst_model_create_after', function () use (&$listener_calls): void {
+        // 5.0 renamed the lifecycle hooks to the ntdst/* namespace with no
+        // shim — a listener on the retired ntdst_model_create_after spelling
+        // is silently inert (README, "Model lifecycle hooks (FR-11)").
+        add_action('ntdst/model/created', function () use (&$listener_calls): void {
             $listener_calls++;
         });
 

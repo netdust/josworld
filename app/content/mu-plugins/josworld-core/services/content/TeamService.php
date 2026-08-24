@@ -45,8 +45,10 @@ final class TeamService
      * Close the per-member single view, keeping the archive open.
      *
      * 301 rather than 404: a leaked member URL should land on the archive,
-     * and crawlers should stop asking. NTDST_Pages::redirect() goes
-     * through wp_safe_redirect(), so the target is host-restricted.
+     * and crawlers should stop asking. wp_safe_redirect() directly —
+     * ntdst-core 5.0 removed Pages::redirect(), and Response::redirect()
+     * carries no status argument, so the 301 needs WordPress's own call.
+     * The target stays host-restricted.
      */
     private function closeSingleView(): void
     {
@@ -56,10 +58,11 @@ final class TeamService
             // Fall back to the home page rather than returning: returning
             // would let the single render, which is the one outcome this
             // method exists to prevent.
-            ntdst_pages()->redirect(
+            wp_safe_redirect(
                 is_string($archive) && $archive !== '' ? $archive : home_url('/'),
                 301
             );
+            exit;
         });
     }
 

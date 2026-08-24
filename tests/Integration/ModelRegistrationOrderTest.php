@@ -16,7 +16,7 @@ use WP_UnitTestCase;
  * after_setup_theme — observes all four `ntdst/model/registered` events
  * from josworld-core's after_setup_theme:5 closure. Proof re-fires the
  * REAL registered closure after evicting the cached service singletons
- * (forget()), so register() genuinely runs again; the no-eviction sibling
+ * (a one-arg set() rebind), so register() genuinely runs again; the no-eviction sibling
  * test proves the eviction is load-bearing, not incidental.
  */
 final class ModelRegistrationOrderTest extends WP_UnitTestCase
@@ -31,7 +31,7 @@ final class ModelRegistrationOrderTest extends WP_UnitTestCase
     ];
 
     /**
-     * Original instances evicted via forget(), restored verbatim in
+     * Original instances evicted via a one-arg set() rebind, restored verbatim in
      * tearDown — re-warming would wire listeners that _restore_hooks()
      * then wipes (see BaselineBootTest's tearDown).
      *
@@ -76,7 +76,9 @@ final class ModelRegistrationOrderTest extends WP_UnitTestCase
         // re-fires (proven by the no-eviction test below).
         foreach (self::CONTENT_SERVICE_CLASSES as $class) {
             $this->originalServiceInstances[$class] = ntdst_get($class);
-            \ntdst_container()->forget($class);
+            // 5.0 removed forget(); a one-arg rebind clears the resolved
+            // cache for the ID, so the next ntdst_get() constructs fresh.
+            \ntdst_container()->set($class);
         }
 
         $seen = [];

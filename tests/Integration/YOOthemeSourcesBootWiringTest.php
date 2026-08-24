@@ -187,7 +187,9 @@ final class YOOthemeSourcesBootWiringTest extends WP_UnitTestCase
         // in place before any re-registration fires — production's ordering.
         foreach (self::CONTENT_SERVICE_CLASSES as $class) {
             $this->originalServiceInstances[$class] = \ntdst_get($class);
-            \ntdst_container()->forget($class);
+            // 5.0 removed forget(); a one-arg rebind clears the resolved
+            // cache for the ID, so the next ntdst_get() constructs fresh.
+            \ntdst_container()->set($class);
         }
 
         // A replay artifact, not a defect: the bootstrap already passed

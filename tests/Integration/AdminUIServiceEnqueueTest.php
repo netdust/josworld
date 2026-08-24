@@ -10,7 +10,7 @@ use WP_UnitTestCase;
 /**
  * Proves the metabox field JS delivery after its promotion into ntdst-core:
  * the framework's MetaboxGenerator enqueues `ntdst-metabox-fields` (with the
- * ntdst-api transport the relation picker needs) ONLY on registered-model
+ * wp-api-fetch transport the relation picker needs) ONLY on registered-model
  * edit screens, and josworld's AdminUIService layers only its
  * conditional-field script on that handle. The negative cases are the
  * substance: an everywhere-enqueue passes a positive-only assertion.
@@ -66,10 +66,8 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
         $deps = $isEnqueued ? $wp_scripts->registered['ntdst-metabox-fields']->deps : [];
         $src = $isEnqueued ? (string) $wp_scripts->registered['ntdst-metabox-fields']->src : '';
 
-        foreach (['ntdst-metabox-fields', 'ntdst-api'] as $handle) {
-            wp_dequeue_script($handle);
-            wp_deregister_script($handle);
-        }
+        wp_dequeue_script('ntdst-metabox-fields');
+        wp_deregister_script('ntdst-metabox-fields');
 
         return [$isEnqueued, $deps, $src];
     }
@@ -82,10 +80,11 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
         $this->assertContains('jquery', $deps);
         $this->assertContains('jquery-ui-sortable', $deps);
         $this->assertContains(
-            'ntdst-api',
+            'wp-api-fetch',
             $deps,
-            'the relation autocomplete transports through window.ntdstAPI — without the '
-            . 'ntdst-api dependency the picker silently disables itself',
+            'the relation autocomplete transports through wp.apiFetch since 5.0 '
+            . '(the ntdst-api handle died with the command dispatcher) — without '
+            . 'the wp-api-fetch dependency the picker silently disables itself',
         );
     }
 

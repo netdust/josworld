@@ -447,7 +447,11 @@ final class ModelConventionsTest extends WP_UnitTestCase
             . 'or the guard below would pass for the wrong reason',
         );
 
-        $nonceAction = 'ntdst_save_case';
+        // Post-scoped since 5.0 (MetaboxGenerator::nonce_action()): a nonce
+        // minted for one post no longer authorizes a save on another. This
+        // must be the VALID action, or the assertion below would pass on
+        // nonce failure instead of the capability guard it probes.
+        $nonceAction = 'ntdst_save_case_' . $postId;
         $_POST = [
             'ntdst_case_nonce' => wp_create_nonce($nonceAction),
             'ntdst_fields' => ['client' => 'Subscriber-supplied client name'],
@@ -477,7 +481,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
 
         $postId = $this->create_draft_case_post();
 
-        $nonceAction = 'ntdst_save_case';
+        // Post-scoped since 5.0 (MetaboxGenerator::nonce_action()).
+        $nonceAction = 'ntdst_save_case_' . $postId;
         $_POST = [
             'ntdst_case_nonce' => wp_create_nonce($nonceAction),
             'ntdst_fields' => ['client' => 'Legitimately saved client name'],

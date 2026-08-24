@@ -70,25 +70,25 @@ if (class_exists('NTDST_Theme')) {
     $theme
         // Parent (YOOtheme) stylesheet, then the child's hand-written
         // style.css overrides. Priority 20: after YOOtheme's own enqueues.
+        // ntdst-core 5.0 removed Theme::style() — the enqueue is written in
+        // WordPress's own signature on the facade's hook helper instead.
         // The brand fonts are NOT enqueued here — YOOtheme's StyleFontLoader
         // self-hosts the woff2 files picked in the Customizer; enqueueing
         // the same families again would double-load them from Google.
-        ->style(
-            'yootheme',
-            get_template_directory_uri() . '/style.css',
-            [],
-            wp_get_theme(get_template())->get('Version') ?: null,
-            'all',
-            20,
-        )
-        ->style(
-            'josworld-child',
-            JOSWORLD_URI . '/style.css',
-            ['yootheme'],
-            file_exists($child_css) ? (string) filemtime($child_css) : JOSWORLD_VERSION,
-            'all',
-            20,
-        )
+        ->on('wp_enqueue_scripts', static function () use ($child_css): void {
+            wp_enqueue_style(
+                'yootheme',
+                get_template_directory_uri() . '/style.css',
+                [],
+                wp_get_theme(get_template())->get('Version') ?: null,
+            );
+            wp_enqueue_style(
+                'josworld-child',
+                JOSWORLD_URI . '/style.css',
+                ['yootheme'],
+                file_exists($child_css) ? (string) filemtime($child_css) : JOSWORLD_VERSION,
+            );
+        }, 20)
         // ORDERING CONTRACT (fails SILENTLY if broken): `collect` listens
         // for `ntdst/model/registered`, which josworld-core fires on
         // `after_setup_theme` @5. This file runs at top level BEFORE that

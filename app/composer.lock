@@ -277,12 +277,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/netdust/ntdst-core.git",
-                "reference": "3cc96b761ab246b782cd12c7fada5181ed117adf"
+                "reference": "a81899815fb38f8cacd6c97038e886392e5b4139"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-core/zipball/3cc96b761ab246b782cd12c7fada5181ed117adf",
-                "reference": "3cc96b761ab246b782cd12c7fada5181ed117adf",
+                "url": "https://api.github.com/repos/netdust/ntdst-core/zipball/a81899815fb38f8cacd6c97038e886392e5b4139",
+                "reference": "a81899815fb38f8cacd6c97038e886392e5b4139",
                 "shasum": ""
             },
             "require": {
@@ -297,6 +297,11 @@
                 "wp-coding-standards/wpcs": "^3.1"
             },
             "type": "wordpress-muplugin",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "5.0.x-dev"
+                }
+            },
             "scripts": {
                 "test": [
                     "phpunit"
@@ -337,7 +342,7 @@
                 "source": "https://github.com/netdust/ntdst-core/tree/5.0.0",
                 "issues": "https://github.com/netdust/ntdst-core/issues"
             },
-            "time": "2026-08-21T08:12:13+00:00"
+            "time": "2026-08-23T20:37:03+00:00"
         },
         {
             "name": "phpoption/phpoption",

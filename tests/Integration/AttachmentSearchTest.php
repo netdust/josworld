@@ -9,12 +9,14 @@ use WP_UnitTestCase;
 /**
  * The relation-picker search must find attachments: WordPress stores them
  * as post_status 'inherit', but `NTDST_RelationField::handleRelationSearch()`
- * (the `relation_search` api_data action) defaults to 'publish', so a
- * relation field scoped to attachments (tool.file) could never return a
- * result. The handler drops undeclared target types and requires
- * `edit_others_posts` — hence the tool/attachment fixtures and the
- * administrator user. Lives here because ntdst-core is vendored per-site
- * with no suite of its own.
+ * (GET /ntdst/v1/relation/search since 5.0 — the api_data action died with
+ * the command dispatcher) defaults to 'publish', so a relation field scoped
+ * to attachments (tool.file) could never return a result. The route's
+ * permission admits only declared relation targets (attachment via
+ * tool.file, tool via tool.related_tools) and requires the target type's
+ * `edit_others_posts` — hence the fixtures and the administrator user.
+ * Lives here because ntdst-core carries the behaviour and this site is a
+ * consumer that depends on it.
  */
 final class AttachmentSearchTest extends WP_UnitTestCase
 {
@@ -22,12 +24,13 @@ final class AttachmentSearchTest extends WP_UnitTestCase
     {
         parent::setUp();
 
-        // RelationField self-registers on after_setup_theme, already fired
-        // during the wp-phpunit boot — probe rather than assume.
-        $this->assertNotFalse(
-            has_filter('ntdst/api_data/relation_search'),
-            'precondition: the relation_search filter must be registered, or these '
-            . 'tests assert against a filter that does not exist',
+        // The route registers through ntdst_rest() on rest_api_init — probe
+        // WordPress's own register rather than assume.
+        $this->assertArrayHasKey(
+            '/ntdst/v1/relation/search',
+            rest_get_server()->get_routes('ntdst/v1'),
+            'precondition: the relation-search route must be registered, or these '
+            . 'tests assert against an endpoint that does not exist',
         );
 
         // An anonymous caller is rejected by the capability gate — every
@@ -54,16 +57,23 @@ final class AttachmentSearchTest extends WP_UnitTestCase
      */
     private function searchIds(string $term, array $postTypes): array
     {
-        $result = apply_filters(
-            'ntdst/api_data/relation_search',
-            null,
-            ['search' => $term, 'post_types' => $postTypes],
+        $request = new \WP_REST_Request('GET', '/ntdst/v1/relation/search');
+        $request->set_param('search', $term);
+        $request->set_param('post_type', $postTypes);
+
+        $response = rest_do_request($request);
+
+        $this->assertSame(
+            200,
+            $response->get_status(),
+            'the search request itself must succeed — a 4xx here means the '
+            . 'permission or arg schema refused it, not that nothing matched',
         );
 
-        $posts = is_array($result) ? ($result['results'] ?? []) : [];
+        $data = $response->get_data();
+        $posts = is_array($data) ? ($data['results'] ?? []) : [];
 
-        // Rows are getFormattedPosts()'s JSON payload arrays — lowercase
-        // `id`, not WP's `ID`.
+        // Rows carry exactly what the picker reads: lowercase `id` + `title`.
         return array_map(
             static fn (array $post): int => (int) $post['id'],
             is_array($posts) ? $posts : [],
