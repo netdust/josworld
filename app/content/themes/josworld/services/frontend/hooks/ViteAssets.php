@@ -40,8 +40,10 @@ final class ViteAssets
             $this->enqueueBuiltAssets();
         }
 
+        // No restNonce: its only reader was the ntdstAPI client, deleted
+        // with the 5.0 command dispatcher. A future REST caller depends on
+        // wp-api-fetch, which carries the wp_rest nonce itself.
         wp_add_inline_script(self::HANDLE, 'window.josworldConfig = ' . wp_json_encode([
-            'restNonce' => wp_create_nonce('wp_rest'),
             'debug'     => defined('WP_DEBUG') && WP_DEBUG,
             'strings'   => [
                 'saving'  => __('Opslaan...', 'josworld'),

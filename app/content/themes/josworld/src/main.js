@@ -101,64 +101,6 @@ Alpine.data('loadingState', () => ({
 }));
 
 // ══════════════════════════════════════
-// NTDST API WRAPPER
-// ══════════════════════════════════════
-
-/**
- * Thin wrapper around the ntdst-core REST API with automatic nonce handling.
- * Prefer this over raw fetch() for WP endpoints once you wire backend actions.
- *
- * Usage: ntdstAPI.call('my_action', { foo: 'bar' }).then(data => ...)
- */
-window.ntdstAPI = {
-  _nonceCache: {},
-
-  async _nonce(action) {
-    if (this._nonceCache[action]) return this._nonceCache[action];
-    const res = await fetch('/wp-json/ntdst/v1/get_nonce', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-WP-Nonce': window.josworldConfig?.restNonce || '',
-      },
-      body: JSON.stringify({ action }),
-    });
-    const result = await res.json();
-    if (!result.success) {
-      throw new Error(result.data?.message || 'Kon geen beveiligingstoken ophalen');
-    }
-    this._nonceCache[action] = result.data.nonce;
-    return result.data.nonce;
-  },
-
-  async call(action, params = {}, _retried = false) {
-    const nonce = await this._nonce(action);
-    const res = await fetch('/wp-json/ntdst/v1/action', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-WP-Nonce': window.josworldConfig?.restNonce || '',
-      },
-      body: JSON.stringify({ action, nonce, ...params }),
-    });
-    const result = await res.json();
-
-    // If the nonce expired, clear the cache and retry exactly once; a second
-    // invalid_nonce falls through to the error below (no unbounded loop).
-    if (!result.success && result.data?.code === 'invalid_nonce' && !_retried) {
-      delete this._nonceCache[action];
-      return this.call(action, params, true);
-    }
-    if (!result.success) {
-      throw new Error(result.data?.message || 'Actie mislukt');
-    }
-    return result.data;
-  },
-};
-
-// ══════════════════════════════════════
 // INITIALIZE ALPINE
 // ══════════════════════════════════════
 
