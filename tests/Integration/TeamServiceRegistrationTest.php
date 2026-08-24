@@ -7,50 +7,15 @@ namespace NtdstTests\Integration;
 use josworld\services\content\CaseService;
 use josworld\services\content\TeamService;
 use NTDST_RelationField;
-use NTDST_Theme;
 use ReflectionMethod;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves the T06 CONTRACT against REAL WordPress + the
- * real (dedicated) wptests database — CPT registration effects and real
- * relation-field round-tripping are none of which Brain Monkey (unit tier)
- * can express.
- *
- * THE CONTRACT (tasks.md T06 Integration test line + spec FR-2/FR-7):
- *  1. Registering the model creates a `team` post type with NO public single
- *     view, but a full admin UI.
- *  2. Linking the same member TWICE to ONE case yields ONE entry in that
- *     case's `team` field, not two (spec acceptance criterion, dedup on
- *     save).
- *  3. Deleting a linked team member leaves the referring CASE still
- *     readable — a dangling relation id must not fatal the case's read
- *     (AF-1 mid-flow-failure edge).
- *
- * WHAT MOVED OUT OF THIS FILE (2026-08-03, following the ntdst-core
- * reverse-lookup fix, commit 95b7e06): "a member linked from two cases
- * lists exactly those two" and "a member linked from nothing lists none"
- * used to be proven here against a josworld-owned workaround
- * (TeamService::findCasesReferringTo(), since deleted) that compensated for
- * two defects in NTDST_RelationField::findReferringPosts() — it could not
- * find a meta_prefix'd or PHP-serialized relation value, and `case` (this
- * project's own model) is both. Those defects are now fixed AT THE SOURCE
- * in ntdst-core, proven by
- * tests/Integration/RelationFieldReverseLookupTest.php's
- * test_a_prefixed_model_resolves_its_referring_posts() (the exact
- * two-cases-list-exactly-those-two shape, using this project's real `case`
- * model) — repeating that proof here would duplicate, not add, coverage.
- * The two clauses below stay here because they are josworld-specific
- * acceptance criteria the framework-level regression test does not (and
- * should not) know about: this project's own double-link dedup behaviour
- * on save, and this project's own tolerance for a case whose linked member
- * was deleted.
- *
- * Both remaining tests reflect into NTDST_RelationField::findReferringPosts
- * directly (the same seam RelationFieldReverseLookupTest uses) rather than
- * asserting on rendered metabox HTML — the lookup is the unit whose
- * contract matters; coupling to markup would make these tests brittle to
- * presentation changes that carry no risk.
+ * Proves the `team` registration contract against real WordPress: no
+ * public single view but a full admin UI, double-link dedup on save, and a
+ * dangling relation id (deleted member) that never fatals a read. Reverse
+ * lookup itself is covered by RelationFieldReverseLookupTest; reflection
+ * into the private lookup avoids coupling to metabox markup.
  */
 final class TeamServiceRegistrationTest extends WP_UnitTestCase
 {
@@ -79,11 +44,20 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         $postType = get_post_type_object('team');
         $this->assertNotNull($postType);
 
-        // No public single view (FR-2 / assumption): publicly_queryable false
-        // and no rewrite means no front-end URL resolves to a single member.
-        $this->assertFalse(
+        // "No public single view" is enforced by closeSingleView()'s
+        // redirect, not registration flags — WP has no "archive yes,
+        // singles no" flag, and non-queryable kills the archive too.
+        $this->assertTrue(
             $postType->publicly_queryable,
-            'team must not be publicly queryable — the design never links to a member\'s own page',
+            'team must stay publicly queryable — the archive and YOOtheme source enumeration require it',
+        );
+        $this->assertTrue(
+            $postType->has_archive !== false,
+            'team must keep its archive — the design\'s /team/ grid is the archive',
+        );
+        $this->assertTrue(
+            $postType->exclude_from_search,
+            'team members must not surface as site-search results — the single view is closed',
         );
 
         // Full admin UI still required — editors manage members in wp-admin.
@@ -101,10 +75,8 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         ]);
         $this->assertNotWPError($member);
 
-        // The editor UI would not normally submit a duplicate id, but the
-        // acceptance criterion is explicit: "neither member is duplicated
-        // when the case is saved twice" — round-trip a case saved with a
-        // duplicate id twice and confirm no duplication survives.
+        // The UI would not normally submit a duplicate id — pin the save
+        // path anyway: no duplication may survive a double-linked save.
         $case = $caseModel->create([
             'title' => 'Duplicate-link case',
             'client' => 'Acme',
@@ -112,7 +84,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         ]);
         $this->assertNotWPError($case);
 
-        $reread = $caseModel->find($case->ID, true);
+        $reread = $caseModel->find($case->ID, 'any');
         $this->assertNotWPError($reread);
         $team = $reread->fields['team'] ?? [];
         $this->assertCount(
@@ -127,7 +99,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         ]);
         $this->assertNotWPError($updated);
 
-        $rereadAgain = $caseModel->find($case->ID, true);
+        $rereadAgain = $caseModel->find($case->ID, 'any');
         $teamAgain = $rereadAgain->fields['team'] ?? [];
         $this->assertCount(1, array_unique($teamAgain), 'resaving must not accumulate duplicate relation ids');
     }
@@ -153,14 +125,12 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         wp_delete_post($member->ID, true);
 
         // The dangling relation id must not fatal the case's read.
-        $reread = $caseModel->find($case->ID, true);
+        $reread = $caseModel->find($case->ID, 'any');
         $this->assertNotWPError($reread, 'a case referring to a deleted member must still read cleanly');
         $this->assertSame('Case with a member later deleted', $reread->fields['title'] ?? get_the_title($case->ID));
 
-        // Same edge, through the reverse-lookup seam: a case referencing a
-        // now-deleted member must not fatal the (framework) reverse lookup
-        // for a DIFFERENT, still-live member either — the dangling id in
-        // the case's own `team` meta must be inert, not a crash.
+        // Same edge through the reverse-lookup seam: the dangling id must
+        // not break the lookup for a different, still-live member.
         $liveMember = $teamModel->create(['title' => 'Ada Lovelace', 'role' => 'Developer']);
         $this->assertNotWPError($liveMember);
 
@@ -173,9 +143,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         wp_publish_post($secondCase->ID);
 
         $referring = $this->findReferring((int) $liveMember->ID, 'case', 'team');
-        // $wpdb->get_results() returns string column values, so cast before
-        // comparing — WP_Post's own ->ID is typed int, but these came back
-        // through wpdb's raw row objects.
+        // wpdb raw rows carry string column values — cast before comparing.
         $referringIds = array_map(static fn ($post) => (int) $post->ID, $referring);
 
         $this->assertContains(
@@ -191,7 +159,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
      */
     private function findReferring(int $postId, string $postType, string $field): array
     {
-        $service = new NTDST_RelationField(ntdst_get(NTDST_Theme::class));
+        $service = new NTDST_RelationField();
         $method = new ReflectionMethod($service, 'findReferringPosts');
         $method->setAccessible(true);
 

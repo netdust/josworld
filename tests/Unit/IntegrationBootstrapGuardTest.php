@@ -7,24 +7,16 @@ namespace NtdstTests\Unit;
 use NtdstTests\Support\DetectsTimeoutBinary;
 
 /**
- * Permanent contract test for the tests/bootstrap-integration.php dev-DB
- * guard (review C4, findings I2 + I3).
+ * Contract test for the tests/bootstrap-integration.php dev-DB guard: an
+ * allow-list — only the dedicated `wptests` DB, or one named via the
+ * WP_TESTS_ALLOW_DB escape hatch, may run. wp-phpunit DROPS AND RECREATES
+ * tables in DB_NAME, so a deny-list would destroy a `prod_copy` import.
  *
- * THE CONTRACT (allow-list, not deny-list): the integration bootstrap must
- * refuse to run against ANY database except the dedicated `wptests` DB or a
- * database explicitly named via the WP_TESTS_ALLOW_DB escape hatch. The
- * wp-phpunit scaffold DROPS AND RECREATES tables in DB_NAME — a deny-list
- * that only blocks the literal name `db` would happily destroy a
- * `prod_copy` import.
- *
- * Exercised through the REAL seam: each case runs the actual bootstrap file
- * in a real `php` subprocess with WP_PHPUNIT__TESTS_CONFIG pointed at a
- * throwaway fixture config. DB-free — the guard fires before any DB
- * connection; the subprocess is bounded by `timeout` where available (GNU
- * coreutils — absent on stock macOS) because a config that gets PAST the
- * guard proceeds toward wp-phpunit and fails later on the missing WP test
- * environment (expected; not what we assert on). Without `timeout`, the
- * fixture's closed-port DB_HOST still bounds those pass-guard cases.
+ * Each case runs the real bootstrap in a `php` subprocess against a
+ * throwaway fixture config. A config that passes the guard proceeds toward
+ * wp-phpunit and fails later on the missing WP env (expected, unasserted);
+ * `timeout` where available and the fixture's closed-port DB_HOST bound
+ * those runs.
  */
 final class IntegrationBootstrapGuardTest extends TestCase
 {
@@ -57,9 +49,8 @@ final class IntegrationBootstrapGuardTest extends TestCase
         $result = $this->run_bootstrap_against(['db_name' => 'wptests']);
 
         $this->assertStringNotContainsString(self::GUARD_MESSAGE, $result['stderr']);
-        // SC-3 echo prints AFTER the guard — its presence proves the process
-        // got past the guard (it then fails later on the bare-subprocess WP
-        // env, which is expected and not asserted here).
+        // The echo prints AFTER the guard — its presence proves the
+        // process got past it.
         $this->assertStringContainsString('Integration suite DB: wptests', $result['stdout']);
     }
 
@@ -98,9 +89,8 @@ final class IntegrationBootstrapGuardTest extends TestCase
         }
 
         $bootstrap = dirname(__DIR__) . '/bootstrap-integration.php';
-        // Where available, `timeout` bounds a config that legitimately passes
-        // the guard and then wanders into wp-phpunit territory in this bare
-        // subprocess; without it the closed-port DB_HOST fails those fast.
+        // `timeout` bounds pass-guard runs where available; otherwise the
+        // closed-port DB_HOST fails them fast.
         $command = sprintf(
             '%s %sphp %s > %s 2> %s',
             $envPrefix,

@@ -8,26 +8,12 @@ use josworld\services\admin\AdminUIService;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves the T04 enqueue-scoping CONTRACT against real
- * WordPress hook/screen/script-queue machinery — not a mock.
- *
- * THE CONTRACT (T04 acceptance criteria): the metabox field JS
- * (relation autocomplete, gallery picker, repeater add/remove/drag-sort) is
- * enqueued ONLY on a josworld CPT edit screen (`case`/`team`/`vacature`/
- * `tool`), with `jquery` + `jquery-ui-sortable` as declared dependencies —
- * and is NOT enqueued on unrelated admin screens (dashboard, plugins list,
- * a native `post` edit screen). The negative case is the substance of this
- * test: an enqueue that fires everywhere would "pass" a naive positive-only
- * assertion while still shipping the exact bug this task exists to avoid
- * (ntdst-core's own enqueue firing project-wide off an active-theme path
- * that doesn't exist).
- *
- * WHY integration, not unit: the scoping decision depends on real
- * `get_current_screen()`/`set_current_screen()` state and the real
- * `wp_enqueue_script()` dependency queue — Brain Monkey stubs would let a
- * test assert against whatever the test itself hard-codes, never proving
- * the service reads a REAL screen object the way wp-admin actually
- * populates one on `post.php`/`post-new.php`.
+ * Proves the metabox field JS delivery after its promotion into ntdst-core:
+ * the framework's MetaboxGenerator enqueues `ntdst-metabox-fields` (with the
+ * wp-api-fetch transport the relation picker needs) ONLY on registered-model
+ * edit screens, and josworld's AdminUIService layers only its
+ * conditional-field script on that handle. The negative cases are the
+ * substance: an everywhere-enqueue passes a positive-only assertion.
  */
 final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
 {
@@ -37,10 +23,9 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
 
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/admin/AdminUIService.php';
 
-        // Screens josworld's content services (T05-T08) will register.
-        // Registered directly here (not via those not-yet-existing
-        // services) so this test exercises real WP_Screen resolution
-        // without depending on tasks that haven't landed.
+        // The real content services registered the four models (and their
+        // metaboxes) at boot; register only the bare post types the screen
+        // machinery needs when another test unregistered them.
         foreach (['case', 'team', 'vacature', 'tool'] as $postType) {
             if (! post_type_exists($postType)) {
                 register_post_type($postType, ['public' => true, 'show_ui' => true]);
@@ -52,119 +37,123 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
     {
         global $current_screen;
         $current_screen = null;
-        unset($GLOBALS['hook_suffix']);
+        unset($GLOBALS['hook_suffix'], $GLOBALS['post_type']);
 
         parent::tearDown();
     }
 
-    private function newService(): AdminUIService
-    {
-        return new AdminUIService();
-    }
-
     /**
+     * Fire the CORE's enqueue (MetaboxGenerator gates on its own registered
+     * models via the global $post_type the admin screen sets).
+     *
      * @return array{0: bool, 1: array<int, string>, 2: string} [is enqueued, deps, src]
      */
-    private function fireEnqueueOn(string $hook, ?string $postType): array
+    private function fireCoreEnqueueOn(string $hook, ?string $postType): array
     {
         if ($postType !== null) {
             set_current_screen($postType);
+            $GLOBALS['post_type'] = $postType;
         } else {
             set_current_screen($hook);
+            unset($GLOBALS['post_type']);
         }
 
-        $service = $this->newService();
-        $service->enqueueMetaboxFieldScripts($hook);
+        ntdst_metabox()->enqueue_metabox_scripts($hook);
 
-        $isEnqueued = wp_script_is('josworld-metabox-fields', 'enqueued');
+        $isEnqueued = wp_script_is('ntdst-metabox-fields', 'enqueued');
 
         global $wp_scripts;
-        $deps = $isEnqueued ? $wp_scripts->registered['josworld-metabox-fields']->deps : [];
-        $src = $isEnqueued ? (string) $wp_scripts->registered['josworld-metabox-fields']->src : '';
+        $deps = $isEnqueued ? $wp_scripts->registered['ntdst-metabox-fields']->deps : [];
+        $src = $isEnqueued ? (string) $wp_scripts->registered['ntdst-metabox-fields']->src : '';
 
-        wp_dequeue_script('josworld-metabox-fields');
-        wp_deregister_script('josworld-metabox-fields');
-
-        // T11: josworld-metabox-conditional depends on josworld-metabox-fields.
-        // WP_Dependencies::query('enqueued') recurses the dependency tree of
-        // the QUEUE, not just the literal handle — so leaving the dependent
-        // script enqueued makes wp_script_is('josworld-metabox-fields',
-        // 'enqueued') report true again on the NEXT call even though the
-        // handle itself was just deregistered above. Clean up both handles
-        // this helper enqueues, not just the one it asserts on.
-        wp_dequeue_script('josworld-metabox-conditional');
-        wp_deregister_script('josworld-metabox-conditional');
+        wp_dequeue_script('ntdst-metabox-fields');
+        wp_deregister_script('ntdst-metabox-fields');
 
         return [$isEnqueued, $deps, $src];
     }
 
-    public function test_enqueues_on_a_case_edit_screen_with_jquery_and_sortable_deps(): void
+    public function test_the_core_enqueues_the_client_on_a_case_edit_screen_with_its_deps(): void
     {
-        [$isEnqueued, $deps] = $this->fireEnqueueOn('post.php', 'case');
+        [$isEnqueued, $deps] = $this->fireCoreEnqueueOn('post.php', 'case');
 
-        $this->assertTrue($isEnqueued, 'expected the metabox field JS to be enqueued on a case edit screen');
+        $this->assertTrue($isEnqueued, 'expected ntdst-metabox-fields on a case edit screen');
         $this->assertContains('jquery', $deps);
         $this->assertContains('jquery-ui-sortable', $deps);
+        $this->assertContains(
+            'wp-api-fetch',
+            $deps,
+            'the relation autocomplete transports through wp.apiFetch since 5.0 '
+            . '(the ntdst-api handle died with the command dispatcher) — without '
+            . 'the wp-api-fetch dependency the picker silently disables itself',
+        );
     }
 
     /**
-     * Registration is not resolution. Every other test here proves the script
-     * is REGISTERED with the right deps on the right screens — none of them
-     * would notice if its URL pointed nowhere.
-     *
-     * The src comes from
-     * `plugins_url('assets/js/metabox-fields.js', dirname(__DIR__, 2) . '/josworld-core.php')`,
-     * and that `dirname(__DIR__, 2)` hop is exactly the kind of path
-     * arithmetic a later "simplify this" edit breaks: drop it to
-     * `dirname(__DIR__)` and WordPress resolves the URL against
-     * `services/` instead of the plugin root, shipping a 404ing script tag
-     * while `wp_script_is(..., 'enqueued')` stays happily true and this whole
-     * file stays green. The relation/repeater/gallery fields would silently
-     * go back to being inert markup — the precise breakage T04 existed to fix.
+     * Registration is not resolution: a wrong URL base 404s the src while
+     * wp_script_is() stays true.
      */
-    public function test_enqueued_script_src_resolves_inside_the_plugin_directory(): void
+    public function test_enqueued_script_src_resolves_inside_ntdst_core(): void
     {
-        [$isEnqueued, , $src] = $this->fireEnqueueOn('post.php', 'case');
+        [$isEnqueued, , $src] = $this->fireCoreEnqueueOn('post.php', 'case');
 
         $this->assertTrue($isEnqueued, 'precondition: the script must be enqueued to have a src');
         $this->assertStringEndsWith(
-            '/mu-plugins/josworld-core/assets/js/metabox-fields.js',
+            '/mu-plugins/ntdst-core/assets/js/metabox-fields.js',
             $src,
-            'the enqueued src must resolve to the file inside josworld-core, not to a '
-            . 'sibling/parent directory — a wrong dirname() hop 404s silently',
+            'the client ships with the framework now — the src must resolve inside ntdst-core',
         );
-        $this->assertStringStartsWith('http', $src, 'plugins_url() must yield an absolute URL');
+        $this->assertStringStartsWith('http', $src, 'the src must be an absolute URL');
     }
 
-    public function test_enqueues_on_each_josworld_post_type_new_screen(): void
+    public function test_the_core_enqueues_on_each_josworld_post_type_new_screen(): void
     {
         foreach (['team', 'vacature', 'tool'] as $postType) {
-            [$isEnqueued] = $this->fireEnqueueOn('post-new.php', $postType);
+            [$isEnqueued] = $this->fireCoreEnqueueOn('post-new.php', $postType);
             $this->assertTrue($isEnqueued, "expected enqueue on a {$postType} new-post screen");
         }
     }
 
-    public function test_does_not_enqueue_on_the_dashboard(): void
+    public function test_the_core_does_not_enqueue_on_the_dashboard(): void
     {
-        [$isEnqueued] = $this->fireEnqueueOn('index.php', null);
+        [$isEnqueued] = $this->fireCoreEnqueueOn('index.php', null);
 
         $this->assertFalse($isEnqueued, 'the dashboard must never receive the metabox field JS');
     }
 
-    public function test_does_not_enqueue_on_the_plugins_list_screen(): void
+    public function test_the_core_does_not_enqueue_on_a_native_post_edit_screen(): void
     {
-        [$isEnqueued] = $this->fireEnqueueOn('plugins.php', null);
-
-        $this->assertFalse($isEnqueued, 'the plugins list must never receive the metabox field JS');
-    }
-
-    public function test_does_not_enqueue_on_a_native_post_edit_screen(): void
-    {
-        [$isEnqueued] = $this->fireEnqueueOn('post.php', 'post');
+        [$isEnqueued] = $this->fireCoreEnqueueOn('post.php', 'post');
 
         $this->assertFalse(
             $isEnqueued,
-            'a native `post` edit screen is not a josworld CPT and must not receive the metabox field JS',
+            'a native `post` edit screen has no registered model and must not receive the JS',
         );
+    }
+
+    /**
+     * josworld's remaining admin layer: the conditional-field script rides
+     * on the CORE's handle — a renamed/withdrawn ntdst-metabox-fields would
+     * leave this dependency dangling and the script unprinted.
+     */
+    public function test_the_conditional_layer_depends_on_the_core_handle(): void
+    {
+        set_current_screen('case');
+
+        (new AdminUIService())->enqueueConditionalFieldScripts('post.php');
+
+        $this->assertTrue(
+            wp_script_is('josworld-metabox-conditional', 'registered'),
+            'the conditional-field script must enqueue on a josworld edit screen',
+        );
+
+        global $wp_scripts;
+        $this->assertContains(
+            'ntdst-metabox-fields',
+            $wp_scripts->registered['josworld-metabox-conditional']->deps,
+            'the conditional layer must depend on the framework handle, not a project one',
+        );
+
+        wp_dequeue_script('josworld-metabox-conditional');
+        wp_deregister_script('josworld-metabox-conditional');
     }
 }

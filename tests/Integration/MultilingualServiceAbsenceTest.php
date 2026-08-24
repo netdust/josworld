@@ -8,55 +8,15 @@ use NtdstTests\Support\DetectsTimeoutBinary;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves the T09 CONTRACT's ABSENCE half (SC-4) — the
- * LOAD-BEARING half of this task, and the reason it is the only `split`
- * task in the whole plan (tasks.md: "the failure mode is a fatal on a live
- * site when the plugin is absent, so the denial/absence path is authored
- * independently of the code that satisfies it").
- *
- * WHY A NAIVE VERSION OF THIS TEST WOULD BE VACUOUS: Polylang is not
- * installed in ANY environment this suite runs in today (ground-truthed —
- * `app/content/plugins/` contains only `index.php`; composer.json has no
- * wpackagist/plugin-installer wiring; plugins are WP-CLI-installed and
- * untracked per .gitignore:128-129). "The site loads with no fatal when
- * Polylang is absent" is therefore the CURRENT, DEFAULT state of every test
- * run — asserting it while MultilingualService does not exist yet would
- * pass for a reason that has nothing to do with the contract. What makes
- * this test real is exercising it AFTER MultilingualService is required
- * and instantiated (so a fatal it introduces has somewhere to happen), and
- * pairing the behavioral proof with a STATIC scan of the shipped source for
- * the actual regression class named in the contract: an unguarded pll_*
- * call.
- *
- * TWO PROOF TECHNIQUES, TWO DIFFERENT REASONS (a single technique cannot
- * honestly cover both):
- *
- * 1) BEHAVIORAL, subprocess-based (real WordPress, no fatal, no wp_die,
- *    exit 0): mirrors this project's own established pattern
- *    (JosworldCoreBootTest::boot_the_real_plugin_in_a_subprocess_without_ntdst_core(),
- *    tests/Unit/IntegrationBootstrapGuardTest.php) — `pll_*` functions ARE
- *    genuinely undefined in every environment this suite runs in, but this
- *    in-process test class cannot prove that safely: WP_UnitTestCase shares
- *    one long-lived PHP process across every test in the whole integration
- *    suite (confirmed by MultilingualServiceTest.php in this same
- *    directory, which DOES define pll_languages_list() etc. for its own
- *    active-path tests — once PHP declares a function it cannot become
- *    undefined again for the rest of the process, and PHPUnit does not
- *    guarantee file/test execution order). A real, separate `php`
- *    subprocess that requires the REAL, unmodified service file with NO
- *    pll_* shim at all is the only way to observe "genuinely absent" rather
- *    than "not yet defined in this file, so far".
- *
- * 2) STATIC, source-scan-based, permanent and free at every future edit:
- *    the actual regression this contract exists to catch is a future
- *    edit adding `pll_set_post_types(...)` or similar OUTSIDE a
- *    `function_exists('pll_...')` guard. A behavioral test only catches
- *    that regression if the exact code path it exercises happens to reach
- *    the new unguarded line; a static scan of every `pll_` call in the
- *    file catches it regardless of which code path introduced it. This is
- *    the SAME rationale T10's "static scan of the plugin directory finds
- *    zero direct register_post_type/register_taxonomy calls" clause uses
- *    for its architecture-invariant half.
+ * MultilingualService must not fatal when Polylang is absent — the one
+ * place this service can take down a live site. Two techniques:
+ *  1. behavioral, in a subprocess with no pll_* shim: pll_* cannot be
+ *     honestly absent in-process — a sibling test file defines pll_*
+ *     stubs, and a declared function never becomes undefined again in
+ *     the shared PHP process;
+ *  2. static, a scan of the shipped source for any pll_* call outside a
+ *     function_exists() guard — catches the regression on every code
+ *     path, not only the one the behavioral test happens to exercise.
  */
 final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
 {
@@ -108,15 +68,9 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
     }
 
     /**
-     * THE STATIC HALF (see class docblock, technique 2): scans the real,
-     * shipped MultilingualService.php source for any `pll_` call that is
-     * NOT guarded by a preceding `function_exists('pll_` check in the same
-     * file. Deliberately regex/token-based, not a full data-flow analysis —
-     * matches T10's own "static scan of the plugin directory" precedent and
-     * JosworldCoreBootBlockTest's precedent of a lightweight, behaviorally
-     * self-proving scanner (proven against BOTH a violating fixture and a
-     * clean fixture before being trusted against the real file, immediately
-     * below and in the two tests that follow).
+     * THE STATIC HALF: every pll_* call must sit behind a
+     * function_exists('pll_...') guard. The scanner is proven against a
+     * violating and a clean fixture below before being trusted here.
      */
     public function test_the_real_service_file_makes_no_unguarded_pll_call(): void
     {
@@ -135,9 +89,7 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
     }
 
     /**
-     * Mutation proof (violating case): a fixture calling `pll_set_post_types()`
-     * with NO guard anywhere in the file must be flagged. Proves the scanner
-     * is behavioral before the real-file test above is trusted.
+     * An unguarded pll_* call must be flagged.
      */
     public function test_an_unguarded_pll_call_in_a_fixture_is_flagged(): void
     {
@@ -154,8 +106,7 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
     }
 
     /**
-     * Mutation proof (clean case): the SAME call, this time behind a
-     * `function_exists('pll_set_post_types')` guard, must NOT be flagged.
+     * The same call behind a function_exists() guard must NOT be flagged.
      */
     public function test_a_guarded_pll_call_in_a_fixture_is_not_flagged(): void
     {
@@ -191,8 +142,7 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
             [$id, $text] = $token;
 
             if ($id === T_STRING && $text === 'function_exists') {
-                // Find the string literal argument, e.g.
-                // function_exists('pll_set_post_types').
+                // Record the guarded name from the string-literal argument.
                 for ($lookahead = $index + 1; $lookahead < $index + 6 && isset($tokens[$lookahead]); $lookahead++) {
                     $candidate = $tokens[$lookahead];
                     if (is_array($candidate) && $candidate[0] === T_CONSTANT_ENCAPSED_STRING) {
@@ -205,8 +155,7 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
             }
 
             if ($id === T_STRING && str_starts_with($text, 'pll_')) {
-                // Only count it as a CALL if the next non-whitespace token
-                // is an opening paren.
+                // A call: next non-whitespace token is `(`.
                 $next = $tokens[$index + 1] ?? null;
                 $isCall = (is_string($next) && $next === '(')
                     || (is_array($next) && $next[0] === T_WHITESPACE
@@ -282,11 +231,8 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
     }
 
     /**
-     * Minimal, real-hook-faithful shim: enough of NTDST_Data_Manager +
-     * WordPress's registration surface for the REAL, unmodified content
-     * services AND the REAL, unmodified MultilingualService to run
-     * end-to-end with `pll_*` genuinely absent from the symbol table — not
-     * a reimplementation of any of their logic.
+     * Minimal registration shim — the REAL, unmodified services run with
+     * pll_* genuinely absent from the symbol table.
      */
     private function degraded_boot_harness_source(
         string $caseFile,
@@ -322,15 +268,17 @@ final class MultilingualServiceAbsenceTest extends WP_UnitTestCase
                 return true;
             }
 
-            class NTDST_Theme {
-                public function taxonomy(string \$taxonomy, \$objectType, array \$args = []): void {}
+            // TeamService::closeSingleView() registers its redirect route at
+            // construction via ntdst_pages()->single(). Registration is all
+            // that happens at boot — the callback (and the redirect inside
+            // it) only fires on a matched front-end request, which this
+            // harness never makes, so single() is the whole surface needed.
+            class NTDST_Pages {
+                public function single(string \$postType, callable \$callback): self { return \$this; }
             }
-            \$GLOBALS['__ntdst_theme'] = new NTDST_Theme();
-            function ntdst_get(string \$class) {
-                if (\$class === NTDST_Theme::class) {
-                    return \$GLOBALS['__ntdst_theme'];
-                }
-                throw new RuntimeException("unexpected ntdst_get(\$class) in harness");
+            function ntdst_pages(): NTDST_Pages {
+                static \$pages = null;
+                return \$pages ??= new NTDST_Pages();
             }
 
             final class NTDST_Data_Manager {

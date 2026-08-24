@@ -8,6 +8,68 @@ is a harness behaviour, not a josworld fact.
 
 ---
 
+## Do not spend session time verifying WordPress fundamentals
+
+**Date:** 2026-08-03
+**Correction (Stefan, watching a parallel session):** *"stuff like this takes
+time isn't this already stored knowledge or something?"* -> *"tell them to
+stop verifying wordpress basics"*
+
+Triggered by a session step reading "Confirming WP_Hook same-priority
+ordering behavior". That is documented, invariant WordPress behaviour. It
+costs a probe, a tool round-trip, and reading time to rediscover something
+that could be stated in one line.
+
+### STATE these, do not derive them
+
+- `add_action`/`add_filter` at the SAME priority fire in REGISTRATION order.
+- Lower priority numbers run FIRST. Default 10.
+- `plugins_loaded` -> `after_setup_theme` -> `init` -> `wp_loaded`.
+- mu-plugins are included alphabetically, BEFORE regular plugins.
+- `get_current_screen()` is populated when `admin_enqueue_scripts` fires on
+  `post.php`/`post-new.php`.
+- `update_post_meta()` on a PHP array serialises via `maybe_serialize()`.
+- `wp_get_object_terms()` orders by NAME, not insertion.
+- `public => false` does NOT gate REST reads.
+
+If one of these is ever wrong, the next test run says so immediately. The
+cost of being wrong is one red test; the cost of checking every time is
+paid on every task forever.
+
+### DO verify: where a primitive does not do what its name implies
+
+The distinction is *stable framework behaviour* vs *this project's wiring*.
+Three from this session, each of which cost real time and NONE of which was
+guessable from documentation:
+
+- DAAN's `josworld-coreloader.php` sorts BEFORE `ntdst-coreloader.php`
+  alphabetically — the whole reason the boot defers to `plugins_loaded`.
+- `NTDST_RelationField` SELF-REGISTERS at the bottom of its own file. I read
+  the class, saw no bootstrap resolving it, and concluded it was never
+  instantiated. Wrong — I nearly shipped a brief that would have
+  double-registered every reverse metabox. **Read framework files to the
+  END.**
+- `select` renders a dropdown but does NOT validate on save
+  (`MetaboxGenerator.php:686-697`). A "closed list" enforces nothing without
+  a `validate` callback — so the obvious test (assert the dropdown's
+  options) is a presence check wearing a denial check's clothes.
+
+### The rule
+
+Ground-truth what a task will BUILD ON — a signature, a storage format,
+whether a guard actually fires. Do not ground-truth what the next test run
+would reveal anyway.
+
+### Why it matters at this scale
+
+Same branch, same day: this session took **290 min for 2,077 lines** of
+declarative config; the parallel baseline session took **26 min for 4,291**.
+The gap was not the verification TECHNIQUE — mutation testing found every
+real bug and is cheap — it was ceremony plus re-deriving known things.
+See also the granularity entry below and `stakes-dial-ignored`.
+
+---
+
 ## The plan's TASK GRANULARITY is challengeable at the seam — not just the ceremony applied to it
 
 **Date:** 2026-08-03
@@ -171,3 +233,112 @@ deployed to **11 sites**. Facts worth keeping:
   query/sitemap/search. `team` is unauthenticated-readable at
   `/wp-json/wp/v2/team`; email/phone are unexposed **only** because nothing
   calls `register_meta()` with `show_in_rest`.
+
+## Front-end / YOOtheme
+
+- **Never put a font-size in a class in content HTML.** Stefan had to ask twice
+  for smaller type before asking the real question — "are you using the styler
+  font system or custom sizes in less?" — and the answer was custom
+  (`.jw-lead` / `.jw-intro`, typed into element content). UIkit ships FOUR named
+  text roles (`lead`, `large`, `small`, `meta`), each one BOTH a "Text Style"
+  dropdown on the element AND a Styler-exposed variable family. They default to
+  40px for lead/large, which is what makes them look unusable on this design and
+  tempts the bespoke class. Map `@text-lead-*` / `@text-large-*` instead. The
+  cost of getting this wrong is not the pixel value — it is that the size stops
+  being changeable by a dropdown or by the client, so every tweak becomes a LESS
+  edit + browser recompile + a round trip.
+- `packages/styler/config/styler.php` is the authority on what the Customizer
+  exposes. Check it before concluding a value has to be bespoke — it lists
+  `@text-*`, `@accordion-default-*`, `@base-h1..h6-*`, `@button-*`, `@card-*`
+  and many more.
+- Two design sizes in a row shipped one step too big (accordion titles 24→22,
+  contact card 24→18). When a screenshot cannot be measured (clipboard paste, no
+  file on disk), say so and prefer the SMALLER of two candidate tokens rather
+  than the larger.
+- **A fullpage CDP screenshot can come back with images blank even when they are
+  fully loaded.** `img.complete` was true, `naturalWidth` 1152, opacity 1, no
+  clip — and the photo still painted as empty grey in the capture, which reads as
+  "the image is broken" and nearly sent me debugging a working section. Loading
+  is not painting: `await img.decode()` on every image before capturing is what
+  fixed it. This is on top of the lazy-loading trap already in the skill's
+  lessons (forcing `loading="eager"` is necessary but NOT sufficient).
+- **A CPT archive beats a same-slug page.** `case` registers
+  `rewrite.slug => 'ons-werk'` + `has_archive`, and there is also an "Ons werk"
+  PAGE at that slug. The archive wins, so a layout built on the page renders
+  nowhere and the symptom is a correct-looking save followed by the stock archive
+  on screen. Check `get_post_type_object(...)->rewrite['slug']` before deciding
+  whether an archive layout belongs on a page or in a template.
+- **Dynamic list bindings go on the `grid_item`, not the grid.** One item +
+  `source.query` = the item repeats over the query. Query name is
+  `<rest_base>.custom<RestBase>`. Verify against a demo package
+  (`unzip -p <demo>.zip 'wp-content/sample_yootheme.json'`) instead of inventing
+  the shape — and introspect the live schema for field names
+  (`app(Source::class)->getSchema()->getType('Case')->getFields()`).
+- **`<taxonomy>String` fields are LINKED term lists**, not plain text — they are
+  `get_the_term_list()` output. `panel_link: true` (which requires
+  `show_link: true`) strips them, because the card becomes one `<a>` and nested
+  anchors are invalid. That is a settings answer to what looks like a CSS problem.
+- **Turn the class dial before reaching for ceremony — over-calling it is the
+  expensive failure.** 2026-08-06: Stefan asked why a YOOtheme layout tweak
+  needed a threat model. Because I classified "add a taxonomy + a small resolver
+  + flip a JSON prop" as harnessed-development **Class A** (new feature) instead
+  of **Class E** (small self-contained change), and Class A mandates spec.md +
+  plan.md + tasks.md + the six gate headings — so a `## Threat model` section
+  got written whose honest content was `N/A`. The harness's own red-flag table
+  names this: "a tweak is Class E — route it light. Ceremony is scaled by class,
+  not by mood." His words: "this is why you spin out of control every time and we
+  lose enormous amounts of time."
+  **Test before invoking the harness at all:** could this be one red/green cycle?
+  Then it is C/D/E and there is no plan artifact. Class A is for work with open
+  design questions and several days of surface — not for three files with an
+  existing pattern to copy.
+- **Type sizes are a FIXED vocabulary — never derive one per design.** Stefan,
+  2026-08-06: "type sizes should be fixed in yootheme, don't invent size every
+  page, we get into rhythm troubles… there [are] lead, text, meta, small for text
+  sizes." The scale is `lead` / `text` (default) / `meta` / `small` for body
+  copy, and `h1`–`h6` for headings. I had measured each design and picked the
+  nearest number, which put three page headers on three sizes — 76 (test page),
+  32 (cases, via the non-vocabulary `text-large`), 56 (tools). Map the element to
+  its ROLE and use the same role for the same element on every page; if a role's
+  size is wrong, change the variable once, not the page.
+- **A lone column fills its row no matter what `uk-width-*` you give it.**
+  `row/templates/template.php:26` emits `tm-grid-expand {!alignment}`, and
+  `.tm-grid-expand > * { flex-grow: 1 }` — so the class exists only while the row
+  has NO `alignment`, and while it exists it expands a single column past its own
+  width. Symptom: `uk-width-1-2@m` sits correctly in the DOM and the column still
+  measures full width. Fix: set the row's `alignment` (even `left`). This is why
+  C3's 850px measure works — its row carries `alignment: center`.
+- **An SVG that colours itself with an internal `<style>` class is immune to
+  UIkit's recolouring.** `jos-sun.svg` ships `.cls-1 { fill: #fff794 }` in a
+  `<defs><style>` block. UIkit's rule is
+  `.uk-svg :not(.uk-preserve)[fill*="#"]`, which matches the fill ATTRIBUTE — a
+  fill coming from a class inside the SVG is never touched, and `fill:
+  currentcolor` on the root loses to it. Symptom on the tools CTA: the sun sat
+  in the DOM at the right size and position with `fill: rgb(255,255,255)`
+  computed on the `<svg>` element, and rendered lemon-on-lemon, i.e. invisible.
+  Fix: target the paths (`.jw-sun-white svg path { fill: … }`). Check
+  `getComputedStyle(svg.querySelector('path')).fill`, not the `<svg>`'s.
+  `A1 · Tools CTA` uses the same asset with `image_svg_color: emphasis` and is
+  probably lemon too — unverified.
+- **A `template get` → patch → `template set` cycle silently loses whatever the
+  human saved in the builder meanwhile.** 2026-08-06: Stefan added a section and
+  re-saved while a patch was in flight; his save dropped the class and element
+  the patch had just added, and the next patch (built on a stale fetch) found
+  nothing to update. Always re-fetch immediately before writing, patch the LIVE
+  copy, and make the script FAIL LOUDLY when its target node is missing instead
+  of writing a no-op.
+- **A composer version string is not a fixed tree while upstream is
+  mid-spec.** "5.0.0" resolved to two different commits two days apart
+  (3cc96b76 pre-release → a818998 at spec-close, 261 commits apart) —
+  the first bump consumed the wrong one and read as "upgrade done".
+  Before declaring a package migration complete, `git ls-remote --tags`
+  the source repo and compare the lock's `source.reference` against the
+  tag's `^{commit}`. The same check found the true breaking surface
+  (the package README's migration tables) that the premature tree
+  lacked.
+- **A unit tier that stubs a seam can keep a nonexistent symbol green.**
+  The bridge accessor called a core method that never existed in ANY
+  version; Brain Monkey stubs of the global kept 16 tests green, and a
+  two-name "accepts either" tolerance in the test made it worse. Every
+  stubbed seam needs one integration test on the REAL body, and a seam
+  contract accepts exactly ONE symbol name.

@@ -9,42 +9,16 @@ use ntdst\baseline\services\SeoService;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: the CROSS-FILE STATE GUARD for BaselineBootTest.
+ * Cross-file state guard for BaselineBootTest: its tearDown must evict (rebind)
+ * the evicted singletons, never re-warm them — a re-warmed instance's
+ * listeners are wiped by parent::tearDown()'s _restore_hooks(), leaving
+ * the container holding services wired to nothing for every later file.
+ * This file resolves each service as real code would and asserts its
+ * wp_head listener is present.
  *
- * WHY THIS FILE EXISTS (Cluster A review, finding I-1 — a real defect this
- * test reproduced): BaselineBootTest must evict two container singletons
- * (SeoService, SchemaService) via `forget()` to make its denial-path
- * assertion discriminating. How it CLEANS UP afterwards is the trap, and it
- * is invisible from inside that file — a green BaselineBootTest run says
- * nothing about the state it leaves behind.
- *
- * The original cleanup re-warmed both services with `ntdst_get()`. That is
- * wrong because of ORDERING: a child `tearDown()` body runs BEFORE
- * `parent::tearDown()`, and the parent's `_restore_hooks()`
- * (wp-phpunit/includes/abstract-testcase.php:202) wholesale restores
- * `$wp_filter` from a pre-test snapshot. So the re-warm constructed a fresh
- * instance and registered its listeners, and then `_restore_hooks()`
- * deleted exactly those listeners — leaving the CONTAINER holding a
- * SeoService/SchemaService that is wired to NOTHING, permanently, for every
- * later test file in the process.
- *
- * That failure mode is silent: the suite stayed green only because no other
- * test happened to resolve these services from the container and assert on
- * their hooks. The first test that did would fail mysteriously, and ONLY
- * when run after BaselineBootTest — the hardest bug class to diagnose.
- *
- * The fix is for BaselineBootTest's tearDown to `forget()` rather than
- * re-warm, leaving the slot EMPTY so the next resolution constructs fresh
- * against a live hook table. This file is the mechanical proof that the fix
- * holds: it resolves each service from the container the same way real code
- * would, and asserts the resolved instance's listener is actually present
- * on `wp_head`.
- *
- * NAMING: the `ZZ` prefix is load-bearing, not decoration. PHPUnit walks
- * the suite directory alphabetically, so this file must sort AFTER
- * `BaselineBootTest.php` to observe the state that file leaves. Renaming it
- * to sort earlier silently turns it into a tautology — it would pass
- * against the pristine boot state and prove nothing.
+ * The `ZZ` prefix is load-bearing: PHPUnit walks the directory
+ * alphabetically, and sorting before BaselineBootTest turns this into a
+ * tautology against pristine boot state.
  *
  * A test file by nature declares a symbol and executes side effects.
  * phpcs:disable PSR1.Files.SideEffects

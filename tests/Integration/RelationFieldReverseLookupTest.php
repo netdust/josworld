@@ -6,46 +6,17 @@ namespace NtdstTests\Integration;
 
 use josworld\services\content\CaseService;
 use NTDST_RelationField;
-use NTDST_Theme;
 use ReflectionMethod;
 use WP_UnitTestCase;
 
 /**
- * Regression cover for the ntdst-core `NTDST_RelationField` reverse-lookup
- * fix (2026-08-03, found while building T06).
- *
- * WHY THIS TEST LIVES IN josworld AND TESTS ntdst-core: ntdst-core is a
- * shared framework vendored per-site with no test suite of its own. josworld
- * is the site that exposed the defect, so it carries the proof. When the fix
- * is propagated to the other sites, this file travels with it as the
- * acceptance test.
- *
- * THE TWO DEFECTS, both of which made findReferringPosts() return an empty
- * set — rendering an empty reverse metabox that is indistinguishable from
- * "this item genuinely has no referrers":
- *
- *   1. META PREFIX — present in EVERY deployed ntdst-core copy. The lookup
- *      queried `meta_key = <field_name>` with the raw name, but a model
- *      registered with a `meta_prefix` stores `<prefix><field>`. josworld's
- *      `case` model (meta_prefix `_jw_`) stores `_jw_team`, so a query for
- *      `team` matched nothing.
- *
- *   2. STORAGE FORMAT — a regression in the newer copies (josworld, daan,
- *      stride, edushare, sc1-stackwp, stride-output-reshape). A previous
- *      revision asserted "Data.php stores relation values as JSON arrays"
- *      and swapped a working serialized-pattern LIKE for JSON-shaped ones.
- *      That premise is false: relation values are PHP arrays passed to
- *      update_post_meta(), which WordPress serializes. Verified live:
- *      `_jw_team => a:2:{i:0;i:11;i:1;i:22;}`. The OLDER copies (acerta,
- *      ludoluykx, netdust, rossi) had this right.
- *
- * Each test below fails if its defect is reintroduced — verified by
- * mutation, independently, one at a time.
- *
- * These call the private method directly by reflection ON PURPOSE: the
- * public path renders a metabox (HTML in an admin screen), and asserting on
- * markup would couple this regression proof to presentation. The lookup is
- * the unit whose contract broke.
+ * Regression cover for two NTDST_RelationField::findReferringPosts()
+ * defects, both silently yielding an empty reverse metabox: (1) the lookup
+ * used the bare field name while prefixed models store `<prefix><field>`;
+ * (2) the LIKE patterns matched JSON only, but WP stores relation values
+ * PHP-serialized. Lives here because ntdst-core has no suite of its own.
+ * Reflection into the private lookup is deliberate — asserting on metabox
+ * markup would couple the proof to presentation.
  */
 final class RelationFieldReverseLookupTest extends WP_UnitTestCase
 {
@@ -54,7 +25,7 @@ final class RelationFieldReverseLookupTest extends WP_UnitTestCase
      */
     private function findReferring(int $postId, string $postType, string $field): array
     {
-        $service = new NTDST_RelationField(ntdst_get(NTDST_Theme::class));
+        $service = new NTDST_RelationField();
         $method = new ReflectionMethod($service, 'findReferringPosts');
         $method->setAccessible(true);
 
@@ -82,8 +53,8 @@ final class RelationFieldReverseLookupTest extends WP_UnitTestCase
     }
 
     /**
-     * DEFECT 1 — the prefixed case. This is josworld's real shape: a `case`
-     * model with meta_prefix `_jw_` and a `team` relation.
+     * Defect 1, josworld's real shape: a `case` model with meta_prefix
+     * `_jw_` and a `team` relation.
      */
     public function test_a_prefixed_model_resolves_its_referring_posts(): void
     {
@@ -112,8 +83,8 @@ final class RelationFieldReverseLookupTest extends WP_UnitTestCase
     }
 
     /**
-     * BACK-COMPAT — a model with NO meta_prefix, which is how every other
-     * ntdst site's models are registered. The fix must not regress them.
+     * Back-compat: a model with NO meta_prefix (every other ntdst site)
+     * must not regress.
      */
     public function test_an_unprefixed_model_still_resolves(): void
     {
@@ -135,7 +106,7 @@ final class RelationFieldReverseLookupTest extends WP_UnitTestCase
     }
 
     /**
-     * DEFECT 2 — the serialized format WordPress actually writes. Reverting
+     * Defect 2: the serialized format WordPress actually writes. Reverting
      * to JSON-only LIKE patterns fails this.
      */
     public function test_php_serialized_relation_values_resolve(): void
@@ -160,8 +131,7 @@ final class RelationFieldReverseLookupTest extends WP_UnitTestCase
     }
 
     /**
-     * The JSON shape stays supported too — the fix is additive, not a swap
-     * back to the old behaviour.
+     * The JSON shape stays supported — the fix is additive, not a swap.
      */
     public function test_json_shaped_relation_values_still_resolve(): void
     {
@@ -182,9 +152,8 @@ final class RelationFieldReverseLookupTest extends WP_UnitTestCase
     }
 
     /**
-     * The LIKE narrowing is deliberately loose, so the exact in_array()
-     * verification is what prevents ID 6 matching inside ID 60. Without it
-     * the serialized pattern `%i:6;%` would also hit `i:60;` in some shapes.
+     * The LIKE narrowing is loose; the exact in_array() verification is
+     * what stops ID 6 matching inside ID 60.
      */
     public function test_a_substring_id_is_not_a_false_positive(): void
     {

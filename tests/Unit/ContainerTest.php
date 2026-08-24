@@ -16,6 +16,10 @@ final class ContainerTestService
 /**
  * Behavioral contract of NTDST_Container (ntdst-core), exercised with
  * no WordPress and no database — the example unit for the PHP unit tier.
+ *
+ * 5.0 trimmed the surface to set()/get()/has(): make(), call(), forget(),
+ * flush() and keys() left the class. Fresh-instance and eviction semantics
+ * live in set() now — rebinding an ID clears that ID's resolved cache.
  */
 final class ContainerTest extends TestCase
 {
@@ -37,25 +41,23 @@ final class ContainerTest extends TestCase
         $this->assertSame($first, $second);
     }
 
-    public function test_make_returns_a_fresh_instance_on_every_call(): void
-    {
-        $first = $this->container->make(ContainerTestService::class);
-        $second = $this->container->make(ContainerTestService::class);
-
-        $this->assertNotSame($first, $second);
-        $this->assertInstanceOf(ContainerTestService::class, $first);
-    }
-
-    public function test_forget_causes_re_resolution_to_a_new_instance(): void
+    public function test_rebinding_clears_the_resolved_cache(): void
     {
         $this->container->set(ContainerTestService::class);
         $before = $this->container->get(ContainerTestService::class);
 
-        $this->container->forget(ContainerTestService::class);
         $this->container->set(ContainerTestService::class);
         $after = $this->container->get(ContainerTestService::class);
 
         $this->assertNotSame($before, $after);
+        $this->assertInstanceOf(ContainerTestService::class, $after);
+    }
+
+    public function test_get_autowires_an_unregistered_class_that_exists(): void
+    {
+        $resolved = $this->container->get(ContainerTestService::class);
+
+        $this->assertInstanceOf(ContainerTestService::class, $resolved);
     }
 
     public function test_factory_closure_receives_the_container_itself(): void
@@ -63,7 +65,7 @@ final class ContainerTest extends TestCase
         $received = null;
         $this->container->set('tagged.service', function (NTDST_Container $c) use (&$received): ContainerTestService {
             $received = $c;
-            $service = $c->make(ContainerTestService::class);
+            $service = new ContainerTestService();
             $service->tag = 'built-by-factory';
 
             return $service;
@@ -82,13 +84,5 @@ final class ContainerTest extends TestCase
         $this->expectExceptionMessage('Service totally.unknown not found');
 
         $this->container->get('totally.unknown');
-    }
-
-    public function test_make_rejects_unknown_constructor_parameters(): void
-    {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Unknown parameter(s)');
-
-        $this->container->make(ContainerTestService::class, ['typoedParam' => 1]);
     }
 }

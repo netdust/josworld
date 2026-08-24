@@ -22,9 +22,11 @@ Type: Flat
 // same set resolved identically from the Homepage, "Voor overheden" and
 // "Contact" frames — so it is not page-specific.
 //
-// SCOPE: sections 1–3 only (tokens → UIkit mapping → CSS custom properties).
-// Bespoke per-section component CSS is deliberately NOT here; sections get
-// designed and added one at a time on the section page.
+// SCOPE: sections 1–3 are tokens → UIkit mapping → CSS custom properties, and
+// they stay pure variable assignment. Section 4 holds the bespoke component CSS
+// for the handful of looks the builder genuinely cannot express — each one
+// added when its section gets designed on the section page, and each carrying
+// the reason no setting would do.
 //
 // ⚠ THIS FILE IS THE SOURCE OF TRUTH FOR THE TOKENS — NOT THE CUSTOMIZER.
 // The Customizer exposes variables by PATTERN whitelist (config/styler.php), so
@@ -197,10 +199,17 @@ Type: Flat
 @jw-s-24:            96px;
 
 // ---------- Radii ----------
-// TODO(figma): confirm against real layer geometry.
+// @jw-r-lg is the ONE token behind every rounded panel on the site: it feeds
+// @card-border-radius (cards), @border-rounded-border-radius (the column
+// "Round corners" checkbox) and .hook-tile-muted() (muted tiles). Moving it
+// moves all three together, which is exactly what the design wants — three
+// independent measurements off the frames agree on ~12-13px (contact card ~12,
+// service card ~13), so 12px is measured, not guessed. @jw-r-xl and @jw-r-pill
+// resolve independently and must NOT track it.
 @jw-r-sm:            4px;
 @jw-r-md:            8px;
-@jw-r-lg:            16px;
+@jw-r-lg:            12px;   // measured off the card + tile corners (was 16px)
+@jw-r-xl:            48px;   // measured off the contact band's bottom corners
 @jw-r-pill:          999px;
 
 // ---------- Shadows ----------
@@ -313,6 +322,11 @@ Type: Flat
 @base-link-hover-color:             @jw-raspberry-hover;
 @base-link-text-decoration:         underline;
 
+// The hero's highlighted lines are plain <mark> — UIkit exposes both colours as
+// variables, so the lemon marker needs no CSS of its own.
+@base-mark-background:              @jw-lemon;
+@base-mark-color:                   @jw-text;
+
 @base-hr-border:                    @jw-line;
 @base-blockquote-font-family:       @jw-font-display;
 @base-blockquote-font-size:         @jw-t-body-lg;
@@ -339,6 +353,49 @@ h4, .uk-h4 {
     font-weight: @jw-fw-semibold;
     letter-spacing: @jw-ls-t4;
 }
+
+// ---------- Text roles (Lead / Large / Small / Meta) ----------
+// UIkit ships FOUR named text roles — `lead`, `large`, `small`, `meta` — and
+// every one of them is BOTH a dropdown on the text element ("Text Style") and a
+// Styler-exposed variable family (`@text-lead-*` etc. in styler.php). Out of the
+// box `lead` and `large` both resolve to `@global-large-font-size` (40px), which
+// is nowhere near the design's 24 and 32 — and that mismatch is why this theme
+// briefly carried bespoke `.jw-lead` / `.jw-intro` classes typed into content
+// HTML instead.
+//
+// That was the wrong fix: a class in the content is invisible to the builder and
+// to the Customizer, so every size tweak became a LESS edit + recompile. Mapping
+// the roles here instead means the two sizes are a dropdown for the client and a
+// field in the Styler, and this file stays the source of truth for the default.
+@text-lead-font-size:               @jw-t-body-lg;    // 24px — was `.jw-lead`
+@text-lead-line-height:             @jw-lh-body-lg;   // 1.33
+@text-lead-letter-spacing:          @jw-ls-body;      // -0.02em
+@text-lead-color:                   @jw-text;         // not the emphasis default
+// Both roles are Inter BY DEFINITION in this design system, and the family has
+// to be stated rather than inherited: `title_style: "text-lead" | "text-large"`
+// is a valid option on the headline element, and there the class lands on an
+// `<h1>`…`<h6>` whose own @base-heading-font-family (Fraunces) would otherwise
+// win. Without this, the same role renders in two different faces depending on
+// which element it is applied to.
+@text-lead-font-family:             @jw-font-body;
+
+@text-large-font-size:              @jw-t-intro;      // 32px — was `.jw-intro`
+@text-large-line-height:            @jw-lh-intro;     // 1.25
+
+// `lead` has a full typo surface (family / weight / transform / letter-spacing /
+// style, from the master's typo layer) but `large` has only size + line-height —
+// so the intro role's family, weight and -0.05em all take the sanctioned hook.
+// Redefining a `.hook-*` ACCUMULATES with the empty default, it does not replace
+// it, so nothing the theme layer sets is lost.
+.hook-text-large() {
+    font-family: @jw-font-body;
+    font-weight: @jw-fw-regular;
+    letter-spacing: @jw-ls-intro;
+}
+
+// `small` (14px) and `meta` are left at their UIkit defaults on purpose — they
+// already match the design's eyebrow, and several built sections use
+// `text_style: "small"` against that value.
 
 // ---------- Buttons ----------
 // Fraunces Regular at 18px, pill-shaped. The master theme forces
@@ -388,6 +445,24 @@ h4, .uk-h4 {
     letter-spacing: @jw-ls-none;
 }
 
+// ---------- Labels (the case cards' pill) ----------
+// UIkit exposes the whole label surface as variables — background, colour,
+// radius, padding, size, text-transform — so the pill is a set of value changes
+// and needs no bespoke rule.
+//
+// FILLED, not outlined (changed 2026-08-06). The earlier section design drew an
+// outline; the full cases-archive design draws a solid tint, measured off the
+// export at rgb(236,232,229) — i.e. @jw-brown-10, the same token as @jw-line.
+// That is also why no border is set here any more: an outline in @jw-line on a
+// @jw-brown-10 fill is invisible, so the old `.hook-label()` border became dead
+// code the moment the fill landed.
+@label-background:                  @jw-brown-10;
+@label-color:                       @jw-text;
+@label-border-radius:               @jw-r-pill;
+@label-text-transform:              none;
+@label-font-size:                   @global-small-font-size;
+@label-padding-horizontal:          @jw-s-3;
+
 // ---------- Cards ----------
 @card-default-background:           @jw-white;
 @card-default-color:                @jw-text;
@@ -405,6 +480,62 @@ h4, .uk-h4 {
 @card-body-padding-horizontal:      @jw-s-8;
 @card-body-padding-vertical:        @jw-s-8;
 
+// The design's roomy cards (the "Wat doet Jos?" service blocks) measure a 60px
+// inset — off the 4px spacing scale, so they take the nearest token at the LARGE
+// card size rather than a bespoke value. Only the `-l` pair is set: below 1200px
+// UIkit falls back to its own 40px, which is what a card that wide should do on
+// a tablet anyway.
+@card-large-body-padding-horizontal-l: @jw-s-16;   // 64px
+@card-large-body-padding-vertical-l:   @jw-s-16;
+
+// Cards are the one panel family UIkit ships flat — the master theme exposes both
+// of these as variables (border-radius/card.less, box-shadow/card.less), so the
+// design's rounded, lifted card needs no rule at all.
+@card-border-radius:                @jw-r-lg;
+@card-default-box-shadow:           @jw-shadow-md;
+
+// The builder's column "Round corners" checkbox (available once a column has a
+// custom background colour) emits `.uk-border-rounded`, whose radius is a UIkit
+// utility variable — 5px out of the box, i.e. visibly tighter than the tile
+// cards. Pinning it to the same token keeps every rounded panel on the page at
+// one radius, so the open "16px or the design's ~10px?" question stays a
+// ONE-line change here instead of a hunt.
+@border-rounded-border-radius:      @jw-r-lg;
+
+// ---------- Accordion (the FAQ list) ----------
+// The design's FAQ — a rule BETWEEN items, none above the first or below the
+// last — is the master theme's default accordion mode. `@accordion-default-
+// item-mode` is already `divider`, whose hook is literally
+// `&:nth-child(n+2) { padding-top: …; border-top: … }`, so the whole look is
+// four values. Do NOT reach for a bespoke `.el-item { border-bottom }` here.
+@accordion-default-item-border-width:   1px;
+// Measured off the design, NOT eyeballed: the 1px rule is antialiased across two
+// pixel rows, and un-blending it (`true = bg + Σ(row − bg)`) gives #320610 —
+// full ink, not the light @jw-line tint that a divider "looks like". The same
+// trap as the stat rules on the muted band; see memory/STATE.md.
+@accordion-default-item-border:         @jw-primary;
+// The divider mode spends the item's vertical rhythm as margin-top + 1px rule +
+// padding-top, so this value is HALF the gap between two questions. The design
+// measures a 73px rule-to-rule pitch against a 24px title; at the T4 title below
+// the same @global-margin lands it at 75, which is where it sits now — Stefan
+// asked for the smaller title after the first pass, so the pitch follows the
+// type rather than the original measurement.
+@accordion-default-item-margin-top:     @global-margin;   // 24px
+
+// The question is the T4 role — Inter SemiBold 22/26 — i.e. the same token as an
+// h4. Family is inherited (@global-primary-font-family is `inherit`, so it
+// resolves to Inter) but weight and letter-spacing inherit too, which would
+// leave it at 400; hence both are set explicitly. The design draws this at 24px,
+// but 22 is the system's semibold-sans size and reads better against the T3
+// headline beside it.
+@accordion-default-title-font-size:     @jw-t4;           // 22px
+@accordion-default-title-line-height:   @jw-lh-t4;        // 1.18 → 26px
+@accordion-default-title-font-weight:   @jw-fw-semibold;  // 600
+@accordion-default-title-letter-spacing: @jw-ls-t4;       // -0.03em
+@accordion-default-title-color:         @jw-text;
+@accordion-default-title-hover-color:   @jw-accent;
+@accordion-default-icon-color:          @jw-text;
+
 // ---------- Forms ----------
 @form-background:                   @jw-white;
 @form-color:                        @jw-text;
@@ -416,6 +547,9 @@ h4, .uk-h4 {
 @form-height:                       @global-control-height;
 @form-padding-horizontal:           @jw-s-4;
 @form-label-color:                  @jw-brown;
+// Pill inputs, matching the pill buttons. The master theme ships a
+// `@form-border-radius` (default 0) — no rule needed.
+@form-border-radius:                @jw-r-pill;
 
 // ---------- Navbar ----------
 @navbar-background:                 transparent;
@@ -431,6 +565,53 @@ h4, .uk-h4 {
 @navbar-dropdown-nav-item-color:    @jw-text;
 @navbar-dropdown-nav-item-hover-color: @jw-raspberry;
 @navbar-dropdown-nav-font-size:     @jw-t-nav-2;
+
+// Item spacing. UIkit's theme layer zeroes @navbar-nav-item-padding-horizontal
+// and spaces the navbar with flex gaps instead, so THESE are the variables that
+// move header items apart — the padding variable does nothing here. The `-m`
+// pair is the desktop one (the unsuffixed pair applies below UIkit's `m`
+// breakpoint, where the separate mobile header takes over anyway).
+// 48px matches the design's gutter rhythm: nav↔nav and nav↔CTA read the same.
+@navbar-nav-gap-m:                  @jw-s-12;   // 48px between nav items
+@navbar-gap-m:                      @jw-s-12;   // 48px between navbar sections
+
+// ---------- Toolbar (the utility row above the navbar) ----------
+// The toolbar menu renders as `uk-subnav`, NOT as a navbar nav, so it takes an
+// entirely separate variable set from the block above.
+@subnav-margin-horizontal:          @jw-s-6;    // 24px between utility links
+@subnav-item-color:                 @jw-text;
+@subnav-item-hover-color:           @jw-raspberry;
+@subnav-item-active-color:          @jw-raspberry;
+// `@subnav-item-font-size` already resolves to @global-small-font-size (14px),
+// which is the design's utility-link size — left alone deliberately.
+
+// UIkit's subnav resets text-decoration on HOVER only (there is no
+// `@subnav-item-text-decoration` variable — verified in
+// vendor/…/uikit/src/less/components/subnav.less), so this style's
+// `@base-link-text-decoration: underline` bleeds into the resting state and
+// underlines the whole utility row. The navbar escapes it by hard-coding
+// `text-decoration: none`; the subnav has no such rule.
+//
+// `.hook-subnav-item()` is UIkit's own extension point for exactly this — the
+// component calls it inside the item rule. Redefining it here ACCUMULATES with
+// the empty default and the uikit theme layer's copy (LESS applies every
+// same-name mixin in source order), so the theme layer's font-size and
+// transition survive and only the decoration is added.
+.hook-subnav-item() {
+    text-decoration: none;
+}
+
+// ---------- Offcanvas (the mobile dialog panel) ----------
+// Defaults to @global-secondary-background, i.e. raspberry — which collides
+// with the raspberry CTA inside it and forces the button to flip to lemon.
+// Brown is this palette's designated panel surface: it inverts to beige text
+// with a lemon primary, the pairing section 2's inverse block already defines.
+@offcanvas-bar-background:          @jw-brown;
+
+// Grid dividers are their own variable (NOT @base-hr-border, which drives <hr>).
+// Default is @global-border — invisible against the lemon block, where the design
+// wants a hard black rule between the two columns.
+@grid-divider-border:               @jw-brown;
 
 // ---------- Section backgrounds ----------
 @section-default-background:        @jw-bg;
@@ -454,8 +635,13 @@ h4, .uk-h4 {
 @inverse-global-border:             fade(@jw-beige, 20%);
 
 @inverse-base-heading-color:        @jw-beige;
-@inverse-base-link-color:           @jw-lemon;
-@inverse-base-link-hover-color:     @jw-lemon-hover;
+// Beige, not lemon: the footer sets every inline link (privacybeleid, the
+// coöperatie/Creative Fair Play credits, the copyright row) in the body colour
+// with an underline, and lemon read as a second accent competing with the CTA.
+// Lemon stays the accent for NAV items on dark (below) and for the primary
+// button — the places the design actually highlights.
+@inverse-base-link-color:           @jw-beige;
+@inverse-base-link-hover-color:     @jw-white;
 
 // On a brown section the primary button flips to lemon with brown text —
 // the palette's highest-contrast pairing.
@@ -471,9 +657,33 @@ h4, .uk-h4 {
 @inverse-button-default-hover-color:      @jw-brown;
 @inverse-button-default-hover-border:     @jw-beige;
 
+// The newsletter CTA keeps the header's raspberry pill rather than flipping to
+// lemon. Without this, `uk-button-secondary` on a dark section falls back to
+// @inverse-global-primary-background (lemon) and the footer grows a second
+// yellow that the design does not have.
+@inverse-button-secondary-background:       @jw-raspberry;
+@inverse-button-secondary-color:            @jw-white;
+@inverse-button-secondary-hover-background: @jw-raspberry-hover;
+@inverse-button-secondary-hover-color:      @jw-white;
+@inverse-button-secondary-active-background:@jw-raspberry-hover;
+@inverse-button-secondary-active-color:     @jw-white;
+
 @inverse-navbar-nav-item-color:           @jw-beige;
 @inverse-navbar-nav-item-hover-color:     @jw-lemon;
 @inverse-navbar-nav-item-active-color:    @jw-lemon;
+
+// The footer link columns are `nav` elements. UIkit defaults their inverse
+// colour to @inverse-global-muted-color (60% beige), which reads as disabled
+// against the design's solid white link lists.
+@inverse-nav-default-item-color:          @jw-beige;
+@inverse-nav-default-item-hover-color:    @jw-lemon;
+@inverse-nav-default-item-active-color:   @jw-lemon;
+
+// Social icons render as `uk-icon-button`s.
+@inverse-icon-button-background:          fade(@jw-beige, 12%);
+@inverse-icon-button-color:               @jw-beige;
+@inverse-icon-button-hover-background:    fade(@jw-beige, 22%);
+@inverse-icon-button-hover-color:         @jw-white;
 
 
 // ========================================================================
@@ -550,15 +760,510 @@ h4, .uk-h4 {
     --jw-gutter:          @jw-gutter;
 }
 
-// Two text roles the design names but UIkit has no variable for. Kept as
-// utility classes so the builder can apply them without Custom CSS.
-.jw-intro {
-    font-family: @jw-font-body;
-    font-size: @jw-t-intro;
-    line-height: @jw-lh-intro;
-    letter-spacing: @jw-ls-intro;
-    font-weight: @jw-fw-regular;
+// ========================================================================
+// 4. SCROLL-EFFECT COMPONENTS
+//
+// The visual half of the ported ntdst scroll effects (src/effects/*.js). The JS
+// only computes progress and toggles `.active` / writes inline transforms — every
+// look lives here, keyed by `data-effect`.
+//
+// NOTE: each effect element is `visibility: hidden` until JS adds `.js-ready`.
+// That is a deliberate FOUC guard, and it means the JS MUST run (or call
+// revealAll()) or the content stays invisible.
+// ========================================================================
+@import "components/animations.less";
+
+// ---------- Tile card ----------
+// A rounded inset card built from two collapsed tile-muted columns. UIkit exposes
+// no radius for tiles (the master border-radius set covers cards/sections, not
+// tiles), and rounding each column separately would show a seam — so the radius
+// and the clip live on the ROW, which also lets the sun bleed past the edge and
+// be cropped. Applied by putting `jw-tile-card` on the row.
+// Rounded muted tiles are a design-system decision, so this belongs on the
+// component hook rather than a wrapper class. `.hook-tile-muted()` is UIkit's
+// own extension point (there is no @tile-*-border-radius variable), and keying
+// off the tile itself means no dependency on where a `class` prop happens to
+// land in the DOM — which differs between the front end and the builder preview.
+// The clip is what crops the sun at the card edge.
+.hook-tile-muted() {
+    border-radius: @jw-r-lg;
+    overflow: hidden;
 }
+
+// ---------- Stat columns ----------
+// Each stat opens with a rule across its OWN column. UIkit's `uk-grid-divider`
+// looks like the setting for this and is not — it draws VERTICAL lines BETWEEN
+// columns. A top border on the grid item is the whole of it.
+//
+// The label also needs one size override: the design sets it at body size in
+// the h4 face, and `title_style: h4` is the only preset carrying the right
+// family and weight (h5 is the right 18px but reverts to Fraunces).
+.jw-stat {
+
+    // The rule is the INK colour, not @jw-line. @jw-line IS @jw-brown-10, which
+    // is also `uk-section-muted`'s background — so the obvious border colour is
+    // exactly the band it sits on and renders invisible. Un-blending the design's
+    // antialiased 1px line gives ~#35070c, i.e. full brown.
+    .el-item {
+        border-top: 1px solid @jw-primary;
+        padding-top: @jw-s-4;
+    }
+
+    .el-title {
+        font-size: @jw-t-body;
+        line-height: @jw-lh-body;
+    }
+}
+
+// ---------- Stat rows (the number BESIDE its label) ----------
+// The "Waarom Jos?" cijfers band stacks its three stats in ONE column and sets
+// the number to the LEFT of the label rather than above it. That is not a
+// variant of `.jw-stat` and must not inherit from it — `.jw-stat` draws a rule
+// above every item, and this band draws none.
+//
+// It is also the one thing here the builder cannot express. A panel offers
+// `meta_align: above-title | below-title | above-content | below-content` — a
+// vertical vocabulary only; there is no "beside". What makes the re-placement
+// possible is that with `title_align: top` the three parts render as DIRECT
+// children of `.el-item` (grid_item/templates/template.php: with no image, no
+// link and no panel style, every intermediate wrapper — $content_container,
+// $link_container, $cell_content, $grid — is skipped). Switching `title_align`
+// to `left` would wrap meta+title in YOOtheme's own uk-grid and push the
+// description into a SECOND COLUMN beside them, which is the opposite of what
+// the design draws. So `top` is load-bearing, exactly as `image_align: top` is
+// for the review slider above.
+//
+//   [ 235+ | organisaties geholpen ]   <- row 1, label centred on the number
+//   [ Stad Leuven, Onze energie, … ]   <- row 2, spans both columns
+//
+.jw-stat-inline {
+
+    .el-item {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        // 12px, measured identically on all three tiles: the label's left edge
+        // sits 12px past the number's right edge whether the number is "235+"
+        // (146px wide), "8,7/10" (179px) or "20" (83px).
+        column-gap: @jw-s-3;
+    }
+
+    // The number. `meta_style: h1` already gives Fraunces Light at @jw-t1
+    // (76px / line-height 1) — the design's number box is 76px tall, so the
+    // role is exact and needs no size override here.
+    .el-meta {
+        grid-column: 1;
+        grid-row: 1;
+        margin: 0 !important;
+    }
+
+    // The label rides the number's vertical centre. Both texts share row 1 and
+    // the number is the taller box, so `center` parks the single label line on
+    // its midline — the design has the label's centre and the number's centre
+    // on the same axis (both at 38px within a 76px box).
+    .el-title {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
+        // Same override as `.jw-stat`: the design sets the label at body size in
+        // the h4 face, and `title_style: h4` is the only preset carrying the
+        // right family and weight (h5 is the right 18px but reverts to Fraunces).
+        font-size: @jw-t-body;
+        line-height: @jw-lh-body;
+        margin: 0 !important;
+    }
+
+    // The description spans both columns beneath. `!important` is not a
+    // shortcut: the builder stamps `uk-margin-top` on `.el-content`, and UIkit's
+    // margin utilities are themselves `!important` (margin.less), so nothing at
+    // any specificity beats them without it.
+    .el-content {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        margin: @jw-s-6 0 0 !important;
+    }
+}
+
+// ---------- Vacancy rows (title | type | link, ruled) ----------
+// The Jobs & stages list is a table-shaped row: title left, employment type
+// mid, link right, with a rule above every row and below the last. The builder
+// has no three-across row — a panel stacks meta/title/link vertically — so the
+// three parts are re-placed by CSS grid, the same technique (and the same
+// `title_align: top` precondition) as the review slider and jw-stat-inline.
+//
+// DOM order is meta, title, link; the design's reading order is title, type,
+// link. Explicit grid-column on each part reorders them without touching the
+// markup.
+.jw-vacature-row {
+
+    .el-item {
+        display: grid;
+        // 45/55, not an even split: the design puts the type column at x623 of
+        // a 1280 container, which an even split overshoots by ~50px.
+        grid-template-columns: 45fr 55fr auto;
+        align-items: center;
+        column-gap: @jw-s-6;
+        border-top: 1px solid @jw-primary;
+        padding: @jw-s-6 0;
+    }
+
+    // The last row closes the table — the design draws a rule under it too.
+    .el-item:last-child { border-bottom: 1px solid @jw-primary; }
+
+    .el-title { grid-column: 1; grid-row: 1; margin: 0 !important; }
+    .el-meta  { grid-column: 2; grid-row: 1; margin: 0 !important; }
+
+    // The link has no class of its own — YOOtheme wraps it in a bare div and
+    // only the <a> inside carries `.el-link`. `:last-child` is safe here
+    // because show_content is off, so the link wrapper is always last.
+    .el-item > div:last-child {
+        grid-column: 3;
+        grid-row: 1;
+        margin: 0 !important;
+        text-align: right;
+    }
+}
+
+// ---------- Review slider ----------
+// The one card on the site whose layout the builder genuinely cannot express.
+// A YOOtheme panel is either a flat stack (image · title · meta · content) or,
+// with `image_align: left`, a two-column grid in which the CONTENT moves into
+// the right column too. The design needs both at once: the avatar beside the
+// name and role, and the quote BELOW at full card width. So the panel is
+// re-laid out as a CSS grid — and `image_align: top` is kept deliberately,
+// because it is the setting that leaves the four parts as SIBLINGS of
+// `.el-item`, which is what makes them placeable at all. Switching it to
+// "left" wraps them in YOOtheme's own grid and this stops working.
+//
+//   [ avatar | name  ]
+//   [ avatar | role  ]
+//   [     quote      ]  <- 1fr, so with `panel_match` (uk-grid-match) every
+//                          card is the same height and the logo can sit on the
+//                          bottom edge of each one rather than under a short quote.
+//
+// The image child is a <picture>, NOT the <img> — YOOtheme wraps every image in
+// one for the webp source, so the grid item is the wrapper and the class you
+// can see in the inspector (`.el-image`) is on the child. Both are matched
+// below so this survives an image that is not converted.
+.jw-review {
+
+    .el-item {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto 1fr;
+        column-gap: @jw-s-4;
+        align-items: start;
+    }
+
+    .el-item > picture,
+    .el-item > .el-image {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        align-self: center;
+    }
+
+    // Name + role are a small sans pair, not a heading — there is no title_style
+    // preset at this size (h4 is the 22px T4 token), so the two live here with
+    // the rest of the component rather than half here and half in the builder.
+    //
+    // `!important` is not a shortcut here, it is the only thing that works: the
+    // builder puts `uk-margin-top` on BOTH parts and UIkit's margin utilities are
+    // themselves `!important`, so a plain `margin: 0` loses no matter how
+    // specific the selector. That margin is what pushed the role a full 24px
+    // below the name.
+    //
+    // With the margins gone the pair sits FLUSH: the avatar spans both rows, so
+    // grid splits its leftover height equally between them, and `end` + `start`
+    // park the two lines either side of that shared boundary — i.e. centred as a
+    // unit against the avatar, which is what the design does.
+    .el-item > .el-title,
+    .el-item > .el-meta {
+        grid-column: 2;
+        margin: 0 !important;
+        font-family: @jw-font-body;
+        line-height: 1.3;
+        color: @jw-text;
+    }
+
+    .el-item > .el-title {
+        grid-row: 1;
+        align-self: end;
+        font-size: @jw-t-nav;
+        font-weight: @jw-fw-semibold;
+    }
+
+    .el-item > .el-meta {
+        grid-row: 2;
+        align-self: start;
+        font-size: @jw-t-disclaimer + 2;   // 14px — the role sits under the name
+    }
+
+    .el-item > .el-content {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        margin-top: @jw-s-8 !important;   // same `uk-margin-top` fight as above
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+// The card the bleed cuts off fades into the lemon rather than ending on a hard
+// edge. It is a gradient over the TRACK WRAPPER, not an opacity on the last
+// item: which item is cut changes as the slider moves, so anything keyed to
+// `:last-child` would fade the wrong card the moment someone clicks next.
+//
+// Only from medium up — below that the slider shows one full card and there is
+// no bleed to soften, so the fade would just wash out the card being read.
+@media (min-width: @breakpoint-medium) {
+
+    .jw-review > .uk-position-relative::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 34%;   // ≈ the width of the third, cut-off card
+        background: linear-gradient(to right, fade(@jw-lemon, 0%), @jw-lemon 92%);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    // …and the arrows stay above it, or they fade out with the card.
+    .jw-review .uk-slidenav-container { z-index: 2; }
+}
+
+// UIkit's slidenav is a bare chevron — the design's white pill needs a
+// background, a radius and an equal width/height. The first two ARE variables
+// (@slidenav-background / @slidenav-border-radius) but they are global, and the
+// square aspect is not settable at all: @slidenav-padding-* are separate
+// vertical/horizontal values against a 14x24 icon, so no pair of them yields a
+// circle. Kept scoped to the review slider so the logo wall keeps the plain one.
+.jw-review .uk-slidenav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: @jw-r-pill;
+    // The design reads these against a faded third card; on a real one they sit
+    // white-on-white, so the hairline — not the shadow — is what makes them a
+    // button. Same outline language as the ghost pill button.
+    border: 1px solid @jw-line;
+    background-color: @jw-white;
+    box-shadow: @jw-shadow-md;
+    color: @jw-text;
+
+    &:hover,
+    &:focus {
+        background-color: @jw-white;
+        border-color: @jw-text;
+        color: @jw-text;
+    }
+}
+
+// The client logo closes the card. `margin-top: auto` inside that flex column is
+// what pins it to the BOTTOM of the matched card instead of hanging directly
+// under a short quote — which is the whole reason the quote row is 1fr.
+// Applied by wrapping the logo in the content field: <p class="jw-review-logo">.
+.jw-review-logo {
+    margin-top: auto;
+    padding-top: @jw-s-8;
+    text-align: center;
+
+    img {
+        max-height: 46px;
+        width: auto;
+    }
+}
+
+// ---------- CTA panel with the sun ----------
+// The tools CTA is a lemon panel with the JOS sun bleeding off its right edge.
+// Everything about it is settings — a column with `background_color` + "Round
+// corners", and the sun as an absolutely-positioned image element — except the
+// two things the builder cannot express:
+//
+// 1. The CLIP. A rounded panel does not clip its overflowing children, and the
+//    sun has to be cut by the panel's right edge and its radius. Note the
+//    selector: the `class` prop lands on the column WRAPPER, while the visible
+//    lemon box is the inner panel div carrying `uk-tile` — clipping the wrapper
+//    clips nothing you can see (same trap as `.jw-tile-card`).
+// 2. The COLOUR, and this one is a trap worth remembering. `jos-sun.svg` is
+//    LEMON — it ships an internal `<style>` block, `.cls-1 { fill: #fff794 }`.
+//    UIkit's recolouring rule is `.uk-svg :not(.uk-preserve)[fill*="#"]`, which
+//    matches the fill ATTRIBUTE; a fill coming from a class inside the SVG is
+//    never touched, and `fill: currentcolor` on the root loses to it. So the
+//    sun rendered lemon-on-lemon — present in the DOM at the right size, with a
+//    white computed fill on the <svg> element, and invisible on screen. The
+//    paths have to be targeted directly.
+.jw-cta-panel > .uk-tile {
+    overflow: hidden;
+}
+
+.jw-sun-white svg path {
+    fill: @jw-white;
+}
+
+// The Team page's jobs CTA draws the same sun in the page CREAM, not white —
+// measured (252,252,247) off the frame, i.e. @jw-beige. Its own rule for the
+// reason given above: the fill arrives from a class INSIDE the svg, so no
+// amount of `color` on an ancestor reaches it.
+.jw-sun-cream svg path {
+    fill: @jw-beige;
+}
+
+// ---------- Case card tags ----------
+// The services row on a case card is the `dienst` taxonomy, which WordPress
+// renders as one `<a rel="tag">` per term. The design draws them as filled
+// pills, and that is the ONLY thing this rule does — the pill's look itself is
+// not redefined here, it is inherited from the `@label-*` variables so the case
+// cards and any real `uk-label` can never drift apart.
+//
+// Why a rule and not the `uk-label` class: the markup comes from WordPress, not
+// from the builder, so there is nowhere to put a class. And why the terms are
+// separate elements at all — the card must NOT use `panel_link`, which runs
+// `striptags()` over the content and would collapse the whole row into one flat
+// text node with nothing left to style. The card stays reachable through
+// `title_link` + `image_link` instead.
+// `get_the_term_list()` joins the terms with a literal ", " — bare text nodes
+// with nothing to select. Zeroing the container's own font size collapses them
+// while each pill declares its size back; the row then reads as pills alone,
+// the way the design draws it. Safe ONLY because this content row holds the
+// term list and nothing else — if a case card ever shows prose here, this line
+// would swallow it.
+.jw-case-card .el-content {
+    font-size: 0;
+}
+
+.jw-case-card .el-content a[rel="tag"] {
+    display: inline-block;
+    margin-right: @jw-s-2;
+    padding: 0 @label-padding-horizontal;
+    background: @label-background;
+    border-radius: @label-border-radius;
+    font-size: @label-font-size;
+    line-height: @global-line-height;
+    color: @label-color;
+    text-decoration: none;
+    vertical-align: middle;
+
+    &:hover,
+    &:focus {
+        background: @jw-brown-60;
+        color: @jw-beige;
+        text-decoration: none;
+    }
+}
+
+// ---------- Booking embed card ----------
+// The white panel in the contact band that hosts the FluentBooking calendar.
+// Everything about the panel itself is settings — a COLUMN with a
+// `background_color` gains the "Round corners" checkbox and picks up `uk-tile`
+// padding automatically — so this class carries exactly one thing the builder
+// cannot express: a floor under the panel's height.
+//
+// It is NOT scaffolding to delete once the plugin lands. A booking calendar
+// mounts into an iframe that sizes itself after load, so without a floor the
+// band collapses to the placeholder's single line and then jumps ~560px when
+// the embed arrives — the section sits directly above the footer, so that
+// shift is the most visible one on the page. The value is the design's card
+// height; revisit it against the real calendar, don't remove it.
+//
+// Mind the selector — the same trap as `.jw-tile-card` above. A `class` prop
+// lands on the column WRAPPER; the visible white box is the inner panel div the
+// column template emits for `background_color`, and that is what carries
+// `uk-tile` + `uk-border-rounded`. Putting the height on the wrapper leaves the
+// panel free to stay short.
+.jw-booking-embed > .uk-tile {
+    min-height: 560px;
+}
+
+// ---------- Contact band ----------
+// The lemon contact section is clipped at the BOTTOM only, so it reads as a
+// panel laid over the footer. Everything except the notch is a section setting
+// (`background_color` + `class`); the notch is the one thing that is not
+// expressible in the builder, because the corner that the radius opens up has
+// to show the FOOTER colour, not the page background behind it.
+//
+// A pseudo-element painted BEHIND the section's own background is the whole
+// fix — no wrapper element, no second section, and nothing for the builder to
+// get wrong. `position: relative` with `z-index: auto` does not open a stacking
+// context, so `z-index: -1` puts the strip under the section's lemon fill while
+// still above the page canvas. It only needs to be as tall as the radius.
+//
+// The colour is taken from @global-primary-background rather than @jw-brown
+// directly: the footer is a `style: primary` section, so this tracks it — if
+// the footer's style ever changes, the notch follows instead of drifting.
+.jw-band-round-bottom {
+    position: relative;
+    border-bottom-left-radius: @jw-r-xl;
+    border-bottom-right-radius: @jw-r-xl;
+
+    &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: @jw-r-xl;
+        background-color: @global-primary-background;
+        z-index: -1;
+    }
+}
+
+// ---------- Logo wall ----------
+// The one part of the logo strip YOOtheme cannot express as a setting: it has no
+// image filter (checked — `blend` is a boolean, not a mode) and no max-height, so
+// desaturating and shrinking the marks needs CSS. Applied by putting the
+// `jw-logo-wall` class on the grid element.
+//
+// Centring both ways matters more than it looks: `uk-grid-match` stretches every
+// item to the tallest, and the supplied logos have wildly different aspect
+// ratios, so without this they sit on different baselines.
+.jw-logo-wall {
+    .el-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .el-image {
+        max-height: 34px;
+        width: auto;
+        filter: grayscale(1);
+    }
+}
+
+
+// ---------- FAQ accordion icon ----------
+// The only part of the accordion that is not a variable. UIkit injects a
+// hardcoded `<svg width="13" height="13">` for `uk-accordion-icon` — a plus
+// whose horizontal bar rotates away and whose vertical bar rotates flat on
+// open, which is exactly the design's behaviour, just a third of the size.
+// There is no @accordion-icon-* size variable to reach for; CSS width/height
+// beats the SVG's own attributes and the viewBox scales the 1px bars with it.
+//
+// Sized in `em`, not px, on purpose: the design draws the plus at the title's
+// own size, so 1em keeps the pair proportional through any future change to
+// @accordion-default-title-font-size instead of needing a matching edit here.
+// At the current 22px title that is a 22px plus with a ~1.7px stroke.
+//
+// Global rather than scoped to the FAQ: the accordion typography and dividers
+// above are already global, and UIkit's stock 13px plus is wrong against a
+// semibold question at every size in this system, not just in this section.
+.uk-accordion-default .uk-accordion-icon svg {
+    width: 1em;
+    height: 1em;
+}
+
+
+// NOTE — `.jw-intro` (32px) and `.jw-lead` (24px) USED to live here as bespoke
+// classes typed into content HTML. They are gone: both are now the native UIkit
+// text roles, mapped in section 2 (`@text-large-*` and `@text-lead-*`). Reach
+// for the element's "Text Style" dropdown — Large / Lead — not a class. If you
+// need one inside raw HTML (the hero's typewriter is an `html` element and has
+// no dropdown), write `uk-text-lead` / `uk-text-large`, which resolve through
+// the same variables and stay Customizer-editable.
 
 .jw-disclaimer {
     font-family: @jw-font-disclaimer;

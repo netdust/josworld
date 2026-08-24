@@ -80,16 +80,6 @@ return [
     ],
 
     // ========================================
-    // ASSETS (Scripts & Styles)
-    // Theme bundle is enqueued by AssetHooks (Vite manifest), not here.
-    // This block is for any extra CSS/JS handled by NTDST_Theme directly.
-    // ========================================
-    'assets' => [
-        'scripts' => [],
-        'styles' => [],
-    ],
-
-    // ========================================
     // SERVICES CONFIGURATION
     // Frontend hook classes are bound in functions.php; no auto-discovered
     // services ship with the starter. Business logic belongs in a
@@ -97,13 +87,8 @@ return [
     // ========================================
     'services' => [
         'core' => [],
-        'handlers' => [],
         'admin' => [],
         'conditional' => [],
-        'auto_discover' => false,
-        'discovery_paths' => [
-            __DIR__ . '/services',
-        ],
     ],
 
     // ========================================

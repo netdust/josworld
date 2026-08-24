@@ -2,10 +2,10 @@ includes:
     - vendor/szepeviktor/phpstan-wordpress/extension.neon
     # Pre-existing findings in the vendored framework + theme, frozen at gate
     # introduction. New code must be clean; do not add to this file.
-    # Coupling: the baseline references app/content/mu-plugins/ntdst-core + the theme —
-    # both live in THIS repo (netdust/wp-starter) and are rendered into a
-    # project by scaffold_wp_starter; regenerate with --generate-baseline
-    # after changing the vendored framework or theme.
+    # Coupling: the baseline references the theme only. ntdst-core became a
+    # composer package (2026-08-12) and is excluded wholesale below — its
+    # former baseline entries were removed; regenerate with --generate-baseline
+    # after changing the theme.
     - phpstan-baseline.neon
 
 parameters:
@@ -31,6 +31,32 @@ parameters:
         - vendor/wp-phpunit/wp-phpunit/includes/phpunit-adapter-testcase.php
         - vendor/wp-phpunit/wp-phpunit/includes/abstract-testcase.php
         - vendor/wp-phpunit/wp-phpunit/includes/testcase.php
+        # T05's cached-meta seam
+        # (app/content/themes/josworld/services/yootheme/ntdst-cached-meta-
+        # accessor.php) declares `ntdst_get_post_meta_from_cache()` guarded by
+        # `function_exists()` and lazily `require_once`d from inside
+        # FieldResolver::resolve() — required so Brain Monkey/Patchwork can
+        # intercept it at the unit tier (see that file's docblock). PHPStan
+        # does not reflect conditionally-declared functions and does not
+        # follow a require inside a method body, so this signature-only stub
+        # makes the symbol analysable without changing the guarded, lazily-
+        # loaded runtime shape.
+        - tests/phpstan-stubs/ntdst_get_post_meta_from_cache.stub.php
+        # The excluded ntdst-core package is invisible to analysis, so the
+        # NTDST_Pages class and the function_exists()-guarded ntdst_pages()
+        # helper both read as not-found at their consumer call sites
+        # (TeamService::closeSingleView()). Scanning the REAL file supplies
+        # both — a scanned file's guarded declarations ARE reflected
+        # (verified empirically), unlike the lazily-required accessor above,
+        # whose file is reachable through no scan or analysis path without
+        # its stub. ntdst_data() needs nothing only because Data.php's
+        # symbols predate the package exclude and ride the frozen baseline.
+        - app/content/mu-plugins/ntdst-core/core/Pages.php
+        # Same posture for the Container class ContainerTest exercises: new
+        # code must be clean without baseline entries, so the class must be
+        # discoverable. Its pre-existing baseline rows were pruned when
+        # discovery made them unmatched.
+        - app/content/mu-plugins/ntdst-core/core/Container.php
     paths:
         - app/content/mu-plugins
         - app/content/themes
@@ -49,3 +75,19 @@ parameters:
         # beneath it (surfaced by flatted/php/flatted.php inside npm deps).
         - app/content/themes/*/node_modules/* (?)
         - app/content/themes/*/dist/* (?)
+        # Signature-only PHPStan stub, loaded above via scanFiles for
+        # DISCOVERY only — its intentionally-empty body (no return
+        # statement) would otherwise fail its own analysis as a real file
+        # under the `tests` path.
+        - tests/phpstan-stubs/* (?)
+        # netdust/ntdst-core is a composer package with its own repo, gate,
+        # and reviewers (github.com/netdust/ntdst-core) — only OUR code is
+        # analysed here (ruling 2026-08-12). Same posture as vendor/ and the
+        # YOOtheme parent above. Its 209 pre-extraction baseline entries were
+        # removed together with this exclude.
+        - app/content/mu-plugins/ntdst-core/* (?)
+        # netdust/ntdst-baseline is a composer package with its own repo,
+        # gate, and reviewers (github.com/netdust/ntdst-baseline) — only OUR
+        # code is analysed here (ruling 2026-08-12). Same posture as
+        # ntdst-core above.
+        - app/content/mu-plugins/ntdst-baseline/* (?)

@@ -88,10 +88,13 @@ not meta.
 
 Source: `app/content/mu-plugins/josworld-core/services/content/TeamService.php`
 
-`public => false`, `publicly_queryable => false` (no single-member page —
-the design lists members on `/team/` and embeds them in cases, never links
-to a member's own page), but `has_archive => true` (the `/team/` list stays
-reachable) and `show_in_rest => true`.
+`public => true`, `publicly_queryable => true` since d3ff09e — the archive
+and YOOtheme's source enumeration require the flags, and WordPress has no
+"archive yes, singles no" flag. The single-member page is still closed, but
+by `TeamService::closeSingleView()`'s 301 redirect to the `/team/` archive
+(`ntdst_router()->single('team', …)`), not by registration flags.
+`exclude_from_search => true` keeps members out of site search;
+`has_archive => true` and `show_in_rest => true` as before.
 
 **REST caveat, worth repeating here because it is counter-intuitive:**
 `public => false` does NOT gate REST reads — that is standard WP core
@@ -109,6 +112,7 @@ posture and will go RED the moment it changes.
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|
 | `role` | `_jw_role` | text | required |
+| `bio` | `_jw_bio` | textarea | the team-archive card's short bio; read server-side by the template, not REST-registered |
 | `email` | `_jw_email` | email | not REST-exposed (see caveat above) |
 | `phone` | `_jw_phone` | text | not REST-exposed (see caveat above) |
 
@@ -195,6 +199,7 @@ case.dienst          (taxonomy terms, case-only, non-hierarchical)
 | case | interview | _jw_interview |
 | case | team | _jw_team |
 | team | role | _jw_role |
+| team | bio | _jw_bio |
 | team | email | _jw_email |
 | team | phone | _jw_phone |
 | vacature | employment_type | _jw_employment_type |

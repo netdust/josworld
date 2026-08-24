@@ -7,46 +7,37 @@ namespace NtdstTests\Unit;
 use ntdst\baseline\support\CacheHeaderPolicy;
 use ntdst\baseline\support\ClientIp;
 
-// ntdst-baseline is a mu-plugin loaded by WordPress via require_once at
-// boot, not a Composer PSR-4 package — so the unit tier (which boots no
-// WordPress at all) has to require the two pure support classes under test
-// directly. Both are dependency-free value/policy helpers: no WP functions,
-// no container, nothing to stub.
+// ntdst-baseline is loaded by WP at boot, not Composer PSR-4, so this
+// no-WordPress tier requires the pure support classes directly.
+//
+// ntdst-baseline v2.0.0 dropped its own support/Cidr.php: ClientIp is now a
+// thin adapter that delegates to ntdst-core's canonical NTDST_ClientIp,
+// which in turn needs core's NTDST_Cidr for its CIDR trust matching. Both
+// must load from ntdst-core before baseline's ClientIp.php, or the
+// class_exists('NTDST_ClientIp') check inside it fails closed and the
+// magic-quoted-XFF assertion below resolves to REMOTE_ADDR instead of the
+// forwarded address.
 require_once dirname(__DIR__, 2)
-    . '/app/content/mu-plugins/ntdst-baseline/support/Cidr.php';
+    . '/app/content/mu-plugins/ntdst-core/support/Cidr.php';
+require_once dirname(__DIR__, 2)
+    . '/app/content/mu-plugins/ntdst-core/support/ClientIp.php';
 require_once dirname(__DIR__, 2)
     . '/app/content/mu-plugins/ntdst-baseline/support/ClientIp.php';
 require_once dirname(__DIR__, 2)
     . '/app/content/mu-plugins/ntdst-baseline/support/CacheHeaderPolicy.php';
 
 /**
- * Unit tier: the CLOSING CHECKS for Cluster A review findings I-2 and I-3 —
- * the two `$_SERVER` input paths whose handling that review questioned.
+ * Pins two `$_SERVER` input-handling properties that hold only by accident
+ * in the current code: a magic-quoted $_SERVER must still resolve the
+ * forwarded IP, and a percent-encoded ETag must survive the input
+ * pipeline. Nothing else fails when the accident stops being true.
  *
- * Both findings were "correct today, fragile tomorrow": neither shipped a
- * live bug, and each was absorbed by something OTHER than the input
- * handling itself (I-2 by `inet_pton()` failing closed, I-3 by this
- * codebase's own ETags happening to be hex-only). That is exactly the shape
- * of defect a regression test is for — the property holds by accident, so
- * nothing fails when the accident stops being true.
- *
- * These tests pin the PROPERTY, not the current implementation:
- *   I-2 — a magic-quoted $_SERVER must still resolve the forwarded IP.
- *   I-3 — an ETag carrying a percent-encoded octet must still match.
- *
- * A test file by nature declares a symbol and executes side effects.
  * phpcs:disable PSR1.Files.SideEffects
  */
 final class BaselineInputHandlingTest extends TestCase
 {
-    /**
-     * I-2. `SecurityService::clientIp()` passes `wp_unslash($_SERVER)` to the
-     * resolver. Proven here at the resolver's own boundary: the value the
-     * caller is contractually required to hand over is the UNSLASHED one,
-     * and an IPv6 address is the case that actually bites — `addslashes()`
-     * does not touch a plain IPv4 dotted quad, so an IPv4-only test would
-     * pass with or without the fix and prove nothing.
-     */
+    // IPv6 is the case that bites: addslashes() leaves an IPv4 dotted
+    // quad untouched, so an IPv4-only test would pass vacuously.
     public function test_a_magic_quoted_forwarded_ipv6_still_resolves(): void
     {
         $trustedProxy = '127.0.0.1';
@@ -67,11 +58,8 @@ final class BaselineInputHandlingTest extends TestCase
         );
     }
 
-    /**
-     * I-2, denial path. The magic-quotes handling must NOT weaken the
-     * trusted-proxy gate (threat-model M1): an UNTRUSTED remote's
-     * X-Forwarded-For is ignored no matter what it claims.
-     */
+    // Denial path: the magic-quotes handling must not weaken the
+    // trusted-proxy gate — an untrusted remote's X-Forwarded-For is ignored.
     public function test_an_untrusted_remote_cannot_spoof_its_ip_via_forwarded_for(): void
     {
         $untrustedRemote = '203.0.113.9';
@@ -91,12 +79,8 @@ final class BaselineInputHandlingTest extends TestCase
         );
     }
 
-    /**
-     * I-3. An ETag containing a percent-encoded octet must survive the input
-     * pipeline and still match. `sanitize_text_field()` strips `%xx`
-     * sequences, so this test goes RED against that implementation and GREEN
-     * against the RFC 9110 entity-tag filter that replaced it.
-     */
+    // sanitize_text_field() strips %xx sequences; this pins the RFC 9110
+    // entity-tag filter that replaced it.
     public function test_a_percent_encoded_etag_survives_the_input_pipeline(): void
     {
         $etag = '"a%20b"';
@@ -114,12 +98,8 @@ final class BaselineInputHandlingTest extends TestCase
         );
     }
 
-    /**
-     * I-3, guard: the filter must still DROP genuinely illegal bytes — a
-     * control character or a quote-mangling backslash has no place in an
-     * entity-tag, and a filter that passes everything through would satisfy
-     * the test above while removing all protection.
-     */
+    // Guard: a filter that passes everything through would satisfy the
+    // test above while removing all protection — illegal bytes must drop.
     public function test_the_etag_filter_drops_control_characters(): void
     {
         $filtered = preg_replace('/[^\x21-\x7E,\s]/', '', "\"abc\"\x00\x07");

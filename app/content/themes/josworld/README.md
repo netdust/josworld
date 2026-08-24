@@ -26,7 +26,7 @@ npm run dev        # starts the Vite dev server on http://localhost:5173
 ```
 
 When `WP_DEBUG` is on **and** no production manifest exists, the theme forks to
-the Vite dev server automatically (see `services/frontend/hooks/AssetHooks.php`).
+the Vite dev server automatically (see `services/frontend/hooks/ViteAssets.php`).
 In production it reads `dist/.vite/manifest.json` and enqueues the hashed bundle.
 
 > The theme **degrades gracefully before the first build**: with no manifest in
@@ -42,7 +42,7 @@ In production it reads `dist/.vite/manifest.json` and enqueues the hashed bundle
    core services @5 / feature services @15 on `after_setup_theme`.
 4. Instantiates `NTDST_Theme` with the menus / image sizes / support / excerpt /
    assets blocks from the config.
-5. Binds the frontend hook class(es) — currently just `AssetHooks` — via
+5. Binds the frontend hook class(es) — currently just `ViteAssets` — via
    `->bind($theme)`.
 
 ## Layout
@@ -58,7 +58,7 @@ josworld/
 ├── partials/empty-state.php
 ├── helpers/                  # icons.php, formatting.php, templates.php
 ├── icons/                    # inline SVGs (menu, x, chevron-down, search, ...)
-├── services/frontend/hooks/  # AssetHooks.php (Vite pipeline)
+├── services/frontend/hooks/  # ViteAssets.php (Vite pipeline)
 ├── src/                      # main.js + css/ (tokens, base, components)
 ├── vite.config.js tailwind.config.js postcss.config.js package.json
 └── dist/                     # build output (gitignored)

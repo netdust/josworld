@@ -2,41 +2,23 @@
 /**
  * Josworld Theme — Functions
  *
- * YOOtheme Pro child theme wired into ntdst-core (Tailwind + Alpine + Vite).
- *
- * YOOtheme (the parent) owns rendering: it ships the page templates and the
- * builder, so this child deliberately carries NO template files — adding a
- * header.php/page.php/etc. here would override the parent and bypass the
- * builder entirely. This file is for the site's own wiring only.
- *
- * Wiring pattern (mirrors stridence, minus all LMS/domain code):
- *   1. Define theme constants.
- *   2. Load helper functions.
- *   3. Register NTDST_Bootstrap from theme-config.php, boot core @5 / features @15.
- *   4. Hand theme setup (menus, image sizes, support, ...) to NTDST_Theme.
- *   5. Enqueue the parent stylesheet, then this child's own assets.
- *   6. Bind the frontend hook classes to the theme.
+ * YOOtheme Pro child theme wired into ntdst-core. YOOtheme (the parent)
+ * owns rendering: this child deliberately carries NO template files —
+ * adding header.php/page.php here would bypass the builder. This file is
+ * the site's wiring only, and all of it runs through the NTDST_Theme
+ * facade below.
  *
  * @package josworld
  */
 
 defined('ABSPATH') || exit;
 
-// ========================================
-// CONSTANTS
-// ========================================
-
 define('JOSWORLD_VERSION', '1.0.0');
 define('JOSWORLD_DIR', get_stylesheet_directory());
 define('JOSWORLD_URI', get_stylesheet_directory_uri());
 
-// ========================================
-// LOAD HELPERS
-// ========================================
-
 require_once JOSWORLD_DIR . '/helpers/icons.php';
 require_once JOSWORLD_DIR . '/helpers/formatting.php';
-require_once JOSWORLD_DIR . '/helpers/templates.php';
 
 // ========================================
 // BOOTSTRAP (NTDST Core Integration)
@@ -44,24 +26,35 @@ require_once JOSWORLD_DIR . '/helpers/templates.php';
 
 $config = require JOSWORLD_DIR . '/theme-config.php';
 
-// Create and register bootstrap instance (from ntdst-core)
 if (class_exists('NTDST_Bootstrap')) {
     $bootstrap = new NTDST_Bootstrap($config);
     $bootstrap->register();
     ntdst_set(NTDST_Bootstrap::class, fn() => $bootstrap);
 
-    // Boot core services (priority 5)
     add_action('after_setup_theme', fn() => $bootstrap->bootCore(), 5);
-
-    // Boot feature services (priority 15)
     add_action('after_setup_theme', fn() => $bootstrap->bootFeatures(), 15);
 }
 
-// Hand theme setup to NTDST_Theme: title-tag, html5, custom-logo,
-// menus, image sizes, sidebars, excerpt and content width are all
-// driven by theme-config.php.
+// ========================================
+// THEME FACADE — all theme wiring below goes through this instance
+// ========================================
+
 if (class_exists('NTDST_Theme')) {
-    new NTDST_Theme([
+    require_once __DIR__ . '/services/frontend/hooks/ViteAssets.php';
+
+    // The YOOtheme dynamic-content bridge. Required explicitly (no
+    // autoloader); `ntdst-cached-meta-accessor.php` is deliberately NOT
+    // required here — FieldResolver requires it lazily so Brain Monkey can
+    // intercept it at the unit tier.
+    require_once __DIR__ . '/services/yootheme/SchemaMapper.php';
+    require_once __DIR__ . '/services/yootheme/FieldResolver.php';
+    require_once __DIR__ . '/services/yootheme/YOOthemeSourcesService.php';
+
+    $josworld_yootheme_sources = new \josworld\services\yootheme\YOOthemeSourcesService();
+
+    // Theme setup (title-tag, html5, custom-logo, menus, image sizes,
+    // sidebars, excerpt, content width) is driven by theme-config.php.
+    $theme = new NTDST_Theme([
         'textdomain'    => $config['theme']['textdomain'] ?? 'josworld',
         'content_width' => $config['theme']['content_width'] ?? 1280,
         'theme_support' => $config['support'] ?? [],
@@ -69,66 +62,44 @@ if (class_exists('NTDST_Theme')) {
         'menus'         => $config['menus'] ?? [],
         'sidebars'      => $config['sidebars'] ?? [],
         'excerpt'       => $config['excerpt'] ?? ['length' => 55, 'more' => ''],
-        'assets'        => $config['assets'] ?? ['styles' => [], 'scripts' => []],
     ]);
-}
-
-// ========================================
-// PARENT (YOOtheme) STYLESHEET
-// ========================================
-
-/**
- * Load the parent (YOOtheme) stylesheet, then this child's own style.css after
- * it. The Vite-built CSS is enqueued separately by AssetHooks; this only covers
- * the child's hand-written style.css overrides.
- *
- * Priority 20 so it lands after YOOtheme's own enqueues.
- */
-add_action('wp_enqueue_scripts', static function (): void {
-    // NOTE: the brand fonts are NOT enqueued here. They are selected in
-    // Customizer → Theme → Style → Fonts, and YOOtheme's StyleFontLoader
-    // (packages/styler/src/StyleFontLoader.php) downloads and self-hosts the
-    // woff2 files — so adding a wp_enqueue_style for the same families would
-    // load them twice, and from Google's CDN instead of this server.
-    wp_enqueue_style(
-        'yootheme',
-        get_template_directory_uri() . '/style.css',
-        [],
-        wp_get_theme(get_template())->get('Version') ?: null,
-    );
 
     $child_css = JOSWORLD_DIR . '/style.css';
-    wp_enqueue_style(
-        'josworld-child',
-        JOSWORLD_URI . '/style.css',
-        ['yootheme'],
-        file_exists($child_css) ? (string) filemtime($child_css) : JOSWORLD_VERSION,
-    );
-}, 20);
 
-// ========================================
-// HOOKS (bound to NTDST_Theme)
-// ========================================
+    $theme
+        // Parent (YOOtheme) stylesheet, then the child's hand-written
+        // style.css overrides. Priority 20: after YOOtheme's own enqueues.
+        // The brand fonts are NOT enqueued here — YOOtheme's StyleFontLoader
+        // self-hosts the woff2 files picked in the Customizer; enqueueing
+        // the same families again would double-load them from Google.
+        ->on('wp_enqueue_scripts', static function () use ($child_css): void {
+            wp_enqueue_style(
+                'yootheme',
+                get_template_directory_uri() . '/style.css',
+                [],
+                wp_get_theme(get_template())->get('Version') ?: null,
+            );
+            wp_enqueue_style(
+                'josworld-child',
+                JOSWORLD_URI . '/style.css',
+                ['yootheme'],
+                file_exists($child_css) ? (string) filemtime($child_css) : JOSWORLD_VERSION,
+            );
+        }, 20)
+        // ORDERING CONTRACT (fails SILENTLY if broken): `collect` listens
+        // for `ntdst/model/registered`, which josworld-core fires on
+        // `after_setup_theme` @5. This file runs at top level BEFORE that
+        // hook fires, so attaching here is provably in time; attaching from
+        // bootCore()/bootFeatures() is a race / too late, and the only
+        // symptom is an empty dynamic-content picker. Contract test:
+        // tests/Integration/YOOthemeSourcesBootWiringTest.php.
+        ->on('ntdst/model/registered', [$josworld_yootheme_sources, 'collect'], 10, 2)
+        // On `init` so YOOtheme has declared `YOOtheme\app` by the time
+        // register()'s own guard runs; safe without the licensed parent.
+        ->on('init', [$josworld_yootheme_sources, 'register']);
 
-require_once __DIR__ . '/services/frontend/hooks/AssetHooks.php';
-
-if (class_exists('NTDST_Theme')) {
-    $theme = ntdst_get(\NTDST_Theme::class);
-    (new \josworld\services\frontend\hooks\AssetHooks())->bind($theme);
+    // The Vite pipeline (manifest/dev-server fork + inline config) —
+    // runtime-conditional, so a hook class rather than static ->script()
+    // lines. It attaches through the facade it receives.
+    (new \josworld\services\frontend\hooks\ViteAssets())->bind($theme);
 }
-
-// ========================================
-// ntdst-core integration point
-// ========================================
-
-/**
- * The framework is loaded by the `ntdst-coreloader.php` mu-plugin and booted
- * above, so `ntdst_get()`, `ntdst_endpoints()`, … are available anywhere in
- * this theme — no bootstrap required in template or service code.
- *
- * The Tailwind nav walker and fallback menu that shipped with the standalone
- * starter were removed with the template files: YOOtheme renders navigation
- * through its own builder elements, so a bespoke `Walker_Nav_Menu` has nothing
- * to walk here. If a custom menu ever IS needed, add it back alongside the
- * builder element that calls it.
- */

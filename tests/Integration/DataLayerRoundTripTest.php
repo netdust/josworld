@@ -8,13 +8,9 @@ use WP_Post;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: exercises the ntdst-core Data layer against REAL
- * WordPress and the real (dedicated) wptests database.
- *
- * Every assertion here is behavior the unit tier's Brain Monkey explicitly
- * cannot provide: real wp_insert_post persistence, real prefixed post-meta
- * storage read back through WordPress itself, and the real hook dispatcher
- * firing the model's lifecycle action.
+ * Exercises the ntdst-core Data layer against real WordPress and the
+ * dedicated wptests database: real persistence, prefixed meta read back
+ * through WP itself, and the real hook dispatcher.
  */
 final class DataLayerRoundTripTest extends WP_UnitTestCase
 {
@@ -39,7 +35,10 @@ final class DataLayerRoundTripTest extends WP_UnitTestCase
         ]);
 
         $listener_calls = 0;
-        add_action('ntdst_model_create_after', function () use (&$listener_calls): void {
+        // 5.0 renamed the lifecycle hooks to the ntdst/* namespace with no
+        // shim — a listener on the retired ntdst_model_create_after spelling
+        // is silently inert (README, "Model lifecycle hooks (FR-11)").
+        add_action('ntdst/model/created', function () use (&$listener_calls): void {
             $listener_calls++;
         });
 

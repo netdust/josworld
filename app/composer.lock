@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "de6878bee9fb1c24f71b47fe67489e45",
+    "content-hash": "d601435c9dcc87092a76f5d0efc5b1b0",
     "packages": [
         {
             "name": "composer/installers",
@@ -213,6 +213,136 @@
                 }
             ],
             "time": "2024-07-20T21:45:45+00:00"
+        },
+        {
+            "name": "netdust/ntdst-baseline",
+            "version": "v2.0.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:netdust/ntdst-baseline.git",
+                "reference": "9c7db21a06e06853b0a6b32a26ea4f404544d8f1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/9c7db21a06e06853b0a6b32a26ea4f404544d8f1",
+                "reference": "9c7db21a06e06853b0a6b32a26ea4f404544d8f1",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "conflict": {
+                "netdust/ntdst-core": "<4.2"
+            },
+            "require-dev": {
+                "brain/monkey": "^2.6",
+                "phpunit/phpunit": "^10.5"
+            },
+            "type": "wordpress-muplugin",
+            "scripts": {
+                "lint": [
+                    "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l"
+                ],
+                "guard": [
+                    "bash bin/guard.sh"
+                ],
+                "test": [
+                    "phpunit"
+                ],
+                "gate": [
+                    "@lint",
+                    "@test",
+                    "@guard"
+                ]
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Stefan Vandermeulen",
+                    "email": "stefan@netdust.be"
+                }
+            ],
+            "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
+            "support": {
+                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.0.0",
+                "issues": "https://github.com/netdust/ntdst-baseline/issues"
+            },
+            "time": "2026-08-20T21:18:23+00:00"
+        },
+        {
+            "name": "netdust/ntdst-core",
+            "version": "5.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/netdust/ntdst-core.git",
+                "reference": "a81899815fb38f8cacd6c97038e886392e5b4139"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/netdust/ntdst-core/zipball/a81899815fb38f8cacd6c97038e886392e5b4139",
+                "reference": "a81899815fb38f8cacd6c97038e886392e5b4139",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "brain/monkey": "^2.6",
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+                "phpcompatibility/phpcompatibility-wp": "^2.1",
+                "phpunit/phpunit": "^10.5",
+                "squizlabs/php_codesniffer": "^3.9",
+                "wp-coding-standards/wpcs": "^3.1"
+            },
+            "type": "wordpress-muplugin",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "5.0.x-dev"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "syntax": [
+                    "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l"
+                ],
+                "lint": [
+                    "phpcs"
+                ],
+                "lint:fix": [
+                    "phpcbf"
+                ],
+                "guard": [
+                    "bash bin/guard.sh"
+                ],
+                "gate": [
+                    "@syntax",
+                    "@test",
+                    "@guard",
+                    "@audit:deps"
+                ],
+                "audit:deps": [
+                    "composer audit"
+                ]
+            },
+            "license": [
+                "proprietary"
+            ],
+            "authors": [
+                {
+                    "name": "Stefan Vandermeulen",
+                    "email": "stefan@netdust.be"
+                }
+            ],
+            "description": "NTDST Core Framework — DI container, Bootstrap, Router, Data layer, admin form layer for WordPress. Minimal layer: solid, secure code; features enter only with a named consumer.",
+            "support": {
+                "source": "https://github.com/netdust/ntdst-core/tree/5.0.0",
+                "issues": "https://github.com/netdust/ntdst-core/issues"
+            },
+            "time": "2026-08-23T20:37:03+00:00"
         },
         {
             "name": "phpoption/phpoption",

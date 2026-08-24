@@ -9,30 +9,11 @@ use WP_REST_Request;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: closes review findings M-2 and CB-B-6 — both about the
- * `team` post type's real-WP behaviour, neither expressible at the unit
- * tier (REST controller registration + query rewrite/archive resolution
- * are both real-WordPress effects Brain Monkey cannot simulate).
- *
- * M-2 — TeamService's docblock claimed REST reads were "gated by the same
- * publicly_queryable/capability posture" as the front-end. That was false:
- * `public => false` does NOT gate REST reads (standard WP core behaviour —
- * WP_REST_Posts_Controller::get_items_permissions_check() returns true for
- * a read outside `edit` context regardless of the post type's public/
- * publicly_queryable flags; WP core's own wp_template/wp_block behave the
- * same). This test DOCUMENTS the current posture — an unauthenticated REST
- * request for `team` returns results, and email/phone are absent from the
- * payload ONLY because no register_meta() call exists for either field
- * (verified: zero hits across mu-plugins). It goes RED the day someone
- * registers those meta fields for REST, which is exactly the moment you'd
- * want to know.
- *
- * CB-B-6 — `team` sets has_archive => true with publicly_queryable => false.
- * The existing registration tests assert the flags but never that the
- * archive actually resolves to real content. P2 depends on /team/ listing
- * members, so this proves a WP_Query(['post_type' => 'team']) actually
- * returns published members with that flag combination, rather than
- * assuming the flags imply it.
+ * Pins the `team` REST posture: the public flags do NOT gate REST reads,
+ * so name/photo are readable unauthenticated, and email/phone stay private
+ * ONLY because nothing calls register_meta() for them — this goes RED the
+ * day someone does. Also proves the /team/ archive query returns real
+ * content rather than assuming the registration flags imply it.
  */
 final class TeamRestExposureTest extends WP_UnitTestCase
 {
@@ -51,18 +32,14 @@ final class TeamRestExposureTest extends WP_UnitTestCase
 
         new TeamService(ntdst_data());
 
-        // REST controllers are normally registered on the `rest_api_init`
-        // hook (fired once, early, by WP's own bootstrap) — replay it here
-        // so a request dispatched within this test actually resolves,
-        // the same pattern WP core's own REST test suite uses.
+        // Replay rest_api_init so a dispatched request resolves — the same
+        // pattern WP core's own REST test suite uses.
         do_action('rest_api_init');
     }
 
     /**
-     * M-2: the CURRENT exposure, documented and proven — an unauthenticated
-     * REST request for `team` returns results (name/photo are public once
-     * content exists), and no personal-data field leaks, because none is
-     * registered for REST.
+     * The current exposure, proven: unauthenticated REST returns members,
+     * and no personal-data field leaks because none is registered for REST.
      */
     public function test_unauthenticated_rest_request_for_team_returns_results_without_email_or_phone(): void
     {
@@ -77,9 +54,7 @@ final class TeamRestExposureTest extends WP_UnitTestCase
         $this->assertNotWPError($member);
         wp_publish_post($member->ID);
 
-        // No current user set — this IS the unauthenticated request; a
-        // WP_UnitTestCase defaults to no logged-in user unless wp_set_current_user()
-        // is called, but state it explicitly so the intent is unambiguous.
+        // Explicitly unauthenticated.
         wp_set_current_user(0);
 
         $request = new WP_REST_Request('GET', '/wp/v2/team');
@@ -102,10 +77,8 @@ final class TeamRestExposureTest extends WP_UnitTestCase
         );
         $this->assertContains('Grace Hopper', $titles, 'name (post title) is publicly exposed via REST');
 
-        // Personal-data check: email/phone must be absent from EVERY item's
-        // payload, both as top-level keys and inside any `meta` block —
-        // whichever shape a future register_meta() call would surface them
-        // under.
+        // email/phone must be absent both top-level and in any `meta` block
+        // — whichever shape a future register_meta() would surface them under.
         foreach ($data as $item) {
             $this->assertArrayNotHasKey(
                 'email',
@@ -128,10 +101,8 @@ final class TeamRestExposureTest extends WP_UnitTestCase
     }
 
     /**
-     * CB-B-6: /team/ archive resolution — has_archive => true combined with
-     * publicly_queryable => false. Prove a WP_Query(['post_type' => 'team'])
-     * actually returns published members, rather than assuming the flag
-     * combination implies it.
+     * The /team/ archive must resolve to real content — proven by query,
+     * not assumed from the registration flags.
      */
     public function test_team_archive_query_returns_published_members(): void
     {

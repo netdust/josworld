@@ -11,55 +11,18 @@ use josworld\services\content\VacatureService;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: T10 — the two cross-cutting model conventions asserted
- * across EVERY josworld model AT ONCE (FR-12, SC-5), plus the AF-1 denial
- * edge for the metabox save guard.
- *
- * THE PROBLEM THIS SIBLING-SITE AUDIT NAMES: a per-model test
- * (CaseServiceRegistrationTest's "every meta key starts with _jw_"
- * assertion, for example) proves the convention for THAT model only. A
- * fifth model added later — by a task that never touches
- * CaseServiceRegistrationTest.php — silently escapes every existing check.
- * This file iterates the REAL registry (never a hardcoded model list) so a
- * new model is automatically in scope the moment it registers with a
- * `meta_prefix`, with no test file anywhere needing an edit.
- *
- * THREE CLAUSES, in the order tasks.md states them:
- *
- * 1) Every meta key on every registered josworld model matches `^_jw_`.
- *    Scoped by the SAME boundary PostTypeRegistryConsistencyTest already
- *    established: "a model this project owns" = registered through
- *    ntdst_data() AND carrying JOSWORLD_CORE_META_PREFIX as its meta_prefix
- *    (commit 2287cc6). `dienst` is deliberately excluded — it is a
- *    TAXONOMY (CaseService: `ntdst_get(\NTDST_Theme::class)->taxonomy(...)`),
- *    not a Data model; it carries no meta_prefix and
- *    `ntdst_data()->isRegistered('dienst')` is false, so it is out of scope
- *    by the same registry-membership test every model must pass to be
- *    counted at all — not a special case carved out by this file.
- *
- * 2) A static scan of the josworld-core plugin directory finds ZERO direct
- *    `register_post_type()` / `register_taxonomy()` calls. Real
- *    registration converges on `ntdst_data()->register()` (which calls
- *    register_post_type() itself, inside ntdst-core, never inside
- *    josworld-core) and `NTDST_Theme::taxonomy()`. Comments/docblocks
- *    explaining this invariant must NOT be mistaken for violations — this
- *    file's own strip-comments step is proven against a violating AND a
- *    commented-only fixture before being trusted on the real tree, the same
- *    self-proving pattern JosworldCoreBootBlockTest and
- *    MultilingualServiceAbsenceTest already established for this project.
- *
- * 3) The framework's nonce + current_user_can('edit_post') guards in
- *    NTDST_MetaboxGenerator::save_metabox_data() actually REJECT an
- *    unauthorised metabox POST — the AF-1 "denied" edge. Not "the guard is
- *    present in the source" (a source-scan cannot prove a runtime
- *    rejection) but that persisted meta is UNCHANGED after the real
- *    `save_post` hook fires with (a) no nonce, (b) a forged nonce, and
- *    (c) a valid nonce from a user who lacks `edit_post` on that post. The
- *    seam is un-mocked: registering CaseService wires the REAL
- *    NTDST_MetaboxGenerator singleton onto the REAL `save_post` action
- *    (Data.php:1547-1552 auto-registers metaboxes on register()), so
- *    `wp_update_post()` below drives the actual guarded save path, not a
- *    stand-in for it.
+ * Cross-cutting model conventions swept across EVERY registered josworld
+ * model at once — the registry is enumerated, never hardcoded, so a fifth
+ * model is in scope the moment it registers with the `_jw_` meta_prefix:
+ *  1. every meta key on every registered model matches `^_jw_`;
+ *  2. a static scan finds zero direct register_post_type()/
+ *     register_taxonomy() calls in josworld-core — registration converges
+ *     on ntdst_data()->register() (taxonomies via its `taxonomies` key);
+ *  3. the framework's nonce + edit_post guards actually REJECT an
+ *     unauthorised metabox POST through the real, un-mocked save_post
+ *     chain.
+ * `dienst` is a taxonomy, not a Data model — it fails registry membership,
+ * not a special case here.
  */
 final class ModelConventionsTest extends WP_UnitTestCase
 {
@@ -86,16 +49,9 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Fixture post types registered by the mutation-proof tests below
-     * (clause 1) must NOT leak into the shared, process-lifetime
-     * `NTDST_Data_Manager::$models` static registry, or a sibling test
-     * file's OWN registry-scoped assertion (e.g.
-     * PostTypeRegistryConsistencyTest's forward CB-4 check, which is
-     * scoped by the very same `_jw_` meta prefix this file's fixtures
-     * deliberately use) would start failing for a reason that has nothing
-     * to do with its own contract — the exact test-pollution hazard
-     * PostTypeRegistryConsistencyTest's own docblock already names for
-     * DataLayerRoundTripTest's `gate_item` fixture.
+     * Fixture models must not leak into the process-lifetime
+     * NTDST_Data_Manager::$models registry — sibling files' registry-scoped
+     * sweeps would fail on them.
      */
     protected function tearDown(): void
     {
@@ -133,12 +89,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
     // ------------------------------------------------------------------
 
     /**
-     * The registry-derived model set. A fifth model that registers with
-     * JOSWORLD_CORE_META_PREFIX is automatically included here the moment
-     * it exists — this is the whole point of the sibling-site audit named
-     * in tasks.md, and the reason a hardcoded
-     * ['case','team','vacature','tool'] loop would reproduce the exact bug
-     * this task exists to prevent.
+     * The registry-derived model set — a hardcoded slug list would
+     * reproduce the exact escape this file exists to prevent.
      *
      * @return list<string>
      */
@@ -194,14 +146,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Mutation proof: a model registered WITHOUT the `_jw_` meta_prefix (or
-     * with a different prefix) must be REJECTED by the enumeration itself —
-     * proving the registry filter that scopes clause 1 is behavioral, not
-     * accidentally permissive. If this filter ever degraded to "every
-     * registered post type" (dropping the meta_prefix check), a
-     * third-party or differently-prefixed model would silently enter the
-     * sweep and could pass or fail for reasons that have nothing to do
-     * with josworld's own convention.
+     * The enumeration must discriminate on meta_prefix — a foreign-prefixed
+     * model stays out of the sweep.
      */
     public function test_a_model_registered_with_a_different_meta_prefix_is_excluded_from_the_sweep(): void
     {
@@ -226,11 +172,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Mutation proof (positive direction): a NEW model that registers with
-     * JOSWORLD_CORE_META_PREFIX after setUp() — i.e. the "fifth model
-     * added later" tasks.md warns about — is automatically picked up by
-     * the same enumeration with NO edit to this test file. This is the
-     * actual guarantee the sibling-site audit exists to provide.
+     * A new model registering with the `_jw_` prefix is swept in with no
+     * edit to this file.
      */
     public function test_a_new_model_registered_with_the_jw_prefix_is_automatically_swept_in(): void
     {
@@ -279,16 +222,14 @@ final class ModelConventionsTest extends WP_UnitTestCase
             [],
             $violations,
             'josworld-core must never call register_post_type()/register_taxonomy() directly — '
-            . 'real registration converges on ntdst_data()->register() and '
-            . 'NTDST_Theme::taxonomy() (FR-12/SC-5 architecture invariant). Found: '
+            . 'real registration converges on ntdst_data()->register(), taxonomies included '
+            . 'via its `taxonomies` config key. Found: '
             . implode(', ', $violations),
         );
     }
 
     /**
-     * Mutation proof (violating case): a fixture calling
-     * register_post_type() directly, with no guard, no comment trick, must
-     * be flagged.
+     * A bare direct register_post_type() call must be flagged.
      */
     public function test_a_direct_register_post_type_call_in_a_fixture_is_flagged(): void
     {
@@ -319,14 +260,9 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Mutation proof (the exact trap named in the task): a
-     * COMMENTED-OUT register_post_type() call — e.g. explanatory docblock
-     * prose like the real CaseService.php ships today
-     * ("no direct register_taxonomy() call anywhere in josworld-core") —
-     * must NOT be flagged. A naive substring/regex scan that does not
-     * strip comments first would treat this docblock line as a live
-     * violation and the real-file assertion above could never pass while
-     * the invariant is honestly documented.
+     * A commented-out/docblock-quoted call must NOT be flagged — the real
+     * tree documents this invariant in prose, and a naive scan would flag
+     * that prose as a violation.
      */
     public function test_a_commented_out_registration_call_is_not_flagged(): void
     {
@@ -353,9 +289,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Mutation proof (the inverse trap): a call embedded inside a STRING
-     * LITERAL (e.g. an error message quoting the forbidden call) must also
-     * not be flagged as a real call — only an actual invocation counts.
+     * A call named inside a string literal is not an invocation and must
+     * not be flagged.
      */
     public function test_a_call_named_inside_a_string_literal_is_not_flagged(): void
     {
@@ -393,13 +328,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Token-based scan (not a naive regex/substring match) for a REAL
-     * function-call invocation of register_post_type()/register_taxonomy()
-     * — comments and string literals are excluded because token_get_all()
-     * classifies them as T_COMMENT/T_DOC_COMMENT/T_CONSTANT_ENCAPSED_STRING,
-     * never as a T_STRING call token, so this scanner cannot be fooled by
-     * either the documentation trap or the string-literal trap proven
-     * above.
+     * Token-based scan: comments and string literals never tokenize as a
+     * T_STRING call token, so neither trap above fools it.
      *
      * @return list<string>
      */
@@ -420,13 +350,9 @@ final class ModelConventionsTest extends WP_UnitTestCase
                 continue;
             }
 
-            // Only count it as a CALL if the next non-whitespace token is
-            // an opening paren, and the token immediately before it is NOT
-            // part of a method-call chain (`->register_post_type(`) or a
-            // namespaced/static reference we don't care about here — the
-            // targets are global WP functions, so a preceding `->` or
-            // `::` would mean this is a differently-named method, not the
-            // global function.
+            // A call: next non-whitespace token is `(`, and no preceding
+            // `->`/`::` (that would be a differently-named method, not the
+            // global WP function).
             $prev = $tokens[$index - 1] ?? null;
             if (is_array($prev) && in_array($prev[0], [T_OBJECT_OPERATOR, T_DOUBLE_COLON], true)) {
                 continue;
@@ -446,16 +372,13 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     // ------------------------------------------------------------------
-    // Clause 3: the AF-1 denial edge — nonce + current_user_can('edit_post')
-    // actually REJECT an unauthorised metabox POST.
+    // Clause 3: nonce + current_user_can('edit_post') actually REJECT an
+    // unauthorised metabox POST.
     // ------------------------------------------------------------------
 
     /**
-     * Drives the REAL, un-mocked save_post -> NTDST_MetaboxGenerator::
-     * save_metabox_data() chain (wired automatically when CaseService
-     * registers — Data.php:1547-1552) with NO nonce in $_POST at all.
-     * The framework's `if (!isset($_POST[$nonce_name])) return;` guard
-     * must reject the write: the field must remain unset after the save.
+     * The real save_post -> save_metabox_data() chain with NO nonce in
+     * $_POST: the write must be rejected.
      */
     public function test_metabox_save_is_rejected_when_no_nonce_is_present_in_the_post(): void
     {
@@ -481,9 +404,7 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Same chain, this time with a nonce KEY present but holding a value
-     * that does not verify (a forged/expired/wrong-action nonce). The
-     * `wp_verify_nonce()` guard must reject the write.
+     * Nonce key present but failing wp_verify_nonce(): rejected.
      */
     public function test_metabox_save_is_rejected_when_the_nonce_does_not_verify(): void
     {
@@ -509,11 +430,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Same chain, this time with a VALID nonce (so the nonce guard alone
-     * would pass) but the current user lacks `edit_post` capability on
-     * this specific post — a subscriber. The
-     * `current_user_can('edit_post', $post_id)` guard must reject the
-     * write on its own, independent of the nonce guard.
+     * Valid nonce, but the current user (a subscriber) lacks edit_post on
+     * this post: the capability guard must reject on its own.
      */
     public function test_metabox_save_is_rejected_when_the_current_user_cannot_edit_the_post(): void
     {
@@ -529,7 +447,11 @@ final class ModelConventionsTest extends WP_UnitTestCase
             . 'or the guard below would pass for the wrong reason',
         );
 
-        $nonceAction = 'ntdst_save_case';
+        // Post-scoped since 5.0 (MetaboxGenerator::nonce_action()): a nonce
+        // minted for one post no longer authorizes a save on another. This
+        // must be the VALID action, or the assertion below would pass on
+        // nonce failure instead of the capability guard it probes.
+        $nonceAction = 'ntdst_save_case_' . $postId;
         $_POST = [
             'ntdst_case_nonce' => wp_create_nonce($nonceAction),
             'ntdst_fields' => ['client' => 'Subscriber-supplied client name'],
@@ -548,13 +470,9 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * The ALLOWED counterpart (not the point of this test file, but
-     * necessary to prove the denial tests above fail for the RIGHT reason
-     * — i.e. that this harness is capable of a successful save at all,
-     * rather than the ORM/metabox chain being broken in a way that makes
-     * every save silently no-op regardless of nonce/capability). A
-     * denial test suite with no matching allow-path proof cannot
-     * distinguish "correctly rejected" from "everything here is broken".
+     * The ALLOWED counterpart: without a successful save the denial tests
+     * cannot distinguish "correctly rejected" from "save path broken
+     * outright".
      */
     public function test_metabox_save_persists_when_nonce_and_capability_are_both_valid(): void
     {
@@ -563,7 +481,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
 
         $postId = $this->create_draft_case_post();
 
-        $nonceAction = 'ntdst_save_case';
+        // Post-scoped since 5.0 (MetaboxGenerator::nonce_action()).
+        $nonceAction = 'ntdst_save_case_' . $postId;
         $_POST = [
             'ntdst_case_nonce' => wp_create_nonce($nonceAction),
             'ntdst_fields' => ['client' => 'Legitimately saved client name'],
@@ -574,7 +493,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
         $_POST = [];
 
         $model = ntdst_data()->get('case');
-        $persisted = $model->find($postId);
+        // 'any': the fixture is a DRAFT and find() now defaults publish-only.
+        $persisted = $model->find($postId, 'any');
 
         $this->assertFalse(is_wp_error($persisted), 'precondition: the case must be findable after saving');
         $this->assertSame(
@@ -587,11 +507,8 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Creates a real WP user with the given role via wp_insert_user()
-     * (rather than self::factory()->user->create(), whose
-     * WP_UnitTest_Factory_For_User return type PHPStan cannot resolve —
-     * factory.php is not in phpstan.neon's scanFiles) and returns the
-     * user ID.
+     * wp_insert_user() rather than the factory: the factory's return type
+     * is invisible to PHPStan (factory.php is not in scanFiles).
      */
     private function create_user_with_role(string $role): int
     {
@@ -607,9 +524,7 @@ final class ModelConventionsTest extends WP_UnitTestCase
     }
 
     /**
-     * Creates a real draft `case` post via wp_insert_post() (same
-     * factory-typing reason as create_user_with_role() above) and returns
-     * the post ID.
+     * Same factory-typing reason as create_user_with_role().
      */
     private function create_draft_case_post(?int $authorId = null): int
     {
@@ -632,7 +547,9 @@ final class ModelConventionsTest extends WP_UnitTestCase
     private function assertNothingPersistedForClientField(int $postId, string $message): void
     {
         $model = ntdst_data()->get('case');
-        $persisted = $model->find($postId);
+        // 'any': the fixture is a draft and find() defaults publish-only —
+        // publish-only would make this denial assertion pass vacuously.
+        $persisted = $model->find($postId, 'any');
 
         $clientValue = is_wp_error($persisted) ? null : ($persisted->fields['client'] ?? null);
 

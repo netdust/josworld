@@ -21,11 +21,30 @@
         one pre-existing 2-line file (__error_reporting.php: CRLF + missing final
         newline), fixed in the same commit.
 
+        app/content/themes/josworld/services was added 2026-08-03 (Cluster B1
+        review, findings I-2 from both the generalist and the drift reviewer).
+        Rationale, and why it is the SERVICES SUBTREE rather than the theme:
+        the YOOtheme bridge lands here, taking the theme from one file to a
+        service package that is this project's new public data-exposure
+        surface — and every task close was recording "Standards: clean" on a
+        tier that never looked at it (phpstan.neon already covers themes; the
+        asymmetry was phpcs-only). The subtree was verified clean before
+        widening, costing one auto-fixable header-spacing error in the
+        pre-existing AssetHooks.php, fixed in the same commit — exactly the
+        mu-plugins precedent above. The REST of the theme stays out: that is
+        where the debt this comment describes actually lives, and importing
+        it would make the gate red for reasons unrelated to the new code.
+        This matters most for what comes NEXT: T05's FieldResolver and T07's
+        source service call real WordPress functions (cached meta reads,
+        hooks, Event::on) that the WordPress.Security sniffs exist for, and
+        would otherwise have shipped silently unchecked.
+
         ntdst-core is EXCLUDED below, not fixed: it is the shared framework,
         used by other sites, and is not this project's to reformat.
     -->
     <file>tests</file>
     <file>app/content/mu-plugins</file>
+    <file>app/content/themes/josworld/services</file>
 
     <!-- Third-party / not our code (applies when wider paths are passed manually) -->
     <exclude-pattern>*/app/content/themes/twentytwentyfive/*</exclude-pattern>
@@ -36,6 +55,10 @@
         on the next sync. phpstan still analyses it; phpcs does not lint it.
     -->
     <exclude-pattern>*/app/content/mu-plugins/ntdst-core/*</exclude-pattern>
+    <!-- Also a composer package: analysis sees OUR code, not the framework's.
+         Without this, phpcs lints ntdst-baseline's own tests and the gate is red
+         for someone else's coding standard. -->
+    <exclude-pattern>*/app/content/mu-plugins/ntdst-baseline/*</exclude-pattern>
     <exclude-pattern>*/vendor/*</exclude-pattern>
     <exclude-pattern>*/app/wp/*</exclude-pattern>
     <exclude-pattern>*/node_modules/*</exclude-pattern>

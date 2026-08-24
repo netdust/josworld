@@ -1,129 +1,22 @@
 <?php
 
 /**
- * Team Service — registers the `team` post type (T06).
+ * Team Service — registers the `team` post type.
  *
- * SHAPE: mirrors CaseService (T05) — a plain class, constructor takes
- * NTDST_Data_Manager, private init() delegating to registerDataModel(),
- * getFields()/getFieldGroups() as private helpers passed into ONE
- * ntdst_data()->register() call.
+ * Photo is the post thumbnail: the framework has no single-image field
+ * type.
  *
- * FIELD MAP — FR-2 verbatim: name (the post title), role, email, phone,
- * photo. "Photo" has no dedicated single-image field type in this framework
- * (confirmed: MetaboxGenerator.php's field-type switch offers `relation`
- * and `gallery` — a multi-image picker — but no single `image`/`file`/
- * `media` case). The idiomatic single-image slot in this framework is the
- * post thumbnail (WP's native featured image, the same mechanism `case`
- * already uses via `supports => ['thumbnail']`), so `photo` is expressed as
- * `supports => ['title', 'thumbnail']` rather than inventing a bespoke meta
- * field for something the framework already has a first-class primitive
- * for.
+ * No public single view, but NOT via registration flags — WP has no
+ * "archive yes, singles no" flag, and `public => false` would also hide
+ * `team` from YOOtheme's source enumeration. closeSingleView()
+ * 301-redirects singles to the /team/ archive instead.
  *
- * NO PUBLIC SINGLE VIEW (FR-2 / spec assumption: "team gets no public
- * single page; the design lists members on /team/ and embeds them in
- * cases, never linking to a member's own page"). Deliberate args, matched
- * to that requirement one-by-one rather than a blanket `public => false`
- * (which would also drop the admin UI and the REST/search reach an editor
- * still needs):
- *   - `publicly_queryable => false` — no single-post URL resolves on the
- *     front end. This is the one flag that actually encodes "no public
- *     single view"; the rest below follow from it or are independent admin
- *     needs.
- *   - `has_archive => true` — `/team/` IS a page in the design (P2:
- *     "shown on /team/"), so the archive listing stays reachable; only the
- *     per-member single view is withheld.
- *   - `rewrite => false` — no single-post rewrite rule to generate, since
- *     no single view exists to link to.
- *   - `exclude_from_search => true` — a member has no page of its own to
- *     surface in site search.
- *   - `show_ui => true` / `show_in_menu => true` — the editor still needs
- *     the full wp-admin list/edit screens (P2: create/edit a member).
- *   - `show_in_rest => true` — kept for the same reason `case` keeps it:
- *     future-proofing for block-editor/REST tooling on an editor-facing
- *     screen.
+ * REST tripwire: the public flags do not gate REST. name + photo are
+ * readable unauthenticated today; email/phone stay private ONLY because
+ * nothing calls register_meta() for them — registering that meta with
+ * `show_in_rest => true` exposes PII with no other code change. See
+ * tests/Integration/TeamRestExposureTest.php.
  *
- * REST EXPOSURE — CORRECTED, was factually wrong (review finding M-2,
- * 2026-08-03): `GET /wp-json/wp/v2/team` returns HTTP 200 to an
- * UNAUTHENTICATED request — verified live. `public => false` does NOT gate
- * REST reads; that is standard WP core behaviour, not a josworld bug.
- * `WP_REST_Posts_Controller::get_items_permissions_check()` returns `true`
- * for a read request outside `edit` context regardless of the post type's
- * `public`/`publicly_queryable` flags — those flags gate the FRONT-END
- * query, the sitemap, and site search, not the REST API's own permission
- * check. (WP core's own `wp_template`/`wp_block` post types behave
- * identically: `public => false`, REST-readable.) So `name` (post title)
- * and `photo` (featured image) ARE publicly readable via REST once content
- * exists, despite the "no public single view" framing above — that framing
- * is about the FRONT-END single-post URL, not the REST API.
- *
- * `email` and `phone` are NOT currently exposed via REST — but ONLY because
- * no `register_meta()` call exists anywhere in mu-plugins for either field
- * (verified: zero hits). The day someone registers `email`/`phone` meta
- * with `show_in_rest => true` (e.g. to power a builder template, or a
- * default `auto_metabox`/schema change upstream in ntdst-core), that PII
- * goes public through this same unauthenticated endpoint with no further
- * code change and no test failure elsewhere — this is the real risk, and
- * it is written here so the next person adding a REST-exposed meta field on
- * `team` sees it before they ship it. See
- * tests/Integration/TeamRestExposureTest.php for the regression test that
- * documents the CURRENT posture and will go RED the moment that changes.
- *
- * `public => false` is set (not left at its `false` default implicitly)
- * BECAUSE it is the WordPress convenience flag that seeds several of the
- * booleans above (`publicly_queryable`, `show_ui`, `exclude_from_search`) —
- * naming it `false` and then overriding `show_ui`/`has_archive` explicitly
- * makes the divergence from "fully public" legible in the config array
- * itself, rather than relying on a reader to know WP's implicit defaults.
- *
- * CB-4 / PostTypeRegistryConsistencyTest interaction — CLOSED (CB-B-4,
- * follow-up review finding): the forward check
- * (`test_no_ntdst_registered_post_type_is_missing_from_the_post_types_
- * constant`) originally filtered candidates via
- * `get_post_types(['public' => true])`. Because `team` is registered with
- * `public => false`, it did not appear in that filtered list and the
- * forward check could not see it — a real gap in the CB-4 net (a non-public
- * josworld model could in principle drift out of `AdminUIService::
- * POST_TYPES` unnoticed by that specific assertion; the other per-model
- * assertions in that file still caught it, so this was a gap, not a hole).
- * The forward check now iterates ALL registered post types and narrows by
- * the `_jw_` meta prefix instead — the boundary already established in
- * commit 2287cc6 and what actually makes a model josworld's, independent of
- * its public-facing posture. Proven with a mutation test: typoing `team`
- * out of `POST_TYPES` left the OLD forward check green (only the other
- * per-model assertions caught it) and now fails the FIXED one directly.
- *
- * i18n (FR-11): every editor-facing label goes through __() against
- * JOSWORLD_CORE_TEXTDOMAIN. Dutch labels are correct — editor-facing Dutch
- * UI per FR-1. The `team` relation field's `reverse_label` — the string the
- * framework's NTDST_RelationField shows on a member's edit screen when it
- * did not have one before this task — is also fixed here on CaseService's
- * `team` field (see that file's diff in this same task): the framework
- * default ("Featured in %ss") is a hardcoded English string, which FR-11
- * forbids in this otherwise-Dutch admin.
- *
- * META PREFIX (FR-12/SC-5): every meta key prefixed `_jw_` via
- * `meta_prefix`, same as CaseService.
- *
- * REVERSE RELATIONSHIP (FR-7): the metabox on a team member's edit screen
- * listing the cases referring to it is entirely framework-provided —
- * NTDST_RelationField self-registers on `after_setup_theme` and iterates
- * every registered model's `relation` fields once `team` exists here.
- * Registering `team` under this exact slug, with CaseService's `team` field
- * already naming `post_type => 'team'`, is the whole of the wiring; nothing
- * in this file calls RelationField directly.
- *
- * This used to need a josworld-side workaround: building this task
- * surfaced two real defects in NTDST_RelationField's reverse-lookup (it
- * couldn't find a meta_prefix'd or PHP-serialized relation value — this
- * project's `case` model is both). That was fixed upstream in ntdst-core
- * (commit 95b7e06) rather than left as a per-site patch, since the defects
- * were structural, not josworld-specific. See
- * tests/Integration/RelationFieldReverseLookupTest.php for the regression
- * proof and the full history.
- *
- * A service file by nature both declares a symbol (the class below) and
- * executes a side effect (the ABSPATH guard) — exempt from the PSR-1
- * side-effects rule, same posture as CaseService.php.
  * phpcs:disable PSR1.Files.SideEffects
  */
 
@@ -145,6 +38,32 @@ final class TeamService
     private function init(): void
     {
         $this->registerDataModel();
+        $this->closeSingleView();
+    }
+
+    /**
+     * Close the per-member single view, keeping the archive open.
+     *
+     * 301 rather than 404: a leaked member URL should land on the archive,
+     * and crawlers should stop asking. wp_safe_redirect() directly —
+     * ntdst-core 5.0 removed Pages::redirect(), and Response::redirect()
+     * carries no status argument, so the 301 needs WordPress's own call.
+     * The target stays host-restricted.
+     */
+    private function closeSingleView(): void
+    {
+        ntdst_pages()->single('team', static function (): void {
+            $archive = get_post_type_archive_link('team');
+
+            // Fall back to the home page rather than returning: returning
+            // would let the single render, which is the one outcome this
+            // method exists to prevent.
+            wp_safe_redirect(
+                is_string($archive) && $archive !== '' ? $archive : home_url('/'),
+                301
+            );
+            exit;
+        });
     }
 
     /**
@@ -157,6 +76,14 @@ final class TeamService
                 'type' => 'text',
                 'label' => __('Functie', JOSWORLD_CORE_TEXTDOMAIN),
                 'required' => true,
+            ],
+            // The archive card shows bio; the contact card shows role —
+            // both are needed. A field rather than post content: there is
+            // no editor (`supports`), and fields are what the YOOtheme
+            // bridge exposes as bindable properties.
+            'bio' => [
+                'type' => 'textarea',
+                'label' => __('Korte bio', JOSWORLD_CORE_TEXTDOMAIN),
             ],
             'email' => [
                 'type' => 'email',
@@ -177,7 +104,7 @@ final class TeamService
         return [
             'details' => [
                 'title' => __('Teamlid-gegevens', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['role', 'email', 'phone'],
+                'fields' => ['role', 'bio', 'email', 'phone'],
                 'context' => 'normal',
                 'priority' => 'high',
             ],
@@ -199,17 +126,21 @@ final class TeamService
                 'not_found' => __('Geen teamleden gevonden', JOSWORLD_CORE_TEXTDOMAIN),
                 'not_found_in_trash' => __('Geen teamleden gevonden in prullenbak', JOSWORLD_CORE_TEXTDOMAIN),
             ],
-            'public' => false,
-            'publicly_queryable' => false,
+            // Public, single view closed by closeSingleView()'s redirect —
+            // `public => false` would hide `team` from YOOtheme's source
+            // enumeration (it filters on `public => true`), and no flag
+            // combination gives "archive yes, singles no".
+            'public' => true,
+            'publicly_queryable' => true,
             'exclude_from_search' => true,
             'show_ui' => true,
             'show_in_menu' => true,
-            'query_var' => false,
+            'query_var' => 'team',
             'has_archive' => true,
             'hierarchical' => false,
             'supports' => ['title', 'thumbnail'],
             'menu_icon' => 'dashicons-groups',
-            'rewrite' => false,
+            'rewrite' => ['slug' => 'team', 'with_front' => false],
             'show_in_rest' => true,
             'rest_base' => 'team',
             'capability_type' => 'post',

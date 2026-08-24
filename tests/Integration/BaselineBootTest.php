@@ -8,80 +8,18 @@ use NtdstTests\Support\DetectsTimeoutBinary;
 use WP_UnitTestCase;
 
 /**
- * Integration tier: proves the T02 CONTRACT — ntdst-baseline actually BOOTS
- * inside real WordPress (T01 only proved the tree parses), and that its
- * per-module toggle (`ntdst/baseline/modules`) genuinely gates which
- * services construct.
+ * ntdst-baseline boots inside real WordPress, and the per-module
+ * `ntdst/baseline/modules` filter genuinely gates which services construct.
+ * The framework-absent clause runs in a subprocess with a hook shim because
+ * ntdst_get() cannot be honestly undefined in-process.
  *
- * THREE CLAUSES, THREE PROOF TECHNIQUES (mirrors JosworldCoreBootTest.php's
- * own three-clause structure — same load-order trap, same subprocess
- * technique for the framework-absent case):
- *
- * 1) With defaults, all 6 modules instantiate — observed via the
- *    `ntdst/baseline/booted` marker filter every service's constructor
- *    registers (`apply_filters('ntdst/baseline/booted', [])`).
- * 2) DENIAL PATH: evicting a module from the container then disabling it
- *    via `ntdst/baseline/modules` means it is NOT reconstructed on
- *    re-invocation (see the count-delta technique below — simple presence
- *    in the booted list is not a valid observable for this clause).
- * 3) Framework-absent path does not fatal (FR-10/AC-9): `ntdst_get` IS
- *    defined in this integration environment (ntdst-core is a real loaded
- *    mu-plugin), so it cannot be honestly undefined in-process. A real,
- *    separate `php` subprocess requires the REAL, unmodified baseline
- *    loader + entrypoint with a minimal hook shim and NO ntdst-core at all,
- *    mirroring this project's own established pattern
- *    (tests/Unit/IntegrationBootstrapGuardTest.php,
- *    JosworldCoreBootTest.php's clause 3).
- *
- * CLAUSES 1+2 — re-invoke the REAL, named `boot_modules()` function, don't
- * reimplement it. `ntdst\baseline\boot_modules()` is deliberately extracted
- * to a named, independently-callable function (see its own docblock)
- * precisely so a test can re-invoke it deterministically AFTER registering
- * its own `ntdst/baseline/modules` filter — the real boot already ran once
- * at genuine WP load with defaults, before this test's filter could attach.
- * Re-invoking it is calling the actual code under test a second time, not a
- * simulation of it.
- *
- * SHARED-HOOK-QUEUE HAZARD (see CacheHeadersService.php's class docblock
- * for the canonical statement of this hazard) — and why clause 2 cannot use
- * simple PRESENCE in `apply_filters('ntdst/baseline/booted', [])` as its
- * re-boot observable: the REAL, container-managed service instances are
- * constructed ONCE at genuine WP boot — with all 6 modules enabled by
- * default — before ANY test method runs. Each constructor's
- * `add_filter('ntdst/baseline/booted', …)` call is a PERMANENT hook
- * registration on that real instance; `NTDST_Container::forget($id)` (the
- * container's own documented eviction seam — "If a test needs fresh
- * resolution after rebinding, call flush()."; forget() is flush()'s
- * single-service equivalent, see Container.php's class docblock) clears the
- * container's cache so a later `ntdst_get()` call would construct fresh,
- * but it cannot and does not un-register that original instance's already-
- * attached `booted` filter closure — WordPress's hook table is a separate
- * concern from the container. So even a module that is correctly NEVER
- * reconstructed after being forgotten and disabled still shows up (once) in
- * `apply_filters('ntdst/baseline/booted', [])`, because the stale marker
- * from the first real boot never goes away. Simple presence is therefore
- * only a valid observable for "was this module EVER constructed since real
- * WP boot" (clause 1's question) — it cannot answer "was this module
- * constructed AGAIN just now" (clause 2's question).
- *
- * Clause 2 instead uses a COUNT DELTA: `array_count_values()` of the
- * `booted` list taken once BEFORE the forget()+disable+re-invoke sequence,
- * once AFTER. A constructor call registers exactly one MORE closure on the
- * hook, so a genuinely-reconstructed module's count for that key increases
- * by exactly one between the two reads; a module correctly skipped keeps
- * the SAME count (the stale marker from real boot, no more). A POSITIVE
- * CONTROL (a second module — schema — also forgotten but left ENABLED)
- * proves this delta technique is genuinely discriminating: it MUST show a
- * +1, or the technique itself (or `boot_modules()`) is not doing what this
- * test assumes. `forget()` is applied only to these two modules under
- * test, not all 6 — several OTHER constructors wire heavier real side
- * effects (cron scheduling, login-attempt tracking, admin-bar nodes) that
- * would widen this test's blast radius on the shared hook queue for no
- * added proof value. Both evicted services have their ORIGINAL instances
- * captured before the forget() and restored in tearDown — not re-warmed,
- * and not left absent; see the tearDown body for why those two alternatives
- * both corrupt state for later test files (Cluster A review, finding I-1,
- * guarded by ZZBaselineHookLeakGuardTest).
+ * Shared-hook-queue hazard: the real boot already constructed every module
+ * once, and those instances' `booted` marker registrations survive eviction
+ * — so presence in the marker list cannot answer "constructed again just
+ * now". The disable test uses a rebind eviction + a marker COUNT DELTA instead, with
+ * an evicted-but-enabled sibling as positive control, and tearDown restores
+ * the ORIGINAL evicted instances (re-warming or leaving the slot empty both
+ * strand listeners — see tearDown).
  */
 final class BaselineBootTest extends WP_UnitTestCase
 {
@@ -97,11 +35,8 @@ final class BaselineBootTest extends WP_UnitTestCase
     ];
 
     /**
-     * The ORIGINAL container instances this test evicted via forget(),
-     * keyed by service id, so tearDown can put the very same object
-     * references back. Restoring the original object (rather than
-     * re-resolving a fresh one) is what keeps other test files' shared hook
-     * queues intact — see tearDown for the full ordering rationale.
+     * Original instances evicted via a one-arg set() rebind, restored verbatim in
+     * tearDown — see there for why any other cleanup corrupts state.
      *
      * @var array<class-string, object>
      */
@@ -109,30 +44,12 @@ final class BaselineBootTest extends WP_UnitTestCase
 
     protected function tearDown(): void
     {
-        // Hooks need NO manual cleanup here: WP_UnitTestCase::tear_down()
-        // calls _restore_hooks(), which wholesale restores $wp_filter from
-        // a snapshot taken before this test — so any filter this file added
-        // is already gone by construction.
-        //
-        // The container DOES need cleanup, and neither re-warming nor
-        // forgetting is correct (Cluster A review, finding I-1, mechanically
-        // guarded by tests/Integration/ZZBaselineHookLeakGuardTest.php).
-        //
-        // The instance the REAL boot constructed is the only one whose
-        // listeners survive `_restore_hooks()`, because it registered them
-        // before the snapshot this test suite restores to. So:
-        //
-        //  - re-warming (`ntdst_get()`) constructs a NEW instance here, in
-        //    the child tearDown that runs BEFORE parent::tearDown(); its
-        //    fresh listeners are then wiped by `_restore_hooks()`, leaving
-        //    the container holding a service wired to NOTHING.
-        //  - forgetting leaves the slot empty, so the next resolution
-        //    anywhere builds a new instance whose listeners land after that
-        //    test's own snapshot — same broken end state, one step later.
-        //
-        // Restoring the ORIGINAL object reference is what actually holds the
-        // invariant: the container ends this file holding exactly the
-        // instance it held before, still wired to the surviving listeners.
+        // parent::tearDown()'s _restore_hooks() already removes any filter
+        // this file added. Only the ORIGINAL instance stays wired after that
+        // restore: re-warming here constructs a fresh instance whose
+        // listeners the restore then wipes, and evicting defers the same
+        // broken end state to the next resolution — so put the exact
+        // original references back.
         foreach ($this->originalServiceInstances as $id => $instance) {
             \ntdst_container()->set($id, $instance);
         }
@@ -158,49 +75,27 @@ final class BaselineBootTest extends WP_UnitTestCase
 
     public function test_a_module_disabled_via_the_modules_filter_is_not_instantiated(): void
     {
-        // The real WP boot already constructed every module once (all 6
-        // default to enabled) before this test method ran, and ntdst_get()
-        // caches singletons — so disabling 'seo' and re-invoking
-        // boot_modules() proves nothing unless (a) the SeoService singleton
-        // is first evicted from the container (forget() — see class
-        // docblock) AND (b) the observable used counts constructions from
-        // THIS point forward rather than reading the permanently-polluted
-        // `booted` marker list (see class docblock for why `booted` cannot
-        // answer this question on its own).
-        //
-        // Two modules are forgotten: 'seo' (stays disabled — this is the
-        // clause under test) and 'schema' as a POSITIVE CONTROL (stays
-        // enabled) — proving the count-delta technique itself genuinely
-        // detects a module that DOES get reconstructed is what makes the
-        // seo assertion below discriminating rather than vacuously true
-        // (e.g. if boot_modules() silently never reconstructed anything at
-        // all, both assertions would need to agree; only the disabled one
-        // may show a zero delta).
+        // Re-invoking boot_modules() proves nothing unless the singleton is
+        // first evicted AND the observable counts constructions from this
+        // point forward (see class docblock). 'schema' is forgotten too but
+        // left enabled — the positive control.
         $seoClass = \ntdst\baseline\services\SeoService::class;
         $schemaClass = \ntdst\baseline\services\SchemaService::class;
 
-        // Capture the ORIGINAL instances before evicting them — tearDown
-        // puts these exact object references back (see its rationale).
+        // tearDown restores these exact references.
         $this->originalServiceInstances[$seoClass] = \ntdst_get($seoClass);
         $this->originalServiceInstances[$schemaClass] = \ntdst_get($schemaClass);
 
-        \ntdst_container()->forget($seoClass);
-        \ntdst_container()->forget($schemaClass);
+        // 5.0 removed forget(); a one-arg rebind clears the resolved cache
+        // for the ID, so the next resolution constructs fresh.
+        \ntdst_container()->set($seoClass);
+        \ntdst_container()->set($schemaClass);
 
-        // A CONSTRUCTOR REGISTERS its `booted` marker closure — it does not
-        // FIRE the hook itself (nothing calls apply_filters('ntdst/baseline/
-        // booted', …) during boot_modules(); that only happens when
-        // something, e.g. this test, explicitly reads the marker list
-        // afterwards). So the discriminating observable is the marker
-        // COUNT for each key, taken once before this re-invocation and once
-        // after: a genuinely-reconstructed module gains exactly one more
-        // registered closure (one more occurrence when the hook is read);
-        // a module that was correctly skipped gains none.
+        // A constructor REGISTERS one more marker closure; the count delta
+        // per key is therefore constructions since this read.
         $countBefore = $this->booted_marker_counts();
 
-        // DENIAL PATH (Tier-A obligation): disable exactly the forgotten
-        // 'seo' module; leave the other forgotten module ('schema') and
-        // every other key at their default (true).
+        // Disable only the forgotten 'seo'; everything else stays default.
         $callback = static function (array $modules): array {
             $modules['seo'] = false;
 
@@ -228,9 +123,8 @@ final class BaselineBootTest extends WP_UnitTestCase
     }
 
     /**
-     * Typed wrapper around `array_count_values(apply_filters('ntdst/baseline/booted', []))`
-     * — PHPStan cannot narrow the untyped `apply_filters()` return well
-     * enough on its own for level 6 to accept indexed access below.
+     * Typed wrapper — PHPStan cannot narrow apply_filters()'s return enough
+     * for indexed access.
      *
      * @return array<string, int>
      */
@@ -244,15 +138,8 @@ final class BaselineBootTest extends WP_UnitTestCase
 
     public function test_boot_does_not_fatal_when_the_framework_is_absent(): void
     {
-        // ntdst_get() IS defined in this integration environment (ntdst-core
-        // is loaded as a real mu-plugin) — it cannot be honestly undefined
-        // in-process. A real, separate php subprocess that requires the
-        // ACTUAL baseline loader + entrypoint with a minimal WP-hook shim
-        // and NO ntdst-core at all is the only way to make ntdst_get()
-        // genuinely absent while still exercising the real guarded code
-        // path end-to-end (same technique as
-        // tests/Unit/IntegrationBootstrapGuardTest.php and
-        // JosworldCoreBootTest.php's clause 3).
+        // ntdst_get() is defined in-process here; a subprocess with no
+        // ntdst-core is the only honest absence.
         $result = $this->boot_the_real_baseline_in_a_subprocess_without_ntdst_core();
 
         $this->assertSame(
@@ -309,11 +196,8 @@ final class BaselineBootTest extends WP_UnitTestCase
     }
 
     /**
-     * Minimal, real-hook-faithful shim: NOT a copy of the boot block (that
-     * would prove nothing about the real file) — just enough add_action/
-     * do_action surface for the REAL, unmodified loader + entrypoint to run
-     * its actual deferred closures end-to-end, with ntdst_get() genuinely
-     * absent from the symbol table.
+     * Minimal hook shim — the REAL loader + entrypoint run unmodified with
+     * ntdst_get() genuinely absent from the symbol table.
      */
     private function degraded_boot_harness_source(string $loader): string
     {
