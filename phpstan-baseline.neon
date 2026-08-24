@@ -157,12 +157,6 @@ parameters:
 			path: app/content/themes/josworld/services/yootheme/YOOthemeSourcesService.php
 
 		-
-			message: '#^Call to static method getPostMetaFromCache\(\) on an unknown class NTDST_Data_Manager\.$#'
-			identifier: class.notFound
-			count: 1
-			path: app/content/themes/josworld/services/yootheme/ntdst-cached-meta-accessor.php
-
-		-
 			message: '#^Function ntdst_metabox not found\.$#'
 			identifier: function.notFound
 			count: 1

@@ -42,15 +42,18 @@ final class FieldResolverTest extends TestCase
     private const PREFIX = '_jw_';
 
     /**
-     * The cached-accessor seam. The implementer routes reads through ONE of
-     * these; the helpers accept either. Both return the post's full meta
-     * map in one query, keyed by meta key, maybe_unserialize'd.
+     * The cached-accessor seam — the ONE name production declares and
+     * FieldResolver calls (ntdst-cached-meta-accessor.php). An alternate
+     * spelling used to be accepted here, which let the suite stay green
+     * while production called a symbol nothing defined; a single name means
+     * a rename breaks THIS suite, not the live site. Returns the post's
+     * full meta map in one query, keyed by RAW PREFIXED meta key,
+     * maybe_unserialize'd.
      *
      * @var list<string>
      */
     private const CACHED_ACCESSORS = [
         'ntdst_get_post_meta_from_cache',
-        'ntdst_get_cached_post_meta',
     ];
 
     /**

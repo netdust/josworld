@@ -36,10 +36,13 @@
  * all 16 of FieldResolverTest's tests pass, including the two SC-2
  * read-count tests that stub/expect this exact function.
  *
- * `NTDST_Data_Manager` is a mu-plugin class with no autoloader here —
- * requiring it directly from `FieldResolver.php` would drag WordPress and
- * `$wpdb` into the unit tier. This forwarding function keeps that coupling
- * in the one place a resolver ever touches it.
+ * The body is WordPress calls only — calling them directly from
+ * `FieldResolver.php` would drag WordPress and `$wpdb` into the unit tier.
+ * This forwarding function keeps that coupling in the one place a resolver
+ * ever touches it. Integration cover for the REAL body:
+ * tests/Integration/CachedMetaAccessorTest.php — the pre-5.0 body forwarded
+ * to a core method that never existed in any version, and only the unit
+ * tier's stub of this global kept that green.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -48,10 +51,28 @@ declare(strict_types=1);
 
 if (! function_exists('ntdst_get_post_meta_from_cache')) {
     /**
+     * The post's full meta map: RAW PREFIXED keys (`_jw_client`), scalar
+     * values as stored, array values (repeaters) unserialized.
+     *
+     * WordPress's own cached read, on purpose. ntdst-core 5.0's core-trim
+     * removed the bulk raw-meta read (static getPostMeta(), FR-4) and the
+     * model's getMeta() returns FORMATTED, UNPREFIXED fields — the wrong
+     * shape for FieldResolver, which composes `$prefix . $field` keys
+     * itself as its injection guard. get_post_meta($id) with no key rides
+     * the meta cache (one query per post, memoized further by
+     * FieldResolver::$metaMemo) but skips unserialization in that form,
+     * hence the maybe_unserialize() per value.
+     *
      * @return array<string, mixed>
      */
     function ntdst_get_post_meta_from_cache(int $postId): array
     {
-        return NTDST_Data_Manager::getPostMetaFromCache($postId);
+        $meta = [];
+
+        foreach (get_post_meta($postId) as $key => $values) {
+            $meta[$key] = maybe_unserialize($values[0] ?? '');
+        }
+
+        return $meta;
     }
 }
