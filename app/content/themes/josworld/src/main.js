@@ -12,6 +12,9 @@
 // Import Alpine.js and plugins
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
+import { initLogoEye } from './logo-eye.js';
+import { typewriter } from './typewriter.js';
+import { initScrollEffects } from './effects/scroll-effects.js';
 
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
@@ -75,6 +78,12 @@ Alpine.data('toastStore', () => ({
     this.timeout = setTimeout(() => (this.visible = false), 4000);
   },
 }));
+
+/**
+ * Cycling typewriter for the hero's rotating audience line.
+ * Usage: x-data="typewriter({ words: ['Overheid,', 'Social profit,'] })" x-text="text"
+ */
+Alpine.data('typewriter', typewriter);
 
 /**
  * Loading state wrapper. Usage: x-data="loadingState()"
@@ -154,6 +163,18 @@ window.ntdstAPI = {
 // ══════════════════════════════════════
 
 Alpine.start();
+
+// ══════════════════════════════════════
+// BRAND BEHAVIOUR
+// ══════════════════════════════════════
+
+// The JOS mark's eye tracks the cursor (and keeps its own blink). No-ops on
+// touch devices and under prefers-reduced-motion.
+initLogoEye();
+
+// Lenis smooth scroll + the scroll-linked image/text effects. Under
+// prefers-reduced-motion this reveals the content without animating it.
+initScrollEffects();
 
 if (window.josworldConfig?.debug) {
   console.log('Josworld frontend initialized');

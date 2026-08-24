@@ -30,8 +30,14 @@ test.describe('smoke', () => {
     await page.goto('/');
     // Structural, not content-coupled (I6): a visible page header and a
     // navigation landmark — true for any sanely-built theme.
-    await expect(page.locator('header').first()).toBeVisible();
-    await expect(page.getByRole('navigation').first()).toBeVisible();
+    //
+    // Filter on VISIBILITY, not DOM order. YOOtheme renders a responsive PAIR
+    // of headers — `tm-header-mobile` then `tm-header` — and hides one per
+    // viewport via `uk-hidden@m` / `uk-visible@m`; mobile is a separate config,
+    // not a media query over one header. `.first()` therefore picks the mobile
+    // header, which is correctly invisible at Playwright's desktop viewport.
+    await expect(page.locator('header:visible').first()).toBeVisible();
+    await expect(page.locator('nav:visible').first()).toBeVisible();
   });
 
   test('e2e-admin can log in at /wp/wp-login.php and reach the dashboard', async ({ page }) => {

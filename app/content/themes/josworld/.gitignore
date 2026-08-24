@@ -9,3 +9,4 @@ dist/
 # OS / editor
 .DS_Store
 *.log
+memory/.stop-hook-state.json
