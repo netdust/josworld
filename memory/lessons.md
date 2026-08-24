@@ -342,3 +342,13 @@ deployed to **11 sites**. Facts worth keeping:
   two-name "accepts either" tolerance in the test made it worse. Every
   stubbed seam needs one integration test on the REAL body, and a seam
   contract accepts exactly ONE symbol name.
+- **A branch switch across the composer-source-migration boundary guts the
+  packages on disk.** main still TRACKED the old vendored ntdst-core/
+  ntdst-baseline files; checking main out restored them over the
+  composer-installed 5.0 copies, and the merge then deleted them —
+  leaving both mu-plugins half-empty while `composer install` said
+  "nothing to install" (installed.json still claimed them present). The
+  merged gate went red at analyse on missing files. Fix:
+  `composer reinstall netdust/ntdst-core netdust/ntdst-baseline` after
+  ANY checkout/merge that crosses 4fd9134/543a267 — and re-run the gate
+  on the merge result, never assume a green branch tip proves the merge.
