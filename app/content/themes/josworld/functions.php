@@ -19,7 +19,6 @@ define('JOSWORLD_URI', get_stylesheet_directory_uri());
 
 require_once JOSWORLD_DIR . '/helpers/icons.php';
 require_once JOSWORLD_DIR . '/helpers/formatting.php';
-require_once JOSWORLD_DIR . '/helpers/templates.php';
 
 // ========================================
 // BOOTSTRAP (NTDST Core Integration)
@@ -70,8 +69,6 @@ if (class_exists('NTDST_Theme')) {
     $theme
         // Parent (YOOtheme) stylesheet, then the child's hand-written
         // style.css overrides. Priority 20: after YOOtheme's own enqueues.
-        // ntdst-core 5.0 removed Theme::style() — the enqueue is written in
-        // WordPress's own signature on the facade's hook helper instead.
         // The brand fonts are NOT enqueued here — YOOtheme's StyleFontLoader
         // self-hosts the woff2 files picked in the Customizer; enqueueing
         // the same families again would double-load them from Google.

@@ -76,8 +76,8 @@ final class ModelRegistrationOrderTest extends WP_UnitTestCase
         // re-fires (proven by the no-eviction test below).
         foreach (self::CONTENT_SERVICE_CLASSES as $class) {
             $this->originalServiceInstances[$class] = ntdst_get($class);
-            // 5.0 removed forget(); a one-arg rebind clears the resolved
-            // cache for the ID, so the next ntdst_get() constructs fresh.
+            // One-arg rebind = eviction; contract pinned in
+            // ContainerTest::test_rebinding_clears_the_resolved_cache.
             \ntdst_container()->set($class);
         }
 

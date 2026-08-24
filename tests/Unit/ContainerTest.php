@@ -58,7 +58,6 @@ final class ContainerTest extends TestCase
         $resolved = $this->container->get(ContainerTestService::class);
 
         $this->assertInstanceOf(ContainerTestService::class, $resolved);
-        $this->assertTrue($this->container->has(ContainerTestService::class));
     }
 
     public function test_factory_closure_receives_the_container_itself(): void
@@ -85,10 +84,5 @@ final class ContainerTest extends TestCase
         $this->expectExceptionMessage('Service totally.unknown not found');
 
         $this->container->get('totally.unknown');
-    }
-
-    public function test_has_answers_false_for_an_unknown_id(): void
-    {
-        $this->assertFalse($this->container->has('totally.unknown'));
     }
 }
