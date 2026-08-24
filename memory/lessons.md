@@ -327,3 +327,18 @@ deployed to **11 sites**. Facts worth keeping:
   nothing to update. Always re-fetch immediately before writing, patch the LIVE
   copy, and make the script FAIL LOUDLY when its target node is missing instead
   of writing a no-op.
+- **A composer version string is not a fixed tree while upstream is
+  mid-spec.** "5.0.0" resolved to two different commits two days apart
+  (3cc96b76 pre-release → a818998 at spec-close, 261 commits apart) —
+  the first bump consumed the wrong one and read as "upgrade done".
+  Before declaring a package migration complete, `git ls-remote --tags`
+  the source repo and compare the lock's `source.reference` against the
+  tag's `^{commit}`. The same check found the true breaking surface
+  (the package README's migration tables) that the premature tree
+  lacked.
+- **A unit tier that stubs a seam can keep a nonexistent symbol green.**
+  The bridge accessor called a core method that never existed in ANY
+  version; Brain Monkey stubs of the global kept 16 tests green, and a
+  two-name "accepts either" tolerance in the test made it worse. Every
+  stubbed seam needs one integration test on the REAL body, and a seam
+  contract accepts exactly ONE symbol name.

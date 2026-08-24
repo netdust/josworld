@@ -2,6 +2,61 @@
 
 ## Current Phase: content model complete (T01-T12 landed); next is section-by-section page building
 
+## ntdst-core 5.0.0-FINAL consumed (2026-08-24, branch chore/ntdst-core-4)
+
+`e3ce47d` had consumed a PRE-RELEASE 5.0.0 (`3cc96b76`, Aug 21); upstream
+re-tagged 5.0.0 at spec-close 261 commits later. The lock now pins
+`a818998` — **composer's "5.0.0" was two different trees two days apart;
+`git ls-remote --tags` before trusting a version string when upstream is
+mid-spec.** Migration spec: `specs/ntdst-core-5-final/` (local-only).
+Six commits `e36343a..ff8b6f5`; gate green at every one; FULL panel +
+shake-out closed with zero Criticals. Traps for future edits:
+
+- **Metabox nonce action is POST-SCOPED**: `ntdst_save_{model}_{postId}`.
+  A nonce minted without the id fails silently — the save is refused and
+  the field reads back empty (cost the one red test of the bump).
+- **Container eviction is a one-arg rebind**: `ntdst_container()->set($class)`
+  clears that ID's resolved cache; `forget()` is gone. Contract pinned in
+  `ContainerTest::test_rebinding_clears_the_resolved_cache`.
+- **Relation picker**: `GET /ntdst/v1/relation/search` (`search` +
+  `post_type[]`), wp.apiFetch transport, permission = declared relation
+  targets + target type's `edit_others_posts`. The `ntdst/api_data/*`
+  filter family is dead.
+- **The YOOtheme bridge accessor** (`ntdst-cached-meta-accessor.php`) reads
+  `get_post_meta($id)` + `maybe_unserialize` per value — RAW PREFIXED keys,
+  the shape FieldResolver's injection guard needs. It had forwarded to
+  `NTDST_Data_Manager::getPostMetaFromCache()`, a method NO core version
+  ever had; unit stubs kept it green (`FieldResolverTest` now accepts ONE
+  name). Real-body cover: `CachedMetaAccessorTest`.
+- **Theme template helpers are DELETED** (zero callers, rotted once
+  invisibly). A first template caller writes
+  `ntdst_response()->html($slug, $args)` directly; data reaches templates
+  as `$args['…']` ONLY (5.0 dropped loose-var extraction — a loose
+  `$title` reads a WP query var, silently).
+- **phpstan posture**: the packages are invisible to analysis; older call
+  sites ride the frozen baseline, a NEW call site into a package class
+  needs that class's file in `scanFiles` (a scanned file's
+  `function_exists`-guarded declarations ARE reflected — the accessor-stub
+  rationale does not generalize). Baseline may only shrink.
+- **`window.ntdstAPI` + `josworldConfig.restNonce` deleted** (endpoints
+  died with the dispatcher; zero consumers). Theme enqueues go through
+  `$theme->on('wp_enqueue_scripts', …)` — `Theme::style()` is gone.
+- **`wp rewrite flush` once after deploying this branch** — 5.0 page
+  routes are rewrite rules (the DDEV site self-flushed; a fresh deploy may
+  not).
+
+**Parked** (fleet/next-session, deliberately not fixed in-branch):
+`NTDST_Response::redirect()` hardcodes 302 — josworld's team-single 301
+(`wp_safe_redirect` + exit, documented in TeamService) is the first live
+case for an upstream `$status` param (ntdst-core-gaps candidate) · theme
+JS polish from the branch review: logo-eye's body-wide MutationObserver
+never disconnects; typewriter's `x-destroy` listener is dead code; two
+comments still cite the deleted main.test.js; text-scroll flattens child
+markup · no ARCHITECTURE-INVARIANTS.md yet (two review rounds asked;
+author via `/architecture-invariants audit` before the next big spec) ·
+`docs/fluent-booking-pro-2.2.1.zip` sits untracked — a paid plugin one
+careless `git add .` from the public repo; move or ignore it.
+
 ## ntdst-core synced to daan HEAD (2026-08-11, commit fa51984)
 
 The vendored `ntdst-core` now matches daan's copy (the framework HEAD).
@@ -70,13 +125,12 @@ call, one implementer, no polymorphic call site — don't reintroduce.
 **Metabox client JS: framework-owned since d226048 (daan) / 1c25594
 (here).** metabox-fields.js lives in `ntdst-core/assets/js/`;
 MetaboxGenerator enqueues it (`ntdst-metabox-fields`, deps
-jquery/jquery-ui-sortable/ntdst-api) on registered-model edit screens —
-the theme-services.js probe and josworld-core's private copy are gone.
-The ntdst-api transport is enqueued WITH it: nothing ever enqueued it
-before, so the relation picker was silently disabled on every site.
-josworld's AdminUIService keeps only the conditional-field layer,
-depending on the framework handle. Contract test:
-AdminUIServiceEnqueueTest (against the core's enqueue).
+jquery/jquery-ui-sortable/**wp-api-fetch since core 5.0** — the
+ntdst-api handle died with the command dispatcher) on registered-model
+edit screens — the theme-services.js probe and josworld-core's private
+copy are gone. josworld's AdminUIService keeps only the
+conditional-field layer, depending on the framework handle. Contract
+test: AdminUIServiceEnqueueTest (against the core's enqueue).
 
 stackedWP install running at https://josworld.ddev.site. `composer gate`: all
 9 tiers green (integration 79, unit 18, JS 12 mu-plugins + 5 theme, e2e 3/3).
