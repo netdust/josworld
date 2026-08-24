@@ -56,4 +56,21 @@ test.describe('smoke', () => {
     await expect(page.getByRole('heading', { name: 'E2E Fixture Post' })).toBeVisible();
     await expect(page.getByText('Seeded by bin/e2e.sh via wp-cli.')).toBeVisible();
   });
+
+  test('a team single 301s to the team archive', async ({ request }) => {
+    // TeamService::closeSingleView() — the ONLY automated cover for the
+    // 301 (review finding I1 on the 5.0 migration): the redirect fires
+    // inside a template filter and exits, so the integration tier cannot
+    // observe it; only the real wire can. The slug comes from WP's own
+    // REST collection (team is show_in_rest), so the spec carries no
+    // seeded-name coupling (I6).
+    const collection = await request.get('/wp-json/wp/v2/team?per_page=1');
+    expect(collection.ok()).toBeTruthy();
+    const [member] = await collection.json();
+    expect(member, 'a published team member must exist in the DDEV DB').toBeDefined();
+
+    const single = await request.get(`/team/${member.slug}/`, { maxRedirects: 0 });
+    expect(single.status()).toBe(301);
+    expect(new URL(single.headers()['location']).pathname).toBe('/team/');
+  });
 });
