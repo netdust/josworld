@@ -1,0 +1,119 @@
+# site.yml — operational config for josworld
+# Read into context at session start by the netdust session-start hook.
+# Keep the top-level keys (site / structure / hosting / deploy / local /
+# commands) — the hook greps them to surface deploy + risk info BEFORE
+# you're asked to ship, plus the commands test/gate bindings.
+
+site:
+  name: josworld
+  domain: josworld.com               # production domain, e.g. example.com
+  description: WordPress site (stackedWP + YOOtheme child) — scaffolded via new-site.sh
+  risk: low                          # low | medium | high — "high" means triple-check destructive ops
+
+structure:
+  type: custom-app                   # bedrock | custom-app | custom-site
+  webroot: app                       # bedrock: web | custom-app: app | custom-site: .
+  wpcli_path: app/wp                 # bedrock: web/wp | custom-app: app/wp (matches wp-cli.yml --path)
+  theme_flavour: yootheme            # yootheme | custom | tbd
+  # yootheme = YOOtheme Pro parent + thin child; builder renders, styling lives in
+  #   less/theme.<slug>.less. The child carries NO template files, no CSS toolchain.
+  #   See netdust-wp:ntdst-yootheme → references/yootheme-less.md.
+  #   NOTE: the licensed parent is gitignored and must be installed per host.
+  # custom = self-rendering theme with its own templates (Tailwind/Alpine/Vite).
+
+hosting:
+  provider: combell                  # ploi | combell | other
+  ssh_staging:                       # TODO — no Combell site exists yet
+  ssh_production:                    # TODO — no Combell site exists yet
+
+# The promotion targets. The Makefile reads these for every deploy: which
+# branch may reach which environment, where it lives, and whether it prompts.
+# Promotion is linear. A project without a development environment integrates
+# on its review branch; one without production yet simply omits it.
+environments:
+  # development:                     # optional — a public sandbox you may break
+  #   url: https://dev.josworld.com
+  #   path: TODO                     # absolute path on the server
+  #   branch: develop
+  #   role: "sandbox — may break"
+  #   confirm: false
+  staging:
+    url: https://staging.josworld.com
+    path: TODO                       # absolute path on the server
+    branch: staging
+    role: "colleague-facing — keep stable"
+    confirm: false
+    # ssh_host: overrides deploy.ssh_host for this environment
+  production:
+    url: https://josworld.com
+    path: TODO                       # absolute path on the server
+    branch: main
+    role: "live"
+    confirm: true                    # production ALWAYS prompts
+    backup_before: true
+
+deploy:
+  # rsync    — move a closed payload; the environment directory is the web root
+  # git-push — push, pull on the server, then post_deploy (Ploi/Bedrock)
+  method: rsync
+  staging_command: make deploy env=staging
+  production_command: make ship
+  ssh_host:                          # TODO — default; an environment may override it
+  wp_path: wp                        # WP core ON THE SERVER, relative to the env path
+                                     # bedrock: web/wp · custom-app: wp · standard: "" (root)
+  content_dir: content               # wp-content ON THE SERVER, relative to the env path
+                                     # bedrock: web/app · custom-app: content
+  state_dir: TODO                    # the ledger, OUTSIDE every web root (env dirs are served)
+
+  # rsync only. A closed list — nothing outside it ever crosses the wire: not
+  # wp/, not vendor/, not uploads/, not a third-party plugin. Every entry must
+  # exist locally AND be tracked in git, or it deploys as an empty directory
+  # and a rollback --deletes it off the server.
+  #
+  # Paths are relative to structure.webroot locally (app/…) and to the
+  # environment path remotely. Directories only — the Makefile tests -d.
+  payload:
+    - content/mu-plugins             # loader shims + josworld-core (this site's own module)
+    - content/themes/josworld        # the YOOtheme child — this site's deliverable
+  exclude:
+    # Never add "*.map" — font-encoding tables are not JavaScript source maps.
+    - ".git*"
+    - "node_modules"
+    - "*.log"
+
+  # git-push only. A push alone does NOT deploy: Ploi may have no repository
+  # connected, and PHP-FPM often runs opcache.validate_timestamps=0, so the
+  # pull stays invisible until FPM is reloaded. Declare the steps here.
+  post_deploy_hooks: []
+  #  - composer install --no-dev --no-interaction
+  #  - sudo service php8.4-fpm reload
+
+  # TODO before the first deploy: fill hosting.ssh_* , deploy.ssh_host,
+  # each environment's path, and state_dir once the Combell site exists.
+  #
+  # OPEN QUESTION — how the framework reaches the server. netdust/ntdst-core
+  # and ntdst-baseline are composer packages installed into
+  # content/mu-plugins/, and gitignored. rsync deploys from the WORKING TREE,
+  # not from git, so today they would ride along in the payload — shipping
+  # whatever the dev machine happens to have installed. The alternative is to
+  # add them to deploy.exclude and run `composer install` on the server, which
+  # needs a deploy key with read access to the private netdust repos. Decide
+  # this before the first deploy; both work, they fail differently.
+  note: >-
+    Combell target not provisioned yet — every path above is TODO and no deploy
+    target can run. netdust/ntdst-core (^5.0) and netdust/ntdst-baseline (^2.0)
+    install from the private repo git@github.com:netdust/ntdst-core.git — the
+    deploy target needs read access (deploy key) before the first deploy.
+
+local:
+  ddev_project: josworld             # DDEV project name
+  webroot: app                       # `make setup` passes this to ddev config --docroot
+  url: https://josworld.ddev.site
+
+commands:
+  # Agent bindings (netdust harness): per-task test suite + the full gate.
+  # `make gate` runs the gate value below; `make test` runs the deploy
+  # tooling's own tests, which never contact a server.
+  # The gate's exit code is the single source of truth — see README-testing.md.
+  test: ddev composer test:unit
+  gate: composer gate                # host-invoked; runs every tier (ddev gate works too)

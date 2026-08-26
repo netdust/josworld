@@ -1,440 +1,740 @@
-# WordPress Custom App Makefile — Clean, Secure, Vite + Templates
-# DEPLOYMENT: Git bundles (app/ → server root)
-# SYNC: app/content/ ↔ /content/
+# WordPress Bedrock Development Makefile
+# Simple, secure workflow for small teams
 #
-# Version: 4.0
+# DEPLOYMENT STRATEGY: Git bundles (no GitHub/remote repo required!)
+# This uses git bundles for deployment, meaning you can deploy directly
+# from local to servers without any central repository.
+#
+# WORKFLOW: setup → dev → save → deploy → ship
+# - No external dependencies (GitHub, CI/CD)
+# - Direct local-to-server deployment
+# - Built-in safety checks and backups
+# - Templates for reusable site setups
+#
+# Version: 2.0 - Simplified & Reliable
 
-# ═══════════════════════════════════════════════════════════════════════════
-#                          PROJECT CONFIGURATION
-# ═══════════════════════════════════════════════════════════════════════════
+# === CONFIGURATION ===
+PROJECT_NAME := $(shell scripts/site site.name)
 
-# Defaults to the directory name (matches DDEV's default project naming);
-# override with `make PROJECT_NAME=foo …` or set it here.
-PROJECT_NAME ?= $(notdir $(CURDIR))
-STAGING_HOST := #
-STAGING_PATH := #
-STAGING_URL := #
-PRODUCTION_HOST := # Configure when ready
-PRODUCTION_PATH := # Configure when ready
-PRODUCTION_URL := # Configure when ready
+# Every host, path, URL and branch is read from site.yml — never hardcoded here.
+SITE := scripts/site
 
-# ═══════════════════════════════════════════════════════════════════════════
-#                          FOLDER STRUCTURE (Custom)
-# ═══════════════════════════════════════════════════════════════════════════
+# Layout comes from site.yml, so the same Makefile serves every stack:
+# custom (app/), Bedrock (web/), standard (WP at the root).
+WEBROOT  := $(shell scripts/site structure.webroot)
+WP_CORE  := $(shell scripts/site deploy.wp_path)
 
-APP_DIR := app
-CONTENT_LOCAL := $(APP_DIR)/content
-CONTENT_REMOTE := content
+# Branch names are derived from the environments — never written twice.
+# A project without a development environment integrates on its review branch.
+BR_PROD   := $(shell scripts/site environments.production.branch 2>/dev/null || scripts/site environments.staging.branch 2>/dev/null)
+HAS_PROD  := $(shell scripts/site environments.production.path >/dev/null 2>&1 && echo yes || echo no)
+BR_REVIEW := $(shell scripts/site environments.staging.branch)
+BR_INTEG  := $(shell scripts/site environments.development.branch 2>/dev/null || scripts/site environments.staging.branch 2>/dev/null)
+# Sourced from site.yml — never edit a host or path here.
+STAGING_HOST := $(shell $(SITE) deploy.ssh_host)
+STAGING_PATH := $(shell $(SITE) environments.staging.path)
+STAGING_URL := $(shell $(SITE) environments.staging.url)
+PRODUCTION_HOST := $(shell $(SITE) deploy.ssh_host)
+PRODUCTION_PATH := $(shell $(SITE) environments.production.path 2>/dev/null)
+PRODUCTION_URL := $(shell $(SITE) environments.production.url 2>/dev/null)
 
-UPLOADS_LOCAL := $(CONTENT_LOCAL)/uploads
-UPLOADS_REMOTE := $(CONTENT_REMOTE)/uploads
 
-PLUGINS_LOCAL := $(CONTENT_LOCAL)/plugins
-PLUGINS_REMOTE := $(CONTENT_REMOTE)/plugins
+# Path Configuration - Adjust these for your setup
+CONTENT_DIR := $(shell scripts/site deploy.content_dir)
+UPLOADS_DIR := $(CONTENT_DIR)/uploads
+PLUGINS_DIR := $(CONTENT_DIR)/plugins
+THEMES_DIR := $(CONTENT_DIR)/themes
+MU_PLUGINS_DIR := $(CONTENT_DIR)/mu-plugins
 
-THEMES_LOCAL := $(CONTENT_LOCAL)/themes
-THEMES_REMOTE := $(CONTENT_REMOTE)/themes
-
-MU_PLUGINS_LOCAL := $(CONTENT_LOCAL)/mu-plugins
-MU_PLUGINS_REMOTE := $(CONTENT_REMOTE)/mu-plugins
-
-# Vite theme slug — the theme owning the Vite build under $(THEMES_LOCAL).
-# Defaults to the project name; override if your theme folder differs.
-VITE_THEME ?= $(PROJECT_NAME)
-VITE_PATH := $(THEMES_LOCAL)/$(VITE_THEME)
-
-# ═══════════════════════════════════════════════════════════════════════════
-#                          LOCAL DEVELOPMENT (DDEV)
-# ═══════════════════════════════════════════════════════════════════════════
-
-LOCAL_URL := https://$(PROJECT_NAME).ddev.site
-# Root .env is the canonical local env file (see README + the wp-config
-# load chain: app/.env first, root .env second and winning locally).
-ENV_FILE := .env
-ENV_EXAMPLE := .env.example
-
-# ═══════════════════════════════════════════════════════════════════════════
-#                          STORAGE & TEMPLATES
-# ═══════════════════════════════════════════════════════════════════════════
-
-BACKUP_DIR := backups
-TEMP_DIR := /tmp
-TEMPLATE_DIR := $(HOME)/.wordpress-templates
-GITHUB_USER := netdust
-TEMPLATE_PREFIX := template-
-
-# ═══════════════════════════════════════════════════════════════════════════
-#                          INTERNAL
-# ═══════════════════════════════════════════════════════════════════════════
-
+# Colors
 RED := \033[31m
 GREEN := \033[32m
 YELLOW := \033[33m
 BLUE := \033[34m
 RESET := \033[0m
 
-export PATH := $(PATH):/usr/bin:/bin
+# WSL/Ubuntu PATH fix
+# export PATH := /usr/bin:/bin:$(PATH)
 
-# === HELP ===
-.PHONY: help setup setup-staging setup-production dev save deploy ship \
-        feature finish db-clean sync-to-local sync-to-staging \
-        template-save template-load template-list status backup rollback ssh
-.PHONY: _create-bundle _deploy-bundle _check-requirements _check-ddev \
-        _check-staging-config _check-production-config _verify-ssh-access \
-        _git-setup _ensure-safe-branch _ensure-clean-git _confirm \
-        _init-remote-git _backup-production
-# Help is auto-generated from the `## ` comments on public targets:
-# every `target: ## description` line below shows up in `make help`.
+# === HELP & STATUS ===
+.PHONY: help
 help: ## Show this help
 	@echo "$(BLUE)╔════════════════════════════════════════════════════╗$(RESET)"
-	@echo "$(BLUE)║  $(PROJECT_NAME) - Custom App Structure$(RESET)"
+	@echo "$(BLUE)║  $(PROJECT_NAME) - WordPress Bedrock Development$(RESET)"
 	@echo "$(BLUE)╚════════════════════════════════════════════════════╝$(RESET)"
 	@echo ""
-	@echo "$(GREEN)Branch:$(RESET) $$(git branch --show-current 2>/dev/null || echo 'none')"
-	@echo "$(GREEN)DDEV:$(RESET) $$(if ddev describe >/dev/null 2>&1; then echo 'running'; else echo 'not installed'; fi)"
+	@echo "$(GREEN)Branch:$(RESET) $(shell git branch --show-current 2>/dev/null || echo 'none')"
+	@echo "$(GREEN)DDEV:$(RESET) $(shell if ddev describe >/dev/null 2>&1; then echo 'running'; else echo 'not installed'; fi)"
 	@echo ""
-	@grep -hE '^[a-zA-Z][a-zA-Z0-9_-]*:.*## ' $(MAKEFILE_LIST) | \
-	   awk 'BEGIN {FS = ":.*## "} {sub(/\r$$/, "", $$2); printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}'
+	@echo "$(YELLOW)🚀 Deploy:$(RESET) rsync moves the files, git is the gate and the ledger"
+	@echo "   • site.yml describes  ·  Makefile executes  ·  Claude drives"
+	@if [ "$(BR_INTEG)" = "$(BR_REVIEW)" ]; then \
+		echo "   • feature → $(BR_REVIEW) → $(BR_PROD)  (hotfix branches off $(BR_PROD))"; \
+	else \
+		echo "   • feature → $(BR_INTEG) → $(BR_REVIEW) → $(BR_PROD)  (hotfix branches off $(BR_PROD))"; \
+	fi
+	@echo "   • a deploy needs a clean tree, the right branch, and HEAD pushed"
+	@echo ""
+	@echo "$(YELLOW)📋 INITIAL SETUP$(RESET)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "setup" "Complete local setup"
+	@echo ""
+	@echo "$(YELLOW)🔄 DAILY WORKFLOW$(RESET)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "dev" "Start development (ensures safe branch)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "save" "Commit your work (auto-stages all changes)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "deploy env=NAME" "Deploy the payload to an environment"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "deploy-test env=NAME" "Dry run — show what a deploy would change"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "deployed" "Show which commit runs on each environment"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "ship" "Ship to production (gate, backups, confirm)"
+	@echo ""
+	@echo "$(YELLOW)🌿 FEATURE BRANCHES$(RESET)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "feature name=X" "Start a feature (branches from $(BR_INTEG))"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "hotfix name=X" "Start a hotfix (branches from origin/$(BR_PROD))"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "promote name=X" "Send ONE feature to staging"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "release" "Promote staging to master"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "finish" "Merge one step up the promotion path"
+	@echo ""
+	@echo "$(YELLOW)🔁 SYNC TOOLS$(RESET)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "pull env=NAME" "Pull DB + plugins down to local (uploads=yes for media)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "refresh env=NAME" "Copy production data down to staging/development"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "block-mail env=NAME" "Install the outgoing-mail block"
+	@echo ""
+	@echo "$(YELLOW)🛠️  UTILITIES$(RESET)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "status" "Local branch + what runs on each environment"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "doctor" "Check required tools and SSH connectivity"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "test" "Run the deploy tooling tests (no server contact)"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "gate" "Run this project's own test suite"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "rollback env=NAME" "Redeploy the previously deployed commit"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "ssh" "SSH to staging"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "ssh-prod" "SSH to production"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "logs" "Show DDEV logs"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "restart" "Restart DDEV"
+	@printf "  $(GREEN)%-20s$(RESET) %s\n" "stop" "Stop DDEV"
 	@echo ""
 	@echo "$(BLUE)Quickstart:$(RESET) make setup && make dev"
+	@echo "$(BLUE)Workflow:$(RESET) feature name=X → finish → deploy env=development → promote name=X → deploy env=staging → release → ship"
 
-# === SETUP ===
-setup: ## Local setup: DDEV + Composer + WP core + theme npm
-	@echo "$(BLUE)Setting up...$(RESET)"
+# === INITIAL SETUP ===
+
+setup: ## Complete local setup
+	@echo "$(BLUE)Setting up $(PROJECT_NAME) locally...$(RESET)"
 	@$(MAKE) --no-print-directory _check-requirements
-	@if [ ! -f $(ENV_FILE) ]; then cp $(ENV_EXAMPLE) $(ENV_FILE) && echo "$(YELLOW)Created $(ENV_FILE)$(RESET)"; fi
-	@if ! ddev describe >/dev/null 2>&1; then ddev config --docroot=$(APP_DIR) --project-type=wordpress --project-name=$(PROJECT_NAME); fi
-	@ddev start
-	ddev composer install --working-dir=$(APP_DIR)
-	@if [ ! -f $(APP_DIR)/wp/wp-settings.php ]; then echo "$(YELLOW)Downloading WordPress core into $(APP_DIR)/wp...$(RESET)"; ddev wp core download; fi
-	@if [ -f $(VITE_PATH)/package.json ]; then echo "$(YELLOW)Installing theme dependencies ($(VITE_THEME))...$(RESET)"; cd $(VITE_PATH) && npm install; fi
-	@$(MAKE) --no-print-directory _git-setup
-	@echo "$(GREEN)Setup complete$(RESET)"
-
-setup-staging: ## Init staging remote: git, first bundle, DB, uploads
-	@echo "$(BLUE)Setting up staging...$(RESET)"
-	@$(MAKE) --no-print-directory _check-staging-config
-	@$(MAKE) --no-print-directory _ensure-clean-git
-	@$(MAKE) --no-print-directory _verify-ssh-access host=$(STAGING_HOST)
-	@$(MAKE) --no-print-directory _init-remote-git host=$(STAGING_HOST) path=$(STAGING_PATH)
-	@$(MAKE) --no-print-directory _create-bundle
-	@$(MAKE) --no-print-directory _deploy-bundle host=$(STAGING_HOST) path=$(STAGING_PATH) env=staging
-	@if ddev describe >/dev/null 2>&1; then \
-	   ddev export-db --file=$(TEMP_DIR)/init.sql.gz && gunzip $(TEMP_DIR)/init.sql.gz; \
-	   sed -i.bak "s|$(LOCAL_URL)|$(STAGING_URL)|g" $(TEMP_DIR)/init.sql && rm -f $(TEMP_DIR)/init.sql.bak; \
-	   scp $(TEMP_DIR)/init.sql $(STAGING_HOST):$(TEMP_DIR)/; \
-	   ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp db import $(TEMP_DIR)/init.sql --path=. && rm $(TEMP_DIR)/init.sql"; \
-	   [ -d "$(UPLOADS_LOCAL)" ] && rsync -avz $(UPLOADS_LOCAL)/ $(STAGING_HOST):$(STAGING_PATH)/$(UPLOADS_REMOTE)/; \
-	   ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp cache flush --path=."; \
-	   echo "$(GREEN)Staging ready$(RESET)"; \
-	else \
-	   echo "$(YELLOW)Git ready. Run from DDEV to push DB$(RESET)"; \
+	@if [ ! -f .env ]; then \
+		cp .env.example .env && \
+		echo "$(YELLOW)✓ Created .env - Please configure it!$(RESET)"; \
 	fi
+	@if ! ddev describe >/dev/null 2>&1; then \
+		ddev config --docroot=$$($(SITE) local.webroot) --project-type=wordpress --project-name=$$($(SITE) local.ddev_project) && \
+		echo "$(GREEN)✓ DDEV configured$(RESET)"; \
+	fi
+	@ddev start
+	@ddev composer install
+	@echo "$(GREEN)✅ Local setup complete!$(RESET)"
+	@echo "$(YELLOW)Next steps:$(RESET)"
+	@echo "  1. Configure .env"
+	@echo "  2. make pull env=production   (database + third-party plugins)"
+	@echo "  3. make dev"
 
-setup-production: ## Init production remote (confirmed)
-	@$(MAKE) --no-print-directory _check-production-config
-	@echo "$(RED)SETUP PRODUCTION?$(RESET)"
-	@$(MAKE) --no-print-directory _confirm message="Continue?"
-	@ssh $(PRODUCTION_HOST) "echo 'SSH OK'" || exit 1
-	@ssh $(PRODUCTION_HOST) "cd $(PRODUCTION_PATH) && git init && git config receive.denyCurrentBranch ignore && git config user.name Deploy"
-	@echo "$(GREEN)Production initialized$(RESET)"
+# === DAILY WORKFLOW ===
 
-# === WORKFLOW ===
-dev: ## Start DDEV on a safe (non-main) branch
+dev: ## Start development (ensures safe branch)
+	@echo "$(BLUE)Starting development...$(RESET)"
 	@$(MAKE) --no-print-directory _check-ddev
 	@ddev start
 	@$(MAKE) --no-print-directory _ensure-safe-branch
-	@echo "$(GREEN)Branch: $$(git branch --show-current) | $(LOCAL_URL)$(RESET)"
+	@echo "$(GREEN)✅ Ready on branch: $(shell git branch --show-current)$(RESET)"
+	@echo "$(GREEN)🌐 Local: https://$(PROJECT_NAME).ddev.site$(RESET)"
 
-save: ## Stage everything + commit (prompted message)
+save: ## Commit your work (auto-stages all changes)
 	@$(MAKE) --no-print-directory _ensure-safe-branch
-	@if [ -z "$$(git status --porcelain)" ]; then echo "$(YELLOW)No changes$(RESET)"; else \
-	   git add -A; git status --short; read -p "Message: " m; [ -n "$$m" ] && git commit -m "$$m" && echo "$(GREEN)Saved$(RESET)" || echo "$(RED)Cancelled$(RESET)"; \
+	@if [ -z "$$(git status --porcelain 2>/dev/null)" ]; then \
+		echo "$(YELLOW)No changes to save$(RESET)"; \
+	else \
+		git add -A; \
+		echo "$(YELLOW)Changes to commit:$(RESET)"; \
+		git status --short; \
+		read -p "Commit message: " msg && \
+		if [ -n "$$msg" ]; then \
+			git commit -m "$$msg" && \
+			echo "$(GREEN)✅ Saved: $$msg$(RESET)"; \
+		else \
+			echo "$(RED)❌ Commit cancelled$(RESET)"; \
+		fi; \
 	fi
 
-deploy: ## Bundle + deploy to staging
-	@echo "$(BLUE)Deploying to staging...$(RESET)"
-	@$(MAKE) --no-print-directory _check-staging-config
-	@$(MAKE) --no-print-directory _ensure-clean-git
-	@$(MAKE) --no-print-directory _verify-ssh-access host=$(STAGING_HOST)
-	@$(MAKE) --no-print-directory _create-bundle
-	@$(MAKE) --no-print-directory _deploy-bundle host=$(STAGING_HOST) path=$(STAGING_PATH) env=staging
-	@echo "$(GREEN)$(STAGING_URL)$(RESET)"
+deploy: ## Deploy the payload to an environment (make deploy env=staging)
+	@$(MAKE) --no-print-directory _deploy-gate env=$(env)
+	@$(MAKE) --no-print-directory _deploy-confirm env=$(env)
+	@$(MAKE) --no-print-directory _deploy-transport env=$(env) dryrun="$(dryrun)"
+	@if [ -z "$(dryrun)" ]; then $(MAKE) --no-print-directory _deploy-stamp env=$(env); fi
+	@if [ -z "$(dryrun)" ]; then $(MAKE) --no-print-directory _deploy-opcache env=$(env); fi
+	@echo "$(GREEN)🌐 $$($(SITE) environments.$(env).url)$(RESET)"
 
-ship: ## Bundle + deploy to production (confirmed, DB backup first)
-	@$(MAKE) --no-print-directory _check-production-config
-	@echo "$(RED)SHIP TO LIVE?$(RESET)"
-	@$(MAKE) --no-print-directory _confirm message="Continue?"
-	@$(MAKE) --no-print-directory _ensure-clean-git
+deploy-test: ## Show what a deploy would change, without changing it
+	@$(MAKE) --no-print-directory deploy env=$(env) dryrun=--dry-run
+
+ship: ## Ship to production (gate, backups, confirm, deploy)
+	@if [ "$(HAS_PROD)" != "yes" ]; then \
+		echo "$(RED)✗ No production environment in site.yml yet$(RESET)"; \
+		echo "$(YELLOW)  Add environments.production once the site is live.$(RESET)"; exit 1; fi
+	@$(MAKE) --no-print-directory _deploy-gate env=production
 	@$(MAKE) --no-print-directory _backup-production
-	@$(MAKE) --no-print-directory _verify-ssh-access host=$(PRODUCTION_HOST)
-	@$(MAKE) --no-print-directory _create-bundle
-	@$(MAKE) --no-print-directory _deploy-bundle host=$(PRODUCTION_HOST) path=$(PRODUCTION_PATH) env=production
-	@echo "$(GREEN)$(PRODUCTION_URL)$(RESET)"
+	@$(MAKE) --no-print-directory _backup-payload env=production
+	@$(MAKE) --no-print-directory deploy env=production
 
 # === FEATURE BRANCHES ===
-feature: ## Create feature/<name> from staging (name=xyz)
-	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make feature name=xyz$(RESET)"; exit 1; fi
-	@if ! echo "$(name)" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]*$$'; then echo "$(RED)Invalid name$(RESET)"; exit 1; fi
-	@if git show-ref --verify --quiet refs/heads/feature/$(name); then echo "$(RED)Exists$(RESET)"; exit 1; fi
-	@git checkout staging 2>/dev/null || git checkout -b staging
-	@git checkout -b feature/$(name)
-	@echo "$(GREEN)feature/$(name) created$(RESET)"
 
-finish: ## Merge current feature branch into staging
+feature: ## Start a feature (make feature name=my-feature) — branches from the integration branch
+	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make feature name=my-feature$(RESET)"; exit 1; fi
+	@if ! echo "$(name)" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]*$$'; then \
+		echo "$(RED)✗ Invalid name: use letters, digits, dot, dash, underscore$(RESET)"; exit 1; fi
+	@$(MAKE) --no-print-directory _ensure-clean-git
+	@git fetch --quiet origin $(BR_INTEG)
+	@git checkout -b "feature/$(name)" origin/$(BR_INTEG)
+	@echo "$(GREEN)✅ On feature/$(name), branched from origin/$(BR_INTEG)$(RESET)"
+
+hotfix: ## Start a hotfix (make hotfix name=vat-rounding) — branches from the production branch
+	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make hotfix name=my-fix$(RESET)"; exit 1; fi
+	@if ! echo "$(name)" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]*$$'; then \
+		echo "$(RED)✗ Invalid name: use letters, digits, dot, dash, underscore$(RESET)"; exit 1; fi
+	@$(MAKE) --no-print-directory _ensure-clean-git
+	@git fetch --quiet origin $(BR_PROD)
+	@git checkout -b "hotfix/$(name)" origin/$(BR_PROD)
+	@echo "$(GREEN)✅ On hotfix/$(name), branched from origin/$(BR_PROD)$(RESET)"
+	@echo "$(YELLOW)   Fix, commit, then: make finish$(RESET)"
+
+finish: ## Merge the current branch one step up the promotion path
+	@$(MAKE) --no-print-directory _ensure-clean-git
 	@BRANCH=$$(git branch --show-current); \
-	if ! echo "$$BRANCH" | grep -q "^feature/"; then echo "$(RED)Not on feature$(RESET)"; exit 1; fi; \
-	read -p "Merge $$BRANCH → staging? [y/N]: " c; [ "$$c" = "y" ] || exit 1; \
-	git checkout staging && git merge --no-ff "$$BRANCH" -m "Merge $$BRANCH" && git branch -d "$$BRANCH" && echo "$(GREEN)Done$(RESET)"
+	case "$$BRANCH" in \
+		feature/*) \
+			echo "$(YELLOW)$$BRANCH → $(BR_INTEG)$(RESET)"; \
+			git checkout $(BR_INTEG) && git pull --quiet --ff-only && \
+			git merge --no-ff "$$BRANCH" -m "Merge $$BRANCH" && \
+			git push && git branch -d "$$BRANCH" && \
+			echo "$(GREEN)✅ Merged to $(BR_INTEG). Deploy: make deploy env=development$(RESET)";; \
+		hotfix/*) \
+			echo "$(YELLOW)$$BRANCH → $(BR_PROD), then back down into $(BR_REVIEW) and $(BR_INTEG)$(RESET)"; \
+			git checkout $(BR_PROD) && git pull --quiet --ff-only && \
+			git merge --no-ff "$$BRANCH" -m "Merge $$BRANCH" && git push && \
+			git checkout $(BR_REVIEW) && git pull --quiet --ff-only && \
+			git merge --no-ff $(BR_PROD) -m "Merge $(BR_PROD) (hotfix $$BRANCH)" && git push && \
+			git checkout $(BR_INTEG) && git pull --quiet --ff-only && \
+			git merge --no-ff $(BR_PROD) -m "Merge $(BR_PROD) (hotfix $$BRANCH)" && git push && \
+			git checkout $(BR_PROD) && git branch -d "$$BRANCH" && \
+			echo "$(GREEN)✅ On $(BR_PROD), merged down into $(BR_REVIEW) and $(BR_INTEG). Ship: make ship$(RESET)";; \
+		*) \
+			echo "$(RED)✗ finish works on feature/* and hotfix/* — you are on $$BRANCH$(RESET)"; \
+			exit 1;; \
+	esac
 
-# === DATABASE ===
-## REVIEW: db-clean bulk-deletes spam/trash comments and ALL post revisions with
-## no confirmation prompt (other destructive targets gate on _confirm). Keep
-## as-is, add _confirm, or drop? — Stefan's call at close-out.
-db-clean: ## Delete spam/trash comments, revisions, transients; optimize DB
-	@echo "Cleaning DB..."
-	@ddev wp comment delete $$(ddev wp comment list --status=spam,trash --format=ids) --force 2>/dev/null || true
-	@ddev wp post delete $$(ddev wp post list --post_type=revision --format=ids) --force 2>/dev/null || true
-	@ddev wp transient delete --all
-	@ddev wp db optimize
-	@echo "$(GREEN)DB cleaned$(RESET)"
+promote: ## Send ONE feature to staging, leaving the rest of develop behind
+       ## (make promote name=my-feature)
+	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make promote name=my-feature$(RESET)"; exit 1; fi
+	@git fetch --quiet origin 2>/dev/null || true
+	@BR="feature/$(name)"; \
+	if ! git rev-parse --verify --quiet "$$BR" >/dev/null && \
+	   ! git rev-parse --verify --quiet "origin/$$BR" >/dev/null; then \
+		echo "$(RED)✗ No such branch: $$BR$(RESET)"; \
+		echo "$(YELLOW)Features in flight:$(RESET)"; \
+		git branch -a --list '*feature/*' | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	@$(MAKE) --no-print-directory _ensure-clean-git
+	@BR="feature/$(name)"; \
+	git rev-parse --verify --quiet "$$BR" >/dev/null || git branch "$$BR" "origin/$$BR"; \
+	echo "$(YELLOW)$$BR → $(BR_REVIEW) ($(BR_INTEG) is not merged)$(RESET)"; \
+	git --no-pager log --oneline $(BR_REVIEW).."$$BR" | head -20; \
+	read -p "Continue? Type 'yes': " reply; \
+	if [ "$$reply" != "yes" ]; then echo "$(RED)✗ Cancelled$(RESET)"; exit 1; fi; \
+	git checkout $(BR_REVIEW) && git pull --quiet --ff-only && \
+	git merge --no-ff "$$BR" -m "Promote $$BR to $(BR_REVIEW)" && git push && \
+	echo "$(GREEN)✅ $$BR is on $(BR_REVIEW). Deploy: make deploy env=staging$(RESET)"; \
+	echo "$(YELLOW)   $(BR_INTEG) keeps its other features — they are untouched.$(RESET)"
 
-# === SYNC ===
-sync-to-local: ## Pull staging DB + uploads into local
-	@echo "$(BLUE)Syncing staging → local...$(RESET)"
-	@$(MAKE) --no-print-directory _check-ddev
-	@mkdir -p $(BACKUP_DIR)
-	@ddev export-db --file=$(BACKUP_DIR)/local-before-sync-$$(date +%s).sql.gz
-	@ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp db export --path=. -" > $(TEMP_DIR)/staging.sql
-	@ddev import-db --src=$(TEMP_DIR)/staging.sql
-	@ddev wp search-replace "$(STAGING_URL)" "$(LOCAL_URL)" --all-tables
-	@rsync -avz --delete $(STAGING_HOST):$(STAGING_PATH)/$(UPLOADS_REMOTE)/ $(UPLOADS_LOCAL)/
-	@ddev wp cache flush
-	@echo "$(GREEN)Synced$(RESET)"
+release: ## Promote the review branch to the production branch (then: make ship)
+	@if [ "$(HAS_PROD)" != "yes" ]; then \
+		echo "$(RED)✗ No production environment in site.yml yet$(RESET)"; exit 1; fi
+	@$(MAKE) --no-print-directory _ensure-clean-git
+	@git fetch --quiet origin
+	@git checkout $(BR_REVIEW) && git pull --quiet --ff-only
+	@git checkout $(BR_PROD) && git pull --quiet --ff-only
+	@echo "$(YELLOW)About to merge $(BR_REVIEW) → $(BR_PROD):$(RESET)"
+	@git --no-pager log --oneline $(BR_PROD)..$(BR_REVIEW) | head -30
+	@read -p "Continue? Type 'yes': " reply; \
+	if [ "$$reply" != "yes" ]; then echo "$(RED)✗ Cancelled$(RESET)"; exit 1; fi
+	@git merge --no-ff $(BR_REVIEW) -m "Release: merge $(BR_REVIEW)" && git push
+	@echo "$(GREEN)✅ $(BR_PROD) updated. Ship with: make ship$(RESET)"
 
-sync-to-staging: ## Push local DB + uploads to staging (confirmed)
-	@echo "$(BLUE)Syncing local → staging...$(RESET)"
-	@$(MAKE) --no-print-directory _check-ddev
-	@$(MAKE) --no-print-directory _confirm message="Overwrite staging?"
-	@mkdir -p $(BACKUP_DIR)
-	@ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp db export --path=. -" > $(BACKUP_DIR)/staging-$$(date +%s).sql
-	@ddev export-db --file=$(TEMP_DIR)/local.sql.gz && gunzip $(TEMP_DIR)/local.sql.gz
-	@sed -i.bak "s|$(LOCAL_URL)|$(STAGING_URL)|g" $(TEMP_DIR)/local.sql && rm -f $(TEMP_DIR)/local.sql.bak
-	@scp $(TEMP_DIR)/local.sql $(STAGING_HOST):$(TEMP_DIR)/
-	@ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp db import $(TEMP_DIR)/local.sql --path=. && rm $(TEMP_DIR)/local.sql"
-	@rsync -avz --delete $(UPLOADS_LOCAL)/ $(STAGING_HOST):$(STAGING_PATH)/$(UPLOADS_REMOTE)/
-	@ssh $(STAGING_HOST) "cd $(STAGING_PATH) && wp cache flush --path=."
-	@echo "$(GREEN)Synced$(RESET)"
+# === SYNC TOOLS ===
+
+block-mail: ## Install the outgoing-mail block on staging or development
+	@ENV="$(env)"; \
+	$(MAKE) --no-print-directory _refuse-production env=$$ENV || exit 1; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	REMOTE=$$($(SITE) environments.$$ENV.path); \
+	PROD=$$($(SITE) environments.production.url | sed -E 's#^https?://##; s#/$$##'); \
+	sed "s|__PRODUCTION_HOST__|$$PROD|" scripts/remote/00-block-outgoing-mail.php \
+		| ssh -q "$$HOST" "cat > $$REMOTE/$(CONTENT_DIR)/mu-plugins/00-block-outgoing-mail.php" || exit 1; \
+	echo "$(YELLOW)  self-disables if it ever lands on $$PROD$(RESET)"; \
+	echo "$(GREEN)✓ mail block installed on $$ENV$(RESET)"
+
+refresh: ## Copy production data down to staging or development (make refresh env=staging)
+	@ENV="$(env)"; \
+	$(MAKE) --no-print-directory _refuse-production env=$$ENV || exit 1; \
+	URL=$$($(SITE) environments.$$ENV.url); \
+	echo "$(RED)╔══════════════════════════════════════════════════════╗$(RESET)"; \
+	echo "$(RED)║  REPLACE $$ENV WITH PRODUCTION DATA$(RESET)"; \
+	echo "$(RED)╚══════════════════════════════════════════════════════╝$(RESET)"; \
+	echo "$(YELLOW)  database, uploads, third-party plugins and themes$(RESET)"; \
+	echo "$(YELLOW)  $$ENV's current database will be replaced (a backup is taken)$(RESET)"; \
+	read -p "Type 'yes' to continue: " reply; \
+	if [ "$$reply" != "yes" ]; then echo "$(RED)✗ Cancelled$(RESET)"; exit 1; fi
+	@$(MAKE) --no-print-directory block-mail env=$(env)
+	@$(MAKE) --no-print-directory _refresh-db env=$(env)
+	@$(MAKE) --no-print-directory _refresh-uploads env=$(env)
+	@$(MAKE) --no-print-directory _refresh-plugins env=$(env)
+	@echo "$(YELLOW)Re-deploying the git payload so custom plugins match the branch...$(RESET)"
+	@$(MAKE) --no-print-directory deploy env=$(env)
+	@echo "$(GREEN)✅ $(env) refreshed from production$(RESET)"
+
+
+pull: ## Pull DB + third-party plugins from an environment down to local DDEV
+       ## (make pull env=production [uploads=yes])
+	@ENV="$(env)"; \
+	if [ -z "$$ENV" ]; then ENV=production; fi; \
+	if [ -z "$$($(SITE) environments.$$ENV.path)" ]; then \
+		echo "$(RED)✗ Unknown environment: $$ENV$(RESET)"; exit 1; fi; \
+	echo "$(BLUE)Pulling $$ENV → local$(RESET)"; \
+	$(MAKE) --no-print-directory _check-ddev && \
+	$(MAKE) --no-print-directory _pull-db env=$$ENV && \
+	$(MAKE) --no-print-directory _pull-plugins env=$$ENV && \
+	if [ "$(uploads)" = "yes" ]; then \
+		$(MAKE) --no-print-directory _pull-uploads env=$$ENV; \
+	else \
+		echo "$(YELLOW)  uploads skipped (20GB) — add uploads=yes to include them$(RESET)"; \
+	fi && \
+	echo "$(GREEN)✅ local refreshed from $$ENV$(RESET)"
 
 # === TEMPLATES ===
-## REVIEW: the template-save/load/list subsystem predates the wp-starter payload
-## flow (new-site.sh --stack=stackwp now scaffolds theme + mu-plugins directly).
-## Possibly superseded; template-load also overwrites the local DB + content
-## (behind a confirm). Keep, or retire in favor of the payload flow? — Stefan's
-## call at close-out.
-template-save: ## Export DB + content as template (name=x)
-	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make template-save name=my-template$(RESET)"; exit 1; fi
-	@if ! echo "$(name)" | grep -qE '^[a-zA-Z][a-zA-Z0-9._-]*$$'; then echo "$(RED)Invalid name$(RESET)"; exit 1; fi
-	@echo "$(BLUE)Saving template: $(name)$(RESET)"
-	@$(MAKE) --no-print-directory _check-ddev
-	@SAVE_DIR="$(TEMPLATE_DIR)/$(TEMPLATE_PREFIX)$(name)"; \
-	mkdir -p "$(TEMPLATE_DIR)"; rm -rf "$$SAVE_DIR"; mkdir -p "$$SAVE_DIR"; \
-	ddev export-db --file="$$SAVE_DIR/database.sql.gz" && gunzip "$$SAVE_DIR/database.sql.gz"; \
-	sed -i.bak "s|$(LOCAL_URL)|__SITE_URL__|g" "$$SAVE_DIR/database.sql" && rm -f "$$SAVE_DIR/database.sql.bak"; \
-	[ -d "$(CONTENT_LOCAL)" ] && cp -R $(CONTENT_LOCAL) "$$SAVE_DIR/content"; \
-	echo "# Template: $(name)\nCreated: $$(date)\nSource: $(PROJECT_NAME)" > "$$SAVE_DIR/README.md"; \
-	cd "$$SAVE_DIR" && git init -b main && git add . && git commit -m "Template: $(name)"; \
-	if git ls-remote "git@github.com:$(GITHUB_USER)/$(TEMPLATE_PREFIX)$(name).git" >/dev/null 2>&1; then \
-	   git remote add origin "git@github.com:$(GITHUB_USER)/$(TEMPLATE_PREFIX)$(name).git"; \
-	   git push -u origin main && echo "$(GREEN)Pushed to GitHub$(RESET)"; \
-	else \
-	   echo "$(GREEN)Saved locally: $$SAVE_DIR$(RESET)"; \
-	   echo "To push: cd $$SAVE_DIR && git remote add origin ... && git push"; \
-	fi
 
-template-load: ## Import template: overwrites local DB + content (name=x)
-	@if [ -z "$(name)" ]; then echo "$(RED)Usage: make template-load name=my-template$(RESET)"; exit 1; fi
-	@echo "$(BLUE)Loading template: $(name)$(RESET)"
-	@$(MAKE) --no-print-directory _check-ddev
-	@echo "$(RED)This will OVERWRITE the local DB and $(CONTENT_LOCAL)/$(RESET)"
-	@$(MAKE) --no-print-directory _confirm message="Continue?"
-	@LOAD_DIR="$(TEMPLATE_DIR)/$(TEMPLATE_PREFIX)$(name)"; \
-	if [ -d "$$LOAD_DIR" ] && [ -f "$$LOAD_DIR/README.md" ]; then \
-	   echo "Using local template"; \
-	elif git clone "git@github.com:$(GITHUB_USER)/$(TEMPLATE_PREFIX)$(name).git" "$$LOAD_DIR" 2>/dev/null; then \
-	   echo "Cloned from GitHub"; \
-	else \
-	   echo "$(RED)Template not found — run 'make template-list'$(RESET)"; exit 1; \
-	fi; \
-	mkdir -p $(BACKUP_DIR); \
-	[ -f "$$LOAD_DIR/database.sql" ] && ddev export-db --file="$(BACKUP_DIR)/before-$$(date +%s).sql.gz" && \
-	   ddev import-db --src="$$LOAD_DIR/database.sql" && \
-	   ddev wp search-replace '__SITE_URL__' "$(LOCAL_URL)" --all-tables; \
-	[ -d "$$LOAD_DIR/content" ] && mkdir -p $(CONTENT_LOCAL) && rsync -av --delete "$$LOAD_DIR/content/" $(CONTENT_LOCAL)/; \
-	ddev wp cache flush; \
-	echo "$(GREEN)Template '$(name)' loaded$(RESET)"
+deployed: ## Show which commit runs on each environment
+	@DIR=$$($(SITE) deploy.state_dir); \
+	for e in $$($(SITE) environments); do \
+		H=$$($(SITE) environments.$$e.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+		J=$$(ssh -qn "$$H" "cat $$DIR/$$e.json 2>/dev/null" || true); \
+		if [ -z "$$J" ]; then \
+			printf "  $(YELLOW)%-12s never deployed with this tool$(RESET)\n" "$$e"; \
+		else \
+			printf "  $(GREEN)%-12s$(RESET) %s\n" "$$e" "$$J"; \
+		fi; \
+	done
 
-template-list: ## List templates (local + GitHub)
-	@echo "$(BLUE)Templates$(RESET)"
-	@echo "$(YELLOW)Local:$(RESET)"
-	@if [ -d "$(TEMPLATE_DIR)" ]; then \
-	   for t in $(TEMPLATE_DIR)/$(TEMPLATE_PREFIX)*; do \
-	      [ -d "$$t" ] && [ -f "$$t/README.md" ] && \
-	      name=$$(basename "$$t" | sed 's/^$(TEMPLATE_PREFIX)//') && \
-	      created=$$(grep "Created:" "$$t/README.md" 2>/dev/null | cut -d: -f2- | xargs) && \
-	      printf "  • %-20s %s\n" "$$name" "($$created)"; \
-	   done 2>/dev/null || echo "  (none)"; \
-	else \
-	   echo "  (none)"; \
-	fi
-	@echo "$(YELLOW)GitHub:$(RESET)"
-	@gh repo list $(GITHUB_USER) --limit 100 2>/dev/null | grep "$(TEMPLATE_PREFIX)" | while read l; do \
-	   name=$$(echo "$$l" | awk '{print $$1}' | cut -d/ -f2 | sed 's/^$(TEMPLATE_PREFIX)//'); \
-	   updated=$$(echo "$$l" | awk '{print $$3,$$4,$$5}'); \
-	   printf "  • %-20s %s\n" "$$name" "(updated $$updated)"; \
-	done 2>/dev/null || echo "  (install 'gh' CLI)"
+status: ## Show complete project status
+	@echo "$(BLUE)╔════════════════════════════════════════╗$(RESET)"
+	@echo "$(BLUE)║         PROJECT STATUS                 ║$(RESET)"
+	@echo "$(BLUE)╚════════════════════════════════════════╝$(RESET)"
+	@echo ""
+	@echo "$(YELLOW)LOCAL:$(RESET)"
+	@echo "  Branch: $(shell git branch --show-current 2>/dev/null || echo 'none')"
+	@echo "  Changes: $(shell git status --porcelain 2>/dev/null | wc -l | tr -d ' ') files"
+	@echo "  Commit: $(shell git log --oneline -1 2>/dev/null | head -c 50 || echo 'No commits')"
+	@echo "  DDEV: $(shell if ddev describe >/dev/null 2>&1; then echo 'running'; else echo 'stopped'; fi)"
+	@echo ""
+	@echo "$(YELLOW)DEPLOYED:$(RESET)"
+	@$(MAKE) --no-print-directory deployed
 
-# === UTILITIES ===
-status: ## Show local branch/changes + last staging commit
-	@echo "$(BLUE)STATUS$(RESET)"
-	@echo "$(YELLOW)LOCAL:$(RESET) $$(git branch --show-current) | $$(git status --porcelain | wc -l) changes"
-	@echo "$(YELLOW)STAGING:$(RESET) $$(ssh $(STAGING_HOST) "cd $(STAGING_PATH) && git log --oneline -1" 2>/dev/null || echo 'Not accessible')"
+logs: ## Show DDEV logs
+	@ddev logs -f
 
-backup: ## Export local DB + archive uploads to backups/
-	@mkdir -p $(BACKUP_DIR)
-	@ddev export-db --file=$(BACKUP_DIR)/local-$$(date +%s).sql.gz
-	@if [ -d "$(UPLOADS_LOCAL)" ]; then tar -czf $(BACKUP_DIR)/uploads-$$(date +%s).tar.gz $(UPLOADS_LOCAL); fi
-	@echo "$(GREEN)Backup complete$(RESET)"
+restart: ## Restart DDEV
+	@ddev restart
 
-## REVIEW: rollback does `git reset --hard HEAD~1` on the remote, but every
-## _deploy-bundle checkout is a SINGLE PARENTLESS commit (fresh temp repo per
-## deploy) — HEAD~1 cannot resolve, so this rollback likely fails exactly when
-## needed. The backup-<timestamp> tags _deploy-bundle creates are never used;
-## resetting to the latest backup-* tag is probably the intended mechanism.
-## Redesign needs a call on the deploy history model — Stefan, at close-out.
-# NOTE: the production-config check and the confirm prompt are INLINED here
-# (no $(MAKE) recursion on the compound line) so that `make -n rollback`
-# prints the ssh reset instead of executing it — make -n runs any recipe
-# line that contains $(MAKE).
-rollback: ## Emergency remote rollback (see REVIEW note)
-	@echo "$(RED)ROLLBACK$(RESET)"
-	@read -p "1) Staging  2) Production: " e; \
-	if [ "$$e" = "1" ]; then H=$(STAGING_HOST); P=$(STAGING_PATH); else \
-	   { [ -n "$(PRODUCTION_HOST)" ] && [ -n "$(PRODUCTION_PATH)" ]; } || { echo "$(RED)Production not set$(RESET)"; exit 1; }; \
-	   H=$(PRODUCTION_HOST); P=$(PRODUCTION_PATH); fi; \
-	read -p "$(YELLOW)Rollback $$H? [type 'yes']: $(RESET)" c; [ "$$c" = "yes" ] || exit 1; \
-	ssh $$H "cd $$P && git reset --hard HEAD~1 && wp cache flush --path=." && \
-	echo "$(GREEN)Rolled back$(RESET)"
+stop: ## Stop DDEV
+	@ddev stop
 
-ssh: ## Open SSH shell in the staging path
+ssh: ## SSH to staging
 	@ssh $(STAGING_HOST) -t "cd $(STAGING_PATH); bash"
 
-# === BUNDLE & DEPLOY (APP → ROOT) ===
-# Working-tree copy note (S5): an earlier --exclude-from="$(git ls-files …)"
-# on the content rsync was a verified NO-OP — git ls-files emits repo-root-
-# relative paths while rsync matches patterns relative to the transfer root,
-# so no tracked file was ever excluded. The real WIP guard is _ensure-clean-git,
-# which every caller (deploy/ship/setup-staging) runs first: with a clean tree,
-# tracked files are byte-identical to the `git archive HEAD` content already in
-# BUILD_DIR, so the copy below only ADDS the gitignored third-party
-# plugins/themes/mu-plugins.
-_create-bundle:
-	@set -e; \
-	BUNDLE="deploy-$$(git rev-parse --short HEAD)-$$(date +%s).bundle"; \
-	BUILD_DIR="$(TEMP_DIR)/build-$$$$"; \
-	TEMP_REPO="$(TEMP_DIR)/deploy-$$$$"; \
-	WORK_DIR="$$(pwd)"; \
-	echo "$(YELLOW)Building bundle from branch $$(git branch --show-current)...$(RESET)"; \
-	\
-	mkdir -p "$$BUILD_DIR"; \
-	git archive HEAD | tar -x -C "$$BUILD_DIR"; \
-	\
-	echo "$(YELLOW)Adding gitignored third-party files (tree is clean, see _ensure-clean-git)...$(RESET)"; \
-	for dir in themes plugins mu-plugins; do \
-	   rsync -a --exclude=node_modules $(APP_DIR)/content/$$dir/ "$$BUILD_DIR/$(APP_DIR)/content/$$dir/"; \
+ssh-prod: ## SSH to production
+	@ssh $(PRODUCTION_HOST) -t "cd $(PRODUCTION_PATH); bash"
+
+test: ## Run the deploy tooling tests (never contacts a server)
+	@scripts/tests/deploy-test.sh
+
+gate: ## Run this project's own test suite (commands.gate from site.yml)
+	@G=$$($(SITE) commands.gate 2>/dev/null); \
+	if [ -z "$$G" ]; then echo "$(RED)✗ No commands.gate in site.yml$(RESET)"; exit 1; fi; \
+	echo "$(BLUE)$$G$(RESET)"; eval "$$G"
+
+doctor: ## Check required tools and SSH connectivity
+	@echo "$(BLUE)Tools$(RESET)"
+	@for c in ddev git rsync ssh python3; do \
+		command -v $$c >/dev/null 2>&1 \
+			&& printf "  ✅ %s\n" "$$c" \
+			|| printf "  $(RED)❌ %s (required)$(RESET)\n" "$$c"; \
+	done
+	@python3 -c "import yaml" 2>/dev/null && echo "  ✅ PyYAML (scripts/site)" || echo "  $(RED)❌ PyYAML — scripts/site cannot read site.yml$(RESET)"
+	@echo ""
+	@echo "$(BLUE)Environments (from site.yml)$(RESET)"
+	@for e in $$($(SITE) environments); do \
+		HOST=$$($(SITE) environments.$$e.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+		P=$$($(SITE) environments.$$e.path); \
+		B=$$($(SITE) environments.$$e.branch); \
+		U=$$($(SITE) environments.$$e.url); \
+		printf "  %-12s %-10s %s\n" "$$e" "$$B" "$$U"; \
+		if ssh -qn -o ConnectTimeout=5 "$$HOST" "test -d $$P" 2>/dev/null; then \
+			printf "               $(GREEN)path ok$(RESET)  %s\n" "$$P"; \
+		else \
+			printf "               $(RED)UNREACHABLE$(RESET) %s\n" "$$P"; \
+		fi; \
+	done
+	@echo ""
+	@echo "$(BLUE)Payload$(RESET)"
+	@for p in $$($(SITE) deploy.payload); do \
+		if [ -d "$(WEBROOT)/$$p" ]; then printf "  ✅ %s\n" "$$p"; \
+		else printf "  $(RED)❌ %s missing locally$(RESET)\n" "$$p"; fi; \
+	done
+
+rollback: ## Redeploy the previously deployed commit (make rollback env=production)
+	@ENV="$(env)"; \
+	if [ -z "$$ENV" ]; then echo "$(RED)✗ Usage: make rollback env=<name>$(RESET)"; exit 1; fi; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	DIR=$$($(SITE) deploy.state_dir); \
+	PREV=$$(ssh -qn "$$HOST" "tail -2 $$DIR/$$ENV.log 2>/dev/null | head -1" | awk '{print $$2}'); \
+	if [ -z "$$PREV" ]; then \
+		echo "$(RED)✗ No previous deploy recorded for $$ENV$(RESET)"; exit 1; fi; \
+	echo "$(YELLOW)Rolling $$ENV back to $$PREV$(RESET)"; \
+	git --no-pager log --oneline -1 "$$PREV" || { \
+		echo "$(RED)✗ Commit $$PREV is not in this repository$(RESET)"; exit 1; }; \
+	read -p "Type 'yes' to roll back: " reply; \
+	if [ "$$reply" != "yes" ]; then echo "$(RED)✗ Cancelled$(RESET)"; exit 1; fi; \
+	WT=$$(mktemp -d); \
+	git worktree add --detach --quiet "$$WT" "$$PREV"; \
+	REMOTE=$$($(SITE) environments.$$ENV.path); \
+	EXCL=""; \
+	for e in $$($(SITE) deploy.exclude); do EXCL="$$EXCL --exclude=$$e"; done; \
+	for p in $$($(SITE) deploy.payload); do \
+		[ -d "$$WT/$(WEBROOT)/$$p" ] || continue; \
+		echo "$(BLUE)  → $$p$(RESET)"; \
+		rsync -az --delete -e "ssh -q" $$EXCL "$$WT/$(WEBROOT)/$$p/" "$$HOST:$$REMOTE/$$p/" || exit 1; \
 	done; \
-	\
-	if [ -f "$$BUILD_DIR/$(VITE_PATH)/package.json" ]; then \
-	   echo "$(YELLOW)Building theme assets in /tmp ($(VITE_THEME))...$(RESET)"; \
-	   ( cd "$$BUILD_DIR/$(VITE_PATH)" && npm ci -q && npm run build ); \
+	git worktree remove --force "$$WT"; \
+	WHEN=$$(date -Iseconds); WHO=$$(git config user.name); \
+	printf '%s %s %s %s\n' "$$WHEN" "$$PREV" "rollback" "$$WHO" \
+		| ssh -q "$$HOST" "cat >> $$DIR/$$ENV.log"; \
+	printf '{"sha":"%s","branch":"rollback","at":"%s","by":"%s"}\n' "$$PREV" "$$WHEN" "$$WHO" \
+		| ssh -q "$$HOST" "cat > $$DIR/$$ENV.json"; \
+	$(MAKE) --no-print-directory _deploy-opcache env=$$ENV; \
+	echo "$(GREEN)✅ $$ENV rolled back to $$PREV$(RESET)"
+
+# === OPTIONAL: REMOTE REPO WORKFLOW ===
+# Uncomment these if you prefer using GitHub/GitLab instead of bundles
+
+# deploy-remote: ## Deploy via GitHub (alternative to bundle)
+# 	@echo "$(BLUE)Deploying via remote repository...$(RESET)"
+# 	@make _ensure-clean-git
+# 	@git push origin $(shell git branch --show-current)
+# 	@ssh $(STAGING_HOST) "cd $(STAGING_PATH) && \
+# 		git fetch origin && \
+# 		git reset --hard origin/$(shell git branch --show-current) && \
+# 		composer install --no-dev && \
+# 		wp cache flush --path=$(WP_CORE)"
+# 	@echo "$(GREEN)✅ Deployed via remote repo$(RESET)"
+
+# push: ## Push to remote repository
+# 	@git push origin $(shell git branch --show-current)
+# 	@echo "$(GREEN)✅ Pushed to remote$(RESET)"
+
+# pull: ## Pull from remote repository
+# 	@git pull origin $(shell git branch --show-current)
+# 	@echo "$(GREEN)✅ Pulled from remote$(RESET)"
+
+# === INTERNAL HELPERS (DO NOT CALL DIRECTLY) ===
+
+# Transport moves the files. Everything around it — gate, backup, stamp,
+# ledger, rollback — is identical whatever the method is.
+_deploy-transport:
+	@M=$$($(SITE) deploy.method); \
+	case "$$M" in \
+		rsync)    $(MAKE) --no-print-directory _deploy-rsync env=$(env) dryrun="$(dryrun)";; \
+		git-push) $(MAKE) --no-print-directory _deploy-gitpush env=$(env) dryrun="$(dryrun)";; \
+		*) echo "$(RED)✗ Unknown deploy.method: $$M (expected rsync or git-push)$(RESET)"; exit 1;; \
+	esac
+
+# Ploi/Bedrock. A push alone does NOT deploy: Ploi may have no repository
+# connected, and PHP-FPM often runs opcache.validate_timestamps=0, so a pull
+# stays invisible until FPM is reloaded. Every step is required, in order.
+_deploy-gitpush:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	REMOTE=$$($(SITE) environments.$$ENV.path); \
+	BRANCH=$$($(SITE) environments.$$ENV.branch); \
+	if [ -n "$(dryrun)" ]; then \
+		echo "$(YELLOW)  would: git push origin $$BRANCH$(RESET)"; \
+		echo "$(YELLOW)  would: ssh $$HOST 'cd $$REMOTE && git pull --ff-only origin $$BRANCH'$(RESET)"; \
+		$(SITE) deploy.post_deploy_hooks 2>/dev/null | while read -r c; do \
+			[ -n "$$c" ] && echo "$(YELLOW)  would: ssh $$HOST 'cd $$REMOTE && $$c'$(RESET)"; \
+		done; \
+		exit 0; \
 	fi; \
-	\
-	mkdir -p "$$TEMP_REPO" && cd "$$TEMP_REPO" && git init -q; \
-	git config user.name "$$(git -C "$$WORK_DIR" config user.name)"; \
-	git config user.email "$$(git -C "$$WORK_DIR" config user.email)"; \
-	\
-	DEPLOY_EXCLUDES="--exclude=node_modules --exclude=.git"; \
-	if [ -f "$$BUILD_DIR/.deployignore" ]; then DEPLOY_EXCLUDES="$$DEPLOY_EXCLUDES --exclude-from=$$BUILD_DIR/.deployignore"; fi; \
-	rsync -a $$DEPLOY_EXCLUDES "$$BUILD_DIR/$(APP_DIR)/" "$$TEMP_REPO"/; \
-	rm -f "$$TEMP_REPO/.gitignore"; \
-	\
-	git add -A && git commit -m "Deploy" --no-verify -q; \
-	git bundle create $(TEMP_DIR)/$$BUNDLE HEAD; \
-	git bundle verify $(TEMP_DIR)/$$BUNDLE >/dev/null; \
-	\
-	cd "$$WORK_DIR"; \
-	rm -rf "$$TEMP_REPO" "$$BUILD_DIR"; \
-	echo "$(GREEN)✓ Ready: $$BUNDLE$(RESET)"; \
-	echo "$$BUNDLE" > $(TEMP_DIR)/.bundle-name
+	echo "$(BLUE)  → push $$BRANCH$(RESET)"; \
+	git push --quiet origin "$$BRANCH" || exit 1; \
+	echo "$(BLUE)  → pull on $$ENV$(RESET)"; \
+	ssh -qn "$$HOST" "cd $$REMOTE && git pull --ff-only origin $$BRANCH" || exit 1; \
+	$(SITE) deploy.post_deploy_hooks 2>/dev/null | while read -r c; do \
+		[ -z "$$c" ] && continue; \
+		echo "$(BLUE)  → $$c$(RESET)"; \
+		ssh -qn "$$HOST" "cd $$REMOTE && $$c" || exit 1; \
+	done
 
-# The remote chain runs under `set -e`: a failed bundle-verify, tag, checkout
-# or composer install is FATAL. Only the genuinely optional legs (.env absent,
-# wp-cli absent) are soft, behind explicit if-guards. The ssh exit status is
-# checked BEFORE local cleanup so `rm -f` can never mask a failed deploy.
-_deploy-bundle:
-	@BUNDLE=$$(cat $(TEMP_DIR)/.bundle-name); \
-	scp $(TEMP_DIR)/$$BUNDLE $(host):$(path)/ || exit 1; \
-	ssh $(host) "set -e; cd $(path); \
-	   git bundle verify $$BUNDLE; \
-	   git tag backup-$$(date +%s); \
-	   if [ -f .env ]; then cp .env .env.backup; else echo 'No .env to backup'; fi; \
-	   REF=\$$(git bundle list-heads $$BUNDLE | awk '{print \$$1}'); \
-	   git bundle unbundle $$BUNDLE; \
-	   git checkout -f \$$REF; \
-	   if [ -f .env.backup ]; then mv .env.backup .env; fi; \
-	   composer install --no-dev --optimize-autoloader; \
-	   if command -v wp >/dev/null 2>&1 && [ -f wp/wp-settings.php ]; then wp cache flush; else echo 'wp-cli skipped'; fi; \
-	   rm $$BUNDLE" || exit 1; \
-	echo "$(GREEN)Deployed$(RESET)"; \
-	rm -f $(TEMP_DIR)/$$BUNDLE $(TEMP_DIR)/.bundle-name
 
-# === HELPERS ===
+_pull-db:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	SRC=$$($(SITE) environments.$$ENV.path); \
+	SRC_URL=$$($(SITE) environments.$$ENV.url); \
+	LOCAL_URL=$$($(SITE) local.url); \
+	mkdir -p backups; \
+	echo "$(YELLOW)Backing up local database...$(RESET)"; \
+	ddev wp db export backups/local-before-pull-$$(date +%Y%m%d-%H%M%S).sql --add-drop-table --skip-lock-tables || exit 1; \
+	echo "$(YELLOW)Streaming $$ENV database (DEFINER stripped, gzipped)...$(RESET)"; \
+	: "the sed below is duplicated in scripts/remote/refresh-db.sh — that one"; \
+	: "runs on Combell for server-to-server, this one runs here for local."; \
+	: "Change both or one path silently breaks (ERROR 1227 on the views)."; \
+	ssh -qn "$$HOST" "cd $$SRC && wp db export --path=wp --default-character-set=utf8mb4 --single-transaction --quick - | gzip" \
+		| gunzip \
+		| sed -E 's/DEFINER=[^ ]+ / /g; s/SQL SECURITY DEFINER/SQL SECURITY INVOKER/g' \
+		> /tmp/vad-pull.sql || exit 1; \
+	ddev import-db --file=/tmp/vad-pull.sql || { rm -f /tmp/vad-pull.sql; exit 1; }; \
+	rm -f /tmp/vad-pull.sql; \
+	echo "$(YELLOW)Rewriting URLs: $$SRC_URL → $$LOCAL_URL$(RESET)"; \
+	ddev wp search-replace "$$SRC_URL" "$$LOCAL_URL" --all-tables --precise --skip-columns=guid --quiet || exit 1; \
+	echo "$(YELLOW)Forcing mail simulation locally...$(RESET)"; \
+	ddev wp eval '$$o = get_option("fluentmail-settings", array()); if (!is_array($$o)) { $$o = array(); } if (empty($$o["misc"]) || !is_array($$o["misc"])) { $$o["misc"] = array(); } $$o["misc"]["simulate_emails"] = "yes"; update_option("fluentmail-settings", $$o); echo "simulate_emails=yes";' || true; \
+	echo ""; \
+	echo "$(GREEN)✓ local database refreshed$(RESET)"; \
+	echo "$(YELLOW)  transients left alone on purpose$(RESET)"
+
+_pull-plugins:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	SRC=$$($(SITE) environments.$$ENV.path); \
+	EXCL=""; \
+	for p in $$($(SITE) deploy.payload); do EXCL="$$EXCL --exclude=$$(basename $$p)/"; done; \
+	echo "$(YELLOW)Mirroring third-party plugins from $$ENV (git-owned ones and netdust-lti excluded)...$(RESET)"; \
+	rsync -az --delete -e "ssh -q" --exclude=netdust-lti/ $$EXCL \
+		"$$HOST:$$SRC/$(CONTENT_DIR)/plugins/" $(WEBROOT)/$(CONTENT_DIR)/plugins/ || exit 1; \
+	TEXCL=""; \
+	for p in $$($(SITE) deploy.payload); do \
+		case "$$p" in content/themes/*) TEXCL="$$TEXCL --exclude=$$(basename $$p)/";; esac; \
+	done; \
+	echo "$(YELLOW)Mirroring themes (payload themes excluded)...$(RESET)"; \
+	rsync -az --delete -e "ssh -q" $$TEXCL "$$HOST:$$SRC/$(CONTENT_DIR)/themes/" $(WEBROOT)/$(CONTENT_DIR)/themes/ || exit 1; \
+	echo "$(GREEN)✓ third-party plugins and themes match $$ENV$(RESET)"
+
+_pull-uploads:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	SRC=$$($(SITE) environments.$$ENV.path); \
+	echo "$(YELLOW)Mirroring uploads from $$ENV (20GB, incremental)...$(RESET)"; \
+	rsync -az --delete -e "ssh -q" --info=stats1 \
+		"$$HOST:$$SRC/$(CONTENT_DIR)/uploads/" $(WEBROOT)/$(CONTENT_DIR)/uploads/ || exit 1; \
+	echo "$(GREEN)✓ uploads mirrored$(RESET)"
+
+
+_refuse-production:
+	@ENV="$(env)"; \
+	if [ -z "$$ENV" ]; then echo "$(RED)✗ Usage: env=<staging|development>$(RESET)"; exit 1; fi; \
+	if [ "$$ENV" = "production" ]; then \
+		echo "$(RED)✗ Refused: data moves backward only, never into production$(RESET)"; exit 1; \
+	fi; \
+	if [ -z "$$($(SITE) environments.$$ENV.path)" ]; then \
+		echo "$(RED)✗ Unknown environment: $$ENV$(RESET)"; exit 1; \
+	fi
+
+_refresh-db:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	SRC=$$($(SITE) environments.production.path); \
+	DST=$$($(SITE) environments.$$ENV.path); \
+	DIR=$$($(SITE) deploy.state_dir); \
+	SRC_URL=$$($(SITE) environments.production.url); \
+	DST_URL=$$($(SITE) environments.$$ENV.url); \
+	scp -q scripts/remote/refresh-db.sh "$$HOST:/tmp/ntdst-refresh-db.sh" || exit 1; \
+	ssh -qn "$$HOST" "bash /tmp/ntdst-refresh-db.sh '$$SRC' '$$DST' '$$SRC_URL' '$$DST_URL' '$$DIR' '$$ENV' '$(WP_CORE)'; rc=\$$?; rm -f /tmp/ntdst-refresh-db.sh; exit \$$rc" || exit 1; \
+	echo "$(GREEN)✓ database refreshed and mail simulation restored$(RESET)"; \
+	echo "$(YELLOW)  transients left alone on purpose — deleting them all re-runs migrations$(RESET)"
+
+_refresh-uploads:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	SRC=$$($(SITE) environments.production.path); \
+	DST=$$($(SITE) environments.$$ENV.path); \
+	echo "$(YELLOW)Mirroring uploads (server-side, incremental)...$(RESET)"; \
+	ssh -qn "$$HOST" "rsync -a --delete --info=stats2 $$SRC/$(CONTENT_DIR)/uploads/ $$DST/$(CONTENT_DIR)/uploads/" || exit 1; \
+	echo "$(GREEN)✓ uploads mirrored$(RESET)"
+
+_refresh-plugins:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	SRC=$$($(SITE) environments.production.path); \
+	DST=$$($(SITE) environments.$$ENV.path); \
+	EXCL=""; \
+	for p in $$($(SITE) deploy.payload); do EXCL="$$EXCL --exclude=$$(basename $$p)/"; done; \
+	echo "$(YELLOW)Mirroring third-party plugins (git-owned ones and netdust-lti excluded)...$(RESET)"; \
+	ssh -qn "$$HOST" "rsync -a --delete --exclude=netdust-lti/ $$EXCL $$SRC/$(CONTENT_DIR)/plugins/ $$DST/$(CONTENT_DIR)/plugins/" || exit 1; \
+	TEXCL=""; \
+	for p in $$($(SITE) deploy.payload); do \
+		case "$$p" in content/themes/*) TEXCL="$$TEXCL --exclude=$$(basename $$p)/";; esac; \
+	done; \
+	echo "$(YELLOW)Mirroring themes (payload themes excluded)...$(RESET)"; \
+	ssh -qn "$$HOST" "rsync -a --delete $$TEXCL $$SRC/$(CONTENT_DIR)/themes/ $$DST/$(CONTENT_DIR)/themes/" || exit 1; \
+	echo "$(GREEN)✓ third-party plugins and themes mirrored (mu-plugins untouched)$(RESET)"
+
+
+_deploy-stamp:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	DIR=$$($(SITE) deploy.state_dir); \
+	SHA=$$(git rev-parse HEAD); \
+	BRANCH=$$(git branch --show-current); \
+	WHEN=$$(date -Iseconds); \
+	WHO=$$(git config user.name); \
+	printf '{"sha":"%s","branch":"%s","at":"%s","by":"%s"}\n' "$$SHA" "$$BRANCH" "$$WHEN" "$$WHO" \
+		| ssh -q "$$HOST" "mkdir -p $$DIR && cat > $$DIR/$$ENV.json"; \
+	printf '%s %s %s %s\n' "$$WHEN" "$$SHA" "$$BRANCH" "$$WHO" \
+		| ssh -q "$$HOST" "cat >> $$DIR/$$ENV.log"; \
+	git tag -f "deployed/$$ENV" >/dev/null; \
+	git push -f --quiet origin "deployed/$$ENV" 2>/dev/null || \
+		echo "$(YELLOW)  (tag not pushed — no network?)$(RESET)"; \
+	echo "$(GREEN)✓ stamped $$ENV @ $$(git rev-parse --short HEAD)$(RESET)"
+
+_deploy-opcache:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	REMOTE=$$($(SITE) environments.$$ENV.path); \
+	URL=$$($(SITE) environments.$$ENV.url); \
+	NAME=".opcache-$$(git rev-parse --short HEAD)-$$$$.php"; \
+	echo '<?php opcache_reset(); echo "ok"; unlink(__FILE__);' \
+		| ssh -q "$$HOST" "cat > $$REMOTE/$$NAME"; \
+	curl -fsS --max-time 20 "$$URL/$$NAME" >/dev/null 2>&1 || true; \
+	ssh -qn "$$HOST" "rm -f $$REMOTE/$$NAME"; \
+	echo "$(GREEN)✓ opcache reset on $$ENV$(RESET)"
+
+
+_deploy-confirm:
+	@ENV="$(env)"; \
+	if [ "$$($(SITE) environments.$$ENV.confirm)" != "true" ]; then exit 0; fi; \
+	echo "$(RED)╔════════════════════════════════════════╗$(RESET)"; \
+	echo "$(RED)║   DEPLOY TO $$ENV$(RESET)"; \
+	echo "$(RED)║   $$($(SITE) environments.$$ENV.role)$(RESET)"; \
+	echo "$(RED)╚════════════════════════════════════════╝$(RESET)"; \
+	git --no-pager log --oneline "deployed/$$ENV..HEAD" 2>/dev/null | head -20 || true; \
+	read -p "Type 'yes' to deploy: " reply; \
+	if [ "$$reply" != "yes" ]; then echo "$(RED)✗ Cancelled$(RESET)"; exit 1; fi
+
+_deploy-rsync:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	REMOTE=$$($(SITE) environments.$$ENV.path); \
+	EXCL=""; \
+	for e in $$($(SITE) deploy.exclude); do EXCL="$$EXCL --exclude=$$e"; done; \
+	for p in $$($(SITE) deploy.payload); do \
+		if [ ! -d "$(WEBROOT)/$$p" ]; then \
+			echo "$(RED)✗ Payload path missing locally: $(WEBROOT)/$$p$(RESET)"; exit 1; \
+		fi; \
+		echo "$(BLUE)  → $$p$(RESET)"; \
+		rsync -az --delete -e "ssh -q" $(dryrun) --itemize-changes $$EXCL \
+			"$(WEBROOT)/$$p/" "$$HOST:$$REMOTE/$$p/" || exit 1; \
+	done
+
+_backup-payload:
+	@ENV="$(env)"; \
+	HOST=$$($(SITE) environments.$$ENV.ssh_host 2>/dev/null || $(SITE) deploy.ssh_host); \
+	REMOTE=$$($(SITE) environments.$$ENV.path); \
+	DIR=$$($(SITE) deploy.state_dir); \
+	STAMP=$$(date +%Y%m%d-%H%M%S); \
+	PATHS=$$($(SITE) deploy.payload | tr '\n' ' '); \
+	echo "$(YELLOW)Backing up $$ENV payload directories...$(RESET)"; \
+	ARCHIVE="$$DIR/backups/$$ENV-$$STAMP.tar.gz"; \
+	: "GNU tar exits 1 for warnings (a file changed while being read) and 2"; \
+	: "for real errors. Treating any non-zero as failure aborts a ship over a"; \
+	: "warning, so check the archive itself instead."; \
+	ssh -qn "$$HOST" "mkdir -p $$DIR/backups && cd $$REMOTE && tar czf $$ARCHIVE $$PATHS 2>/dev/null; rc=\$$?; [ \$$rc -le 1 ] || exit \$$rc"; \
+	SIZE=$$(ssh -qn "$$HOST" "stat -c %s $$ARCHIVE 2>/dev/null || echo 0"); \
+	if [ "$$SIZE" -lt 1024 ]; then \
+		echo "$(RED)✗ Payload backup missing or empty ($$SIZE bytes) — not deploying$(RESET)"; exit 1; \
+	fi; \
+	echo "$(GREEN)✓ payload backed up: $$ARCHIVE ($$(( SIZE / 1024 )) KB)$(RESET)"
+
+
+_deploy-gate:
+	@ENV="$(env)"; \
+	if [ -z "$$ENV" ]; then \
+		echo "$(RED)✗ Usage: make deploy env=<development|staging|production>$(RESET)"; \
+		exit 1; \
+	fi; \
+	WANT=$$($(SITE) environments.$$ENV.branch 2>/dev/null); \
+	if [ -z "$$WANT" ]; then \
+		echo "$(RED)✗ Unknown environment: $$ENV$(RESET)"; \
+		echo "$(YELLOW)Known: development, staging, production$(RESET)"; \
+		exit 1; \
+	fi; \
+	HAVE=$$(git branch --show-current); \
+	if [ "$$HAVE" != "$$WANT" ]; then \
+		echo "$(RED)✗ $$ENV deploys from '$$WANT' — you are on '$$HAVE'$(RESET)"; \
+		exit 1; \
+	fi; \
+	if [ -n "$$(git status --porcelain)" ]; then \
+		echo "$(RED)✗ Uncommitted changes — nothing uncommitted reaches a server$(RESET)"; \
+		git status --short; \
+		exit 1; \
+	fi; \
+	git fetch --quiet origin "$$WANT" 2>/dev/null || true; \
+	if ! git merge-base --is-ancestor HEAD "origin/$$WANT" 2>/dev/null; then \
+		echo "$(RED)✗ HEAD is not on origin/$$WANT — push before deploying$(RESET)"; \
+		exit 1; \
+	fi; \
+	echo "$(GREEN)✓ gate passed: $$ENV ← $$WANT @ $$(git rev-parse --short HEAD)$(RESET)"
+
+
 _check-requirements:
-	@command -v ddev git rsync ssh >/dev/null || { echo "$(RED)Missing: ddev, git, rsync, ssh$(RESET)"; exit 1; }
+	@command -v ddev >/dev/null 2>&1 || { echo "$(RED)❌ DDEV not installed$(RESET)"; exit 1; }
+	@command -v git >/dev/null 2>&1 || { echo "$(RED)❌ Git not installed$(RESET)"; exit 1; }
+	@command -v rsync >/dev/null 2>&1 || { echo "$(RED)❌ rsync not installed$(RESET)"; exit 1; }
+	@command -v ssh >/dev/null 2>&1 || { echo "$(RED)❌ SSH not installed$(RESET)"; exit 1; }
 
 _check-ddev:
-	@ddev describe >/dev/null 2>&1 || { echo "$(RED)DDEV not running$(RESET)"; exit 1; }
-
-_check-staging-config:
-	@[ -n "$(STAGING_HOST)" ] && [ -n "$(STAGING_PATH)" ] || { echo "$(RED)Staging not set$(RESET)"; exit 1; }
-
-_check-production-config:
-	@[ -n "$(PRODUCTION_HOST)" ] && [ -n "$(PRODUCTION_PATH)" ] || { echo "$(RED)Production not set$(RESET)"; exit 1; }
-
-_verify-ssh-access:
-	@ssh -o ConnectTimeout=5 $(host) "echo OK" >/dev/null || { echo "$(RED)SSH failed$(RESET)"; exit 1; }
-
-_git-setup:
-	@[ -d .git ] || git init
-	@git checkout -b staging 2>/dev/null || true
+	@if ! ddev describe >/dev/null 2>&1; then \
+		echo "$(RED)❌ DDEV not running. Run 'make dev' first$(RESET)"; \
+		exit 1; \
+	fi
 
 _ensure-safe-branch:
-	@case $$(git branch --show-current) in main|master|none) git checkout staging 2>/dev/null || git checkout -b staging ;; esac
+	@BRANCH=$$(git branch --show-current 2>/dev/null || echo "none"); \
+	if [ "$$BRANCH" = "main" ] || [ "$$BRANCH" = "master" ]; then \
+		echo "$(YELLOW)master is deploy-only — switching to develop...$(RESET)"; \
+		git checkout $(BR_INTEG) 2>/dev/null || git checkout -b $(BR_INTEG); \
+	elif [ "$$BRANCH" = "none" ]; then \
+		git checkout $(BR_INTEG) 2>/dev/null || git checkout -b $(BR_INTEG); \
+	fi
 
 _ensure-clean-git:
-	@[ -z "$$(git status --porcelain)" ] || { echo "$(RED)Uncommitted changes$(RESET)"; exit 1; }
-
-_confirm:
-	@read -p "$(YELLOW)$(message) [type 'yes']: $(RESET)" c; [ "$$c" = "yes" ] || exit 1
-
-_init-remote-git:
-	@ssh $(host) "cd $(path) && [ ! -d .git ] && git init && git config receive.denyCurrentBranch ignore && git config user.name Deploy"
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "$(RED)❌ You have uncommitted changes$(RESET)"; \
+		echo "$(YELLOW)Run 'make save' first$(RESET)"; \
+		exit 1; \
+	fi
 
 _backup-production:
-	@mkdir -p $(BACKUP_DIR)
-	@F=$(BACKUP_DIR)/prod-$$(date +%s).sql.gz; \
-	ssh $(PRODUCTION_HOST) "cd $(PRODUCTION_PATH) && bash -c 'set -o pipefail; wp db export --path=. - | gzip'" > $$F \
-	   || { rm -f $$F; echo "$(RED)Production DB export failed$(RESET)"; exit 1; }; \
-	[ -s $$F ] || { rm -f $$F; echo "$(RED)Production backup is empty$(RESET)"; exit 1; }; \
-	echo "$(GREEN)Production backed up: $$F$(RESET)"
+	@echo "$(YELLOW)Backing up production...$(RESET)"
+	@mkdir -p backups
+	@TIMESTAMP=$$(date +%Y%m%d-%H%M%S); \
+	if ! ssh $(PRODUCTION_HOST) "cd $(PRODUCTION_PATH) && \
+		wp db export --path=$(WP_CORE) - | gzip" > backups/production-$$TIMESTAMP.sql.gz; then \
+		echo "$(RED)❌ Failed to backup production database$(RESET)"; \
+		exit 1; \
+	fi; \
+	echo "$(GREEN)✅ Production backed up: backups/production-$$TIMESTAMP.sql.gz$(RESET)"
+
 

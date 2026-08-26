@@ -104,6 +104,29 @@ Thumbs.db
 !.phpstan-cache/.gitignore
 
 # -------------------------
+# Harness meta layer (born-gated parity with bedrock site repos)
+# -------------------------
+
+# The netdust-wp meta layer: operating manual, operational config, project
+# memory, task list, and the deploy tooling. Bedrock site repos track all of
+# these; the stackwp .gitignore whitelisted the GATE layer only, so site.yml
+# and tasks/ were ignored here while CLAUDE.md and memory/ happened to be
+# tracked — the same layer, half in and half out.
+#
+# scripts/ is not optional decoration: the shared Makefile resolves EVERY
+# host, path, branch and payload entry through `scripts/site`. Untracked, a
+# clone gets a Makefile that cannot read its own config — `make help` and
+# every deploy target break on the first $(shell scripts/site …).
+!CLAUDE.md
+!site.yml
+!scripts/
+!scripts/**
+!memory/
+!memory/**
+!tasks/
+!tasks/**
+
+# -------------------------
 # App directory rules
 # -------------------------
 
