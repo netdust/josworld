@@ -80,6 +80,10 @@ deploy:
     - ".git*"
     - "node_modules"
     - "*.log"
+    # The agent's Layer-C notes. A stop-hook running with a nested cwd writes
+    # these INSIDE a payload directory, where static files are served.
+    - "/memory/"
+    - "/tasks/"
 
   # git-push only. A push alone does NOT deploy: Ploi may have no repository
   # connected, and PHP-FPM often runs opcache.validate_timestamps=0, so the
