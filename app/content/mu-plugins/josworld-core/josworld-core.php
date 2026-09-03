@@ -22,6 +22,14 @@ defined('ABSPATH') || exit;
 defined('JOSWORLD_CORE_META_PREFIX') || define('JOSWORLD_CORE_META_PREFIX', '_jw_');
 defined('JOSWORLD_CORE_TEXTDOMAIN') || define('JOSWORLD_CORE_TEXTDOMAIN', 'josworld-core');
 
+// The ntdst-baseline yootheme module publishes every model to the builder's
+// Dynamic Content picker. Assignment, not union: the key already exists (off).
+add_filter('ntdst/baseline/modules', static function (array $modules): array {
+    $modules['yootheme'] = true;
+
+    return $modules;
+});
+
 add_action('plugins_loaded', function (): void {
     // Fail quiet if ntdst-core didn't load (framework missing/disabled) —
     // no fatal, no partial registration.
