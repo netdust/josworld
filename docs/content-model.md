@@ -83,11 +83,11 @@ Source: `app/content/mu-plugins/josworld-core/services/content/TeamService.php`
 
 `public => true`, `publicly_queryable => true` since d3ff09e — the archive
 and YOOtheme's source enumeration require the flags, and WordPress has no
-"archive yes, singles no" flag. The single-member page is still closed, but
-by `TeamService::closeSingleView()`'s 301 redirect to the `/team/` archive
-(`ntdst_router()->single('team', …)`), not by registration flags.
-`exclude_from_search => true` keeps members out of site search;
-`has_archive => true` and `show_in_rest => true` as before.
+"archive yes, singles no" flag. The single-member page is public and built
+in the YOOtheme builder, same as the other CPT singles.
+`exclude_from_search => true` keeps members out of site search results even
+though the single is reachable directly; `has_archive => true` and
+`show_in_rest => true` as before.
 
 **REST caveat, worth repeating here because it is counter-intuitive:**
 `public => false` does NOT gate REST reads — that is standard WP core
@@ -110,8 +110,8 @@ posture and will go RED the moment it changes.
 | `phone` | `_jw_phone` | text | not REST-exposed (see caveat above) |
 
 `title`/`thumbnail` are native (`supports`) — "photo" is the WP featured
-image, not a bespoke meta field (the framework has no single-image field
-type).
+image by choice, not a bespoke meta field; the framework's `image` field
+type exists and would be the pick if a second team photo were ever needed.
 
 The team members shown on a case are picked in the case's builder layout —
 a grid whose items bind one member each via the singular `customTeam`
@@ -142,7 +142,7 @@ built per tool in the YOOtheme builder.
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|
 | `subtitle` | `_jw_subtitle` | text | |
-| `file` | `_jw_file` | relation (`attachment`, single) | optional downloadable file; framework has no bespoke file/media field type, so a single-attachment `relation` models it |
+| `file` | `_jw_file` | file | optional downloadable file; native `file` field type, stores the attachment id directly (no relation) |
 
 ## Taxonomy: `dienst`
 
@@ -159,8 +159,11 @@ the same terms every model must pass to be counted at all.
 
 ## Relations map
 
+No `relation` field remains on any model — `tool.file` moved to the native
+`file` field type (7eb21fb), and every card-to-card link (a case's team, a
+tool's related tools) lives in the YOOtheme builder instead.
+
 ```
-tool.file    --> attachment  (single; optional download)
 case.dienst    (taxonomy terms, case-only, non-hierarchical)
 ```
 
@@ -315,11 +318,15 @@ the other sites sharing that mu-plugin (`daan`, `edushare`, `todai-client`):
 - `95b7e06` — the relation reverse-lookup could not find a `meta_prefix`'d or
   PHP-serialized relation value (this project's `case.team` field is both).
 - `135030a` — the relation picker was unusable for attachment-scoped and
-  array-`post_type` relations (`tool.file`, `tool.related_tools`).
+  array-`post_type` relations. `tool.file` and `tool.related_tools` have
+  since moved off `relation` entirely (native `file` type; builder grid),
+  so the attachment-search behaviour that fix touched is now exercised by
+  a throwaway fixture model in `tests/Integration/AttachmentSearchTest.php`
+  instead.
 
 `ntdst-core` has no test suite of its own — regression cover for both fixes
 lives in this project (`tests/Integration/RelationFieldReverseLookupTest.php`
-and the `tool`/`case` registration tests) and travels with the patch to the
-other sites, rather than being verified independently at the framework
-level. Worth knowing before assuming a green gate here says anything about
+and `AttachmentSearchTest.php`) and travels with the patch to the other
+sites, rather than being verified independently at the framework level.
+Worth knowing before assuming a green gate here says anything about
 the other five sites sharing this mu-plugin.

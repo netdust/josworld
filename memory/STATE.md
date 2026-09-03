@@ -213,50 +213,17 @@ Full history: `memory/ARCHIVE.md` (theme-foundation phase) and
 `.superpowers/sdd/tasks/progress.md` (the T01-T12 build ledger, including
 every mutation-test proof and controller re-verification).
 
-## The content model (T01-T12, `josworld-core` mu-plugin)
+## The content model (T01-T12) — historical; current shape above
 
-Full reference: **`docs/content-model.md`** — the four post types + their
-meta keys + relations + the two registration conventions, and (most
-valuably) the seven-step Polylang DB-state runbook below. That doc's
-meta-key table is machine-checked against the live registry by
-`tests/Integration/DocumentedMetaKeysConsistencyTest.php` — it cannot
-silently drift the way a hand-copied table would.
+Full reference: `docs/content-model.md`. Current shape: 8 card fields, one
+un-tabbed metabox per model, team single public — see "CPT singles built
+in YOOtheme (2026-09-03)" above.
 
-**What's registered** (`app/content/mu-plugins/josworld-core/services/`):
-- `content/CaseService.php` — `case` (T05): client/tagline/impact/
-  uitdaging/resultaat/takeaways/testimonial/interview + a `team` relation.
-  The site's primary sales asset.
-- `content/TeamService.php` — `team` (T06): role/bio/email/phone. Public
-  and publicly queryable since d3ff09e (the archive + YOOtheme enumeration
-  need the flags); the single view is closed by closeSingleView()'s 301
-  redirect, not registration flags. REST-readable regardless (WP core
-  behaviour, not a bug — see the doc's REST caveat).
-- `content/VacatureService.php` / `ToolService.php` — `vacature` + `tool`
-  (T07). Vacature's `employment_type` is a closed list enforced by a
-  `validate` callback (the `<select>` render does NOT enforce it).
-- `dienst` taxonomy (T08), registered on `case` only, via `CaseService`.
-- `admin/AdminUIService.php` — metabox field JS enqueue + T11's admin
-  columns and `condition` (conditional-field) layer for `case`.
-- `multilingual/MultilingualService.php` — T09, declares all four post
-  types + `dienst` translatable to Polylang via its filters, guarded by
-  `function_exists()` throughout (Polylang absence is the DEFAULT state of
-  a fresh clone, not an edge case — see below).
-
-**Two conventions, enforced mechanically project-wide** (not per-model) by
-`tests/Integration/ModelConventionsTest.php`:
-1. Every model registers via `ntdst_data()->register()` — never a direct
-   `register_post_type()`.
-2. `dienst` registers via `register()`'s `taxonomies` config key (the
-   fa51984 core sync retired `NTDST_Theme::taxonomy()`) — never a direct
-   `register_taxonomy()`.
-Both are proven by a token-based static scan of the whole plugin directory
-(immune to commented-out calls / string-literal mentions), not a hand audit.
-
-**One human-decided rule no test enforces** — meta keys are ALWAYS English;
-editor-facing labels are ALWAYS Dutch. `CaseService` originally violated
-this (`wat_we_hebben_gedaan` etc. as field keys), fixed to English in
-`f16ad36`. Every new field on every model must follow this; it will not be
-caught mechanically if it regresses.
+Traps still true: `ModelConventionsTest.php` enforces `ntdst_data()->register()`
+for every model and `register()`'s `taxonomies` key for `dienst` (never the raw
+WP function); meta keys are always English, labels always Dutch (human rule,
+not mechanically enforced); vacature's `employment_type` closed list needs its
+`validate` callback, not just the `<select>` render.
 
 ## THE MULTILINGUAL DB-STATE TRAP — read before touching Polylang
 

@@ -34,8 +34,8 @@ parameters:
         # The excluded ntdst-core package is invisible to analysis, so the
         # NTDST_Pages class and the function_exists()-guarded ntdst_pages()
         # helper both read as not-found at their consumer call sites
-        # (TeamService::closeSingleView()). Scanning the REAL file supplies
-        # both — a scanned file's guarded declarations ARE reflected
+        # (BuilderSinglesTest reading ntdst_pages()). Scanning the REAL file
+        # supplies both — a scanned file's guarded declarations ARE reflected
         # (verified empirically). ntdst_data() needs nothing only because Data.php's
         # symbols predate the package exclude and ride the frozen baseline.
         - app/content/mu-plugins/ntdst-core/core/Pages.php

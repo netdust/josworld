@@ -8,10 +8,10 @@ use josworld\services\content\TeamService;
 use WP_UnitTestCase;
 
 /**
- * Proves the `team` registration contract against real WordPress: no
- * public single view but a full admin UI. Reverse lookup (the `case` ->
- * `team` relation, when case still carried it) is covered by
- * RelationFieldReverseLookupTest.
+ * Proves the `team` registration contract against real WordPress: a
+ * public single view (excluded from site search) plus a full admin UI.
+ * Reverse lookup (the `case` -> `team` relation, when case still carried
+ * it) is covered by RelationFieldReverseLookupTest.
  */
 final class TeamServiceRegistrationTest extends WP_UnitTestCase
 {
@@ -48,7 +48,7 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         );
         $this->assertTrue(
             $postType->exclude_from_search,
-            'team members must not surface as site-search results — the single view is closed',
+            'team members must not surface as site-search results (single is public; exclusion is separate)',
         );
 
         // Full admin UI still required — editors manage members in wp-admin.

@@ -233,6 +233,16 @@ deployed to **11 sites**. Facts worth keeping:
   query/sitemap/search. `team` is unauthenticated-readable at
   `/wp-json/wp/v2/team`; email/phone are unexposed **only** because nothing
   calls `register_meta()` with `show_in_rest`.
+- **A host-side env var set in front of `ddev wp …` does not reach the
+  container.** `DRY=1 ddev wp --user=1 eval-file …` sets `DRY` on the HOST
+  shell only — `getenv('DRY')` inside the eval-file script sees nothing, so
+  a dry-run guard silently falls through and becomes a real run. 2026-09-03:
+  the meta-key purge script's dry-run flag never fired this way, harmless
+  only because the run was against throwaway, reseedable data. Fix: pass
+  the var through the exec form instead —
+  `ddev exec 'DRY=1 wp --user=1 eval-file …'`. Every `eval-file` script
+  that reads an env var must document that exec form in its own header
+  comment, not just here.
 
 ## Front-end / YOOtheme
 

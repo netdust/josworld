@@ -3,8 +3,8 @@
 /**
  * Team Service — registers the `team` post type.
  *
- * Photo is the post thumbnail: the framework has no single-image field
- * type.
+ * Photo is the post thumbnail by choice (`thumbnail` support); the
+ * framework's `image` field type exists for when a second image is needed.
  *
  * REST tripwire: the public flags do not gate REST. name + photo are
  * readable unauthenticated today; email/phone stay private ONLY because
