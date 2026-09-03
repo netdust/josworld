@@ -11,18 +11,36 @@ use WP_UnitTestCase;
  * as post_status 'inherit', but `NTDST_RelationField::handleRelationSearch()`
  * (GET /ntdst/v1/relation/search since 5.0 — the api_data action died with
  * the command dispatcher) defaults to 'publish', so a relation field scoped
- * to attachments (tool.file) could never return a result. The route's
- * permission admits only declared relation targets (attachment via
- * tool.file, tool via tool.related_tools) and requires the target type's
+ * to attachments could never return a result. The route's permission admits
+ * only declared relation targets and requires the target type's
  * `edit_others_posts` — hence the fixtures and the administrator user.
- * Lives here because ntdst-core carries the behaviour and this site is a
- * consumer that depends on it.
+ * Neither `tool` nor `attachment` is a declared relation target through
+ * josworld's own schema any more (cluster B shrank every model to its card
+ * — `tool.file` is now the native `file` type, not a `relation`), so this
+ * test registers a throwaway fixture model that points a `relation` field
+ * at each, keeping both reachable for the mixed-search/widening assertions
+ * below without depending on production schema. Lives here because
+ * ntdst-core carries the behaviour and this site is a consumer that
+ * depends on it.
  */
 final class AttachmentSearchTest extends WP_UnitTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Keeps `tool` AND `attachment` declared relation targets for this
+        // test class only — the allow-list is derived from ALL registered
+        // schemas, so a fixture model is enough; no production field needs
+        // to reference either.
+        // @phpstan-ignore function.notFound (ntdst_data() cross-package discovery gap — see sibling test files)
+        ntdst_data()->register('fixture_tool_linker', [
+            'label' => 'Fixture Tool Linker',
+            'fields' => [
+                'linked' => ['type' => 'relation', 'post_type' => 'tool', 'multiple' => true],
+                'attached' => ['type' => 'relation', 'post_type' => 'attachment', 'multiple' => false],
+            ],
+        ]);
 
         // The route registers through ntdst_rest() on rest_api_init — probe
         // WordPress's own register rather than assume.

@@ -3,18 +3,14 @@
 /**
  * Tool Service — registers the `tool` post type.
  *
- * The downloadable file is a `relation` scoped to `attachment`,
- * `multiple => false`: the framework has no single-file/media field type,
- * and `gallery` renders image-specific (wrong fit for a PDF). One
- * attachment post id — a standard WP media attachment, no bespoke upload
- * handler for this project to build and secure.
+ * The model is its card: `subtitle` and the downloadable `file`, the
+ * fields another page needs to show a tool. The rest is built in the
+ * YOOtheme builder.
  *
- * No "list of strings" field type exists either — `benefits` is a
- * one-field-per-entry repeater, the project's established list idiom.
- *
- * `related_tools` is self-referential by design: the framework does not
- * exclude the current post from its own picker, and no self-exclusion is
- * added here — a deliberate non-decision, not an oversight.
+ * The downloadable file is the framework's native `file` type: the
+ * media picker, one attachment id stored and re-read as an int. A
+ * standard WP media attachment, no bespoke upload handler for this
+ * project to build and secure.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -50,56 +46,11 @@ final class ToolService
                 "label" => __("Subtitel", JOSWORLD_CORE_TEXTDOMAIN),
             ],
 
-            // BENEFIT LIST — one-field-per-entry repeater (see class docblock).
-            "benefits" => [
-                "type" => "repeater",
-                "label" => __("Voordelen", JOSWORLD_CORE_TEXTDOMAIN),
-                "button_text" => __("Voordeel toevoegen", JOSWORLD_CORE_TEXTDOMAIN),
-                "sub_fields" => [
-                    "benefit" => [
-                        "type" => "text",
-                        "label" => __("Voordeel", JOSWORLD_CORE_TEXTDOMAIN),
-                    ],
-                ],
-            ],
-
             // DOWNLOADABLE FILE (see class docblock). Optional: no
             // `required`, so a tool with no file still saves.
             "file" => [
-                "type" => "relation",
+                "type" => "file",
                 "label" => __("Bestand", JOSWORLD_CORE_TEXTDOMAIN),
-                "post_type" => "attachment",
-                "multiple" => false,
-            ],
-
-            // RELATED TOOLS — self-referential by design (see class docblock).
-            "related_tools" => [
-                "type" => "relation",
-                "label" => __("Gerelateerde tools", JOSWORLD_CORE_TEXTDOMAIN),
-                "post_type" => "tool",
-                "multiple" => true,
-                "reverse_label" => __("Gerelateerde tools", JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, array<string, mixed>>
-     */
-    private function getFieldGroups(): array
-    {
-        return [
-            "details" => [
-                "title" => __("Tool-gegevens", JOSWORLD_CORE_TEXTDOMAIN),
-                "fields" => ["subtitle", "benefits", "file"],
-                "context" => "normal",
-                "priority" => "high",
-            ],
-            "related" => [
-                "title" => __("Gerelateerde tools", JOSWORLD_CORE_TEXTDOMAIN),
-                "fields" => ["related_tools"],
-                "context" => "side",
-                "priority" => "default",
             ],
         ];
     }
@@ -138,11 +89,7 @@ final class ToolService
             "map_meta_cap" => true,
             "fields" => $this->getFields(),
             "meta_prefix" => JOSWORLD_CORE_META_PREFIX,
-            "use_tabs" => true,
-            "tabs_context" => "normal",
-            "tabs_priority" => "high",
             "metabox_title" => __("Tool-gegevens", JOSWORLD_CORE_TEXTDOMAIN),
-            "field_groups" => $this->getFieldGroups(),
         ]);
     }
 }
