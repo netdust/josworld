@@ -113,12 +113,9 @@ posture and will go RED the moment it changes.
 image, not a bespoke meta field (the framework has no single-image field
 type).
 
-**Reverse relation**: `case.team` creates a framework-provided reverse
-metabox on a team member's own edit screen listing the cases referencing
-them (`NTDST_RelationField` self-registers on `after_setup_theme` and reads
-every registered model's `relation` fields). `reverse_label` is set
-explicitly on `case.team` (Dutch: "Cases") because the framework's own
-default is a hardcoded English string, which FR-11 forbids.
+The team members shown on a case are picked in the case's builder layout —
+a grid whose items bind one member each via the singular `customTeam`
+query — so no reverse relation exists between `case` and `team`.
 
 ## Post type: `vacature`
 
