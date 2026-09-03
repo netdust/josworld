@@ -7,8 +7,20 @@
 - **Nothing new was built** — YOOtheme's `grid_item` and `panel` carry a native
   `hover_image` prop (rendered as `.el-hover-image.uk-transition-fade`, opacity
   0 → 1 under `.uk-transition-toggle:hover`); every case grid already had
-  `show_hover_image: true`. Static W1 tiles (pages 11, 17, 18, 64) got the
-  prop set per tile; editors swap the placeholder second image in the builder.
+  `show_hover_image: true`.
+- **`W1 · Cases` is a BOUND grid now, on every copy** (pages 11, 17, 18 and the
+  source on 64) and in the library (`b9e84ffe`): one `grid_item` with
+  `cases.customCases` (offset 0, limit 3, date DESC) and the archive's binding set
+  (`title` · `client` · `featuredImage.url/alt` · `hover_image.url` · `link` ·
+  `dienstString`), plus `class: jw-case-card`, `image_link`, `title_link`,
+  `link_text: ""` from the archive grid. The 3-col / 820×945 grid props are the
+  homepage's own. Page 64 is the source: adapt there, `library set`, re-place.
+- **`yoo-content.php patch` silently dropped every write whose path ended
+  inside a `children` list** — PHP copied the array; only `props` paths (an
+  object) ever persisted. `yc_patch` now walks by reference. Fixed in
+  `.yoo-tools/` AND in the marketplace source
+  (`~/Projects/netdust-plugins/plugins/netdust-wp/skills/ntdst-yootheme/scripts/`,
+  uncommitted there).
 - **The case card grew one field**: `hover_image` (type `image`, `_jw_hover_image`),
   bound in `archive-case` (`Hhoi7Wz0`) as `{"name":"hover_image.url"}` on both
   grids and both featured panels — an `image` field bridges to a YOOtheme
