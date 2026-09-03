@@ -2,6 +2,38 @@
 
 ## Current Phase: content model complete (T01-T12 landed); next is section-by-section page building
 
+## Project synced to the fleet baseline (2026-09-03)
+
+- **Deploy suite = netdust-wp 1.1.0 + josworld's three fixes.** The template
+  now carries the flow floor (`_ensure-flow`, `_need-tty`, `_branch-role`,
+  `flow-test.sh`): a rung branch is deploy-only, every flow verb needs an
+  origin with the rungs on it, confirmations need a terminal. The template
+  still LACKS `set -f` around the deploy.exclude loops, `structure.webroot`
+  in setup and the project-named pull dump — re-apply them on every sync
+  until they land upstream (marketplace source `plugins/netdust-wp/templates`).
+- **This repo has NO `origin` remote.** Every flow verb (feature / finish /
+  promote / release / deploy gate) refuses until one exists, and the agent's
+  commit guard refuses commits and raw branching on `main`. The promote test
+  in deploy-test.sh expects the flow-floor refusal while origin is absent.
+- **ntdst-core 5.2.0 (`^5.2`), ntdst-baseline 2.3.0 (`^2.3`).** Core is
+  additive (whereGroup/whereMissing/whereNotIn; `redirect()` takes a status —
+  the parked TeamService 301 case is now expressible upstream; model hooks
+  carry before-state). Baseline: the manual purge door became a resource
+  route (josworld has no purge caller) and the opt-in `yootheme` module.
+- **The YOOtheme bridge is the baseline module now.** josworld-core opts in
+  by assignment on `ntdst/baseline/modules`; the theme's SchemaMapper /
+  FieldResolver / YOOthemeSourcesService / cached-meta accessor, seven test
+  files, the phpstan stub and the `YOOtheme\app` stub are deleted (unit tier
+  112 → 23 tests). Proof: rendered HTML of 13 pages byte-identical before and
+  after; the builder schema lists Case/Tool/Team/Vacature with every custom
+  field, relations included. The exclude_fields filter kept its
+  `ntdst/yootheme/` name (allowed by name in `BaselineFilterNamespaceTest`).
+  The 5.0-era accessor/nonce/phpstan-stub traps below are history.
+- `.yoo-tools/` (gitignored) refreshed from the 1.1.0 skill: yoo-lint,
+  yoo-measure, yoo-recompile, yoo_layout.py + `sections/`, yoo-seed.
+- CLAUDE.md rules 2–3 follow the 1.1.0 template (`ntdst-framework`; the
+  "daan's copy is HEAD" line is gone — daan is on 5.0.0 / baseline 2.1.0).
+
 ## ntdst-core 5.0.0-FINAL consumed (2026-08-24, branch chore/ntdst-core-4)
 
 `e3ce47d` had consumed a PRE-RELEASE 5.0.0 (`3cc96b76`, Aug 21); upstream
