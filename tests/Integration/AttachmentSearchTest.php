@@ -12,17 +12,30 @@ use WP_UnitTestCase;
  * (GET /ntdst/v1/relation/search since 5.0 — the api_data action died with
  * the command dispatcher) defaults to 'publish', so a relation field scoped
  * to attachments (tool.file) could never return a result. The route's
- * permission admits only declared relation targets (attachment via
- * tool.file, tool via tool.related_tools) and requires the target type's
- * `edit_others_posts` — hence the fixtures and the administrator user.
- * Lives here because ntdst-core carries the behaviour and this site is a
- * consumer that depends on it.
+ * permission admits only declared relation targets and requires the target
+ * type's `edit_others_posts` — hence the fixtures and the administrator
+ * user. `tool` is no longer a declared target through josworld's own
+ * schema (cluster B shrank the model to its card — the relation moved into
+ * the builder), so this test registers a throwaway fixture model that
+ * still points a `relation` field at `tool`, keeping `tool` reachable for
+ * the mixed-search/widening assertions below without depending on
+ * production schema. Lives here because ntdst-core carries the behaviour
+ * and this site is a consumer that depends on it.
  */
 final class AttachmentSearchTest extends WP_UnitTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Keeps `tool` a declared relation target for this test class only —
+        // the allow-list is derived from ALL registered schemas, so a
+        // fixture model is enough; no production field needs to reference it.
+        // @phpstan-ignore function.notFound (ntdst_data() cross-package discovery gap — see sibling test files)
+        ntdst_data()->register('fixture_tool_linker', [
+            'label' => 'Fixture Tool Linker',
+            'fields' => ['linked' => ['type' => 'relation', 'post_type' => 'tool', 'multiple' => true]],
+        ]);
 
         // The route registers through ntdst_rest() on rest_api_init — probe
         // WordPress's own register rather than assume.

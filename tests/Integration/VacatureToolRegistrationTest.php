@@ -145,10 +145,6 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
         $created = $model->create([
             'title' => 'Free Audit Checklist',
             'subtitle' => 'Everything you need to check',
-            'benefits' => [
-                ['benefit' => 'Saves time'],
-                ['benefit' => 'No sign-up required'],
-            ],
         ]);
 
         $this->assertNotWPError($created, 'a tool with no file must still save');
@@ -156,68 +152,5 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
         $reread = $model->find($created->ID, 'any');
         $this->assertNotWPError($reread);
         $this->assertSame('Free Audit Checklist', $reread->fields['title'] ?? get_the_title($created->ID));
-    }
-
-    public function test_a_tool_relating_two_other_tools_returns_exactly_two(): void
-    {
-        $model = ntdst_data()->get('tool');
-
-        $toolA = $model->create(['title' => 'Tool A', 'subtitle' => 'A']);
-        $this->assertNotWPError($toolA);
-
-        $toolB = $model->create(['title' => 'Tool B', 'subtitle' => 'B']);
-        $this->assertNotWPError($toolB);
-
-        $mainTool = $model->create([
-            'title' => 'Main Tool',
-            'subtitle' => 'The one that relates to two others',
-            'related_tools' => [$toolA->ID, $toolB->ID],
-        ]);
-        $this->assertNotWPError($mainTool);
-
-        $reread = $model->find($mainTool->ID, 'any');
-        $this->assertNotWPError($reread);
-
-        $related = $reread->fields['related_tools'] ?? [];
-        $this->assertCount(2, $related, 'a tool relating two other tools must return exactly two');
-        $this->assertContains($toolA->ID, array_map('intval', $related));
-        $this->assertContains($toolB->ID, array_map('intval', $related));
-    }
-
-    /**
-     * The tool->tool SELF-relation edge: a deleted related tool must leave
-     * the surviving tool readable — the same-model shape needs its own
-     * proof, distinct from the cross-model case->team one.
-     */
-    public function test_deleting_a_related_tool_leaves_the_surviving_tool_readable(): void
-    {
-        $model = ntdst_data()->get('tool');
-
-        $toolB = $model->create(['title' => 'Tool B (to be deleted)', 'subtitle' => 'B']);
-        $this->assertNotWPError($toolB);
-
-        $toolA = $model->create([
-            'title' => 'Tool A (survives)',
-            'subtitle' => 'A',
-            'related_tools' => [$toolB->ID],
-        ]);
-        $this->assertNotWPError($toolA);
-
-        wp_delete_post($toolB->ID, true);
-
-        $reread = $model->find($toolA->ID, 'any');
-        $this->assertNotWPError($reread, 'a tool relating to a since-deleted tool must still read cleanly');
-        $this->assertSame('Tool A (survives)', $reread->fields['title'] ?? get_the_title($toolA->ID));
-
-        // Relation reads never dereference into WP_Post, so the dangling id
-        // stays present as a plain int — asserted, not assumed.
-        $related = $reread->fields['related_tools'] ?? [];
-        $this->assertIsArray($related, 'related_tools must still be a well-formed array after the target is deleted');
-        $this->assertContains(
-            (int) $toolB->ID,
-            array_map('intval', $related),
-            'the dangling related_tools id is expected to remain present but inert — '
-            . 'relation reads never dereference into a WP_Post (Data.php formatMeta())',
-        );
     }
 }
