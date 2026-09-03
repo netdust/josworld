@@ -7,4 +7,5 @@
 - [ ] Commit and merge down the 2026-09-03 sync (deploy suite 1.1.0, core 5.2.0, baseline 2.3.0, yootheme bridge → baseline module) once a branch can be cut
 - [ ] Upstream to the marketplace `netdust-wp/templates`: `set -f` on the deploy.exclude loops, `structure.webroot` in setup, project-named pull dump, and the flow-floor-aware promote test in deploy-test.sh
 - [ ] TeamService single 301: use core 5.2's `redirect($url, 301)` instead of `wp_safe_redirect` + exit
-
+- [ ] Build the remaining singles (11 cases, 6 tools, 7 team, 1 vacature) in the builder from the library starters
+- [ ] Raise the attachment/`inherit` resolver gap in ntdst-baseline (FieldTypeBridge::$relatedPosts) — see STATE 2026-09-03
