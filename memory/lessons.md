@@ -362,3 +362,5 @@ deployed to **11 sites**. Facts worth keeping:
   `composer reinstall netdust/ntdst-core netdust/ntdst-baseline` after
   ANY checkout/merge that crosses 4fd9134/543a267 — and re-run the gate
   on the merge result, never assume a green branch tip proves the merge.
+- A file handed to `ddev wp eval-file … page set <id> <file>` must live INSIDE the project (the container mounts the project only) — a host scratchpad path fails for every post with a bare "Failed to run". Stage JSON under `specs/<feature>/` (gitignored) before a batch write (2026-09-03, 26 writes failed at once).
+
