@@ -30,6 +30,7 @@ final class BaselineFilterNamespaceTest extends TestCase
         'ntdst/model/registering' => 'ntdst-core framework hook, not baseline-owned',
         'ntdst/api_data/' => 'ntdst-core API router vocabulary, not baseline-owned',
         'ntdst/api/' => 'ntdst-core API router vocabulary, not baseline-owned',
+        'ntdst/yootheme/exclude_fields' => 'the yootheme module (2.3.0) kept the name the per-project bridges consumed',
     ];
 
     public function test_every_ntdst_hook_in_the_plugin_uses_the_baseline_namespace(): void
