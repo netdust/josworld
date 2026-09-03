@@ -7,11 +7,10 @@
  * fields another page needs to show a tool. The rest is built in the
  * YOOtheme builder.
  *
- * The downloadable file is a `relation` scoped to `attachment`,
- * `multiple => false`: the framework has no single-file/media field type,
- * and `gallery` renders image-specific (wrong fit for a PDF). One
- * attachment post id — a standard WP media attachment, no bespoke upload
- * handler for this project to build and secure.
+ * The downloadable file is the framework's native `file` type: the
+ * media picker, one attachment id stored and re-read as an int. A
+ * standard WP media attachment, no bespoke upload handler for this
+ * project to build and secure.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -50,10 +49,8 @@ final class ToolService
             // DOWNLOADABLE FILE (see class docblock). Optional: no
             // `required`, so a tool with no file still saves.
             "file" => [
-                "type" => "relation",
+                "type" => "file",
                 "label" => __("Bestand", JOSWORLD_CORE_TEXTDOMAIN),
-                "post_type" => "attachment",
-                "multiple" => false,
             ],
         ];
     }

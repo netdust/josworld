@@ -59,19 +59,22 @@ final class CardFieldsModelTest extends WP_UnitTestCase
         }
     }
 
-    public function test_no_model_declares_a_relation_except_the_tool_file(): void
+    public function test_no_model_declares_a_relation(): void
     {
+        $relations = [];
+
         foreach (array_keys(self::CARD_FIELDS) as $type) {
             foreach (ntdst_data()->get($type)->getSchema() as $name => $config) {
-                if (($config['type'] ?? '') !== 'relation') {
-                    continue;
+                if (($config['type'] ?? '') === 'relation') {
+                    $relations[] = [$type, $name];
                 }
-                $this->assertSame(
-                    ['tool', 'file'],
-                    [$type, $name],
-                    "{$type}.{$name} is a relation that moved into the builder",
-                );
             }
         }
+
+        $this->assertSame(
+            [],
+            $relations,
+            'every relation moved into the builder — a grid of manually selected posts',
+        );
     }
 }

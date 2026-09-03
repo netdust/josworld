@@ -153,4 +153,48 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
         $this->assertNotWPError($reread);
         $this->assertSame('Free Audit Checklist', $reread->fields['title'] ?? get_the_title($created->ID));
     }
+
+    /**
+     * `file` must be the framework's native media type, not a `relation`
+     * scoped to attachment: the relation resolver only widens to attachments
+     * for the picker SEARCH, not for the builder read — a relation-typed
+     * `file` never resolves through `FieldTypeBridge`'s `publish`-gated
+     * `$relatedPosts` closure, since attachments are always `inherit`.
+     */
+    public function test_a_tool_file_is_the_native_media_type_and_rereads_as_an_int(): void
+    {
+        // A real WP media attachment (post_type 'attachment', post_status
+        // 'inherit') — the same shape AttachmentSearchTest builds. No upload
+        // needed: `NTDST_FieldTypes`'s `file` read only checks `get_post_type()`.
+        $attachmentId = (int) wp_insert_post([
+            'post_type' => 'attachment',
+            'post_title' => 'Josworld Tool File',
+            'post_status' => 'inherit',
+            'post_mime_type' => 'application/pdf',
+        ]);
+
+        $model = ntdst_data()->get('tool');
+
+        $created = $model->create([
+            'title' => 'Whitepaper With File',
+            'subtitle' => 'Has a real attachment',
+            'file' => $attachmentId,
+        ]);
+
+        $this->assertNotWPError($created, 'a tool with a file must save');
+
+        $reread = $model->find($created->ID, 'any');
+        $this->assertNotWPError($reread);
+        $this->assertSame(
+            $attachmentId,
+            $reread->fields['file'] ?? null,
+            'the file field must re-read as the attachment id, an int',
+        );
+
+        $this->assertSame(
+            'file',
+            ntdst_data()->get('tool')->getSchema()['file']['type'] ?? null,
+            'the tool model must declare `file` as the native `file` type, not a `relation`',
+        );
+    }
 }
