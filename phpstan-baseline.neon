@@ -133,12 +133,6 @@ parameters:
 			path: app/content/themes/josworld/services/frontend/hooks/ViteAssets.php
 
 		-
-			message: '#^Offset ''field_groups'' on array\{schema\: array\<string, mixed\>, prefix\: string, field_groups\: array\<string, mixed\>\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/content/themes/josworld/services/yootheme/YOOthemeSourcesService.php
-
-		-
 			message: '#^Function ntdst_metabox not found\.$#'
 			identifier: function.notFound
 			count: 1
@@ -293,15 +287,3 @@ parameters:
 			identifier: class.notFound
 			count: 2
 			path: tests/Unit/BaselineInputHandlingTest.php
-
-		-
-			message: '#^Call to method PHPUnit\\Framework\\Assert\:\:assertIsString\(\) with ''Case'' and ''variant 0\: the…''\|''variant 1\: the…''\|''variant 2\: the…''\|''variant 3\: the…''\|''variant 4\: the…''\|''variant 5\: the…'' will always evaluate to true\.$#'
-			identifier: method.alreadyNarrowedType
-			count: 1
-			path: tests/Unit/Yootheme/FieldMetadataTest.php
-
-		-
-			message: '#^Static method josworld\\services\\yootheme\\SchemaMapper\:\:toSubObjectTypes\(\) invoked with 4 parameters, 2\-3 required\.$#'
-			identifier: arguments.count
-			count: 1
-			path: tests/Unit/Yootheme/FieldMetadataTest.php

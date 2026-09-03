@@ -208,3 +208,7 @@ app/content/mu-plugins/ntdst-core/
 # installed via installer-paths into content/mu-plugins/ntdst-baseline/ —
 # externally managed like vendor/, never hand-edited or committed here.
 app/content/mu-plugins/ntdst-baseline/
+
+# Local reference material: design-asset exports and paid plugin zips never enter the repo.
+docs/*.zip
+docs/Assets-*/

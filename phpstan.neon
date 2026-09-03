@@ -31,25 +31,12 @@ parameters:
         - vendor/wp-phpunit/wp-phpunit/includes/phpunit-adapter-testcase.php
         - vendor/wp-phpunit/wp-phpunit/includes/abstract-testcase.php
         - vendor/wp-phpunit/wp-phpunit/includes/testcase.php
-        # T05's cached-meta seam
-        # (app/content/themes/josworld/services/yootheme/ntdst-cached-meta-
-        # accessor.php) declares `ntdst_get_post_meta_from_cache()` guarded by
-        # `function_exists()` and lazily `require_once`d from inside
-        # FieldResolver::resolve() — required so Brain Monkey/Patchwork can
-        # intercept it at the unit tier (see that file's docblock). PHPStan
-        # does not reflect conditionally-declared functions and does not
-        # follow a require inside a method body, so this signature-only stub
-        # makes the symbol analysable without changing the guarded, lazily-
-        # loaded runtime shape.
-        - tests/phpstan-stubs/ntdst_get_post_meta_from_cache.stub.php
         # The excluded ntdst-core package is invisible to analysis, so the
         # NTDST_Pages class and the function_exists()-guarded ntdst_pages()
         # helper both read as not-found at their consumer call sites
         # (TeamService::closeSingleView()). Scanning the REAL file supplies
         # both — a scanned file's guarded declarations ARE reflected
-        # (verified empirically), unlike the lazily-required accessor above,
-        # whose file is reachable through no scan or analysis path without
-        # its stub. ntdst_data() needs nothing only because Data.php's
+        # (verified empirically). ntdst_data() needs nothing only because Data.php's
         # symbols predate the package exclude and ride the frozen baseline.
         - app/content/mu-plugins/ntdst-core/core/Pages.php
         # Same posture for the Container class ContainerTest exercises: new
