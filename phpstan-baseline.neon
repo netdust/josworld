@@ -165,6 +165,12 @@ parameters:
 		-
 			message: '#^Function ntdst_data not found\.$#'
 			identifier: function.notFound
+			count: 2
+			path: tests/Integration/BuilderSinglesTest.php
+
+		-
+			message: '#^Function ntdst_data not found\.$#'
+			identifier: function.notFound
 			count: 7
 			path: tests/Integration/CaseServiceEditorScreenTest.php
 

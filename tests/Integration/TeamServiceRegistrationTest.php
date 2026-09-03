@@ -37,16 +37,13 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
         new TeamService(ntdst_data());
     }
 
-    public function test_registering_the_model_creates_a_team_post_type_with_no_public_single_view(): void
+    public function test_registering_the_model_creates_a_team_post_type_with_a_public_single_and_editor_support(): void
     {
         $this->assertTrue(post_type_exists('team'), 'TeamService must register a `team` post type');
 
         $postType = get_post_type_object('team');
         $this->assertNotNull($postType);
 
-        // "No public single view" is enforced by closeSingleView()'s
-        // redirect, not registration flags — WP has no "archive yes,
-        // singles no" flag, and non-queryable kills the archive too.
         $this->assertTrue(
             $postType->publicly_queryable,
             'team must stay publicly queryable — the archive and YOOtheme source enumeration require it',
@@ -62,6 +59,8 @@ final class TeamServiceRegistrationTest extends WP_UnitTestCase
 
         // Full admin UI still required — editors manage members in wp-admin.
         $this->assertTrue($postType->show_ui, 'team must keep a full admin UI');
+
+        $this->assertTrue(post_type_supports('team', 'editor'), 'the builder needs editor support on team');
     }
 
     public function test_linking_the_same_member_twice_to_one_case_yields_one_entry_not_two(): void
