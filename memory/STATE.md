@@ -2,6 +2,24 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Case tiles show a second image on hover (2026-09-03, branch feature/case-hover-image)
+
+- **Nothing new was built** — YOOtheme's `grid_item` and `panel` carry a native
+  `hover_image` prop (rendered as `.el-hover-image.uk-transition-fade`, opacity
+  0 → 1 under `.uk-transition-toggle:hover`); every case grid already had
+  `show_hover_image: true`. Static W1 tiles (pages 11, 17, 18, 64) got the
+  prop set per tile; editors swap the placeholder second image in the builder.
+- **The case card grew one field**: `hover_image` (type `image`, `_jw_hover_image`),
+  bound in `archive-case` (`Hhoi7Wz0`) as `{"name":"hover_image.url"}` on both
+  grids and both featured panels — an `image` field bridges to a YOOtheme
+  `Attachment`, so it binds exactly like `featuredImage.url`. The 12 cases carry
+  a seeded placeholder hover image (a different case photo).
+- **`yoo-content.php page patch` refuses pages 11/17/18** — the sun image in
+  `A1 · Tools CTA` / `A5 · Gratis aanbod` carries `parallax_easing`,
+  `parallax_rotate`, `parallax_target`, which the linter says are not `image`
+  props (stored, emit nothing). Patched with the positional `no-lint` word;
+  the three props are an open question, not fixed here.
+
 ## CPT singles built in YOOtheme (2026-09-03, branch feature/cpt-builder-singles)
 
 CPT singles are builder pages; the models keep only their card fields.
