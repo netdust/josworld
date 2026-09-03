@@ -54,7 +54,10 @@ final class RelationFieldReverseLookupTest extends WP_UnitTestCase
 
     /**
      * Defect 1, josworld's real shape: a `case` model with meta_prefix
-     * `_jw_` and a `team` relation.
+     * `_jw_`. `case` no longer declares a `team` relation field (the card
+     * shrink, cluster B) — the lookup itself only cares about the raw,
+     * prefixed postmeta row, so the fixture writes it directly rather than
+     * through the model's (now narrower) schema.
      */
     public function test_a_prefixed_model_resolves_its_referring_posts(): void
     {
@@ -64,9 +67,13 @@ final class RelationFieldReverseLookupTest extends WP_UnitTestCase
         $member = $this->makePost();
         $model = ntdst_data()->get('case');
 
-        $this->publish($model->create(['title' => 'Referring A', 'client' => 'A', 'team' => [$member]]));
-        $this->publish($model->create(['title' => 'Referring B', 'client' => 'B', 'team' => [$member]]));
-        $this->publish($model->create(['title' => 'Unrelated', 'client' => 'C', 'team' => []]));
+        $referringA = $this->publish($model->create(['title' => 'Referring A', 'client' => 'A']));
+        $referringB = $this->publish($model->create(['title' => 'Referring B', 'client' => 'B']));
+        $unrelated = $this->publish($model->create(['title' => 'Unrelated', 'client' => 'C']));
+
+        update_post_meta($referringA, '_jw_team', [$member]);
+        update_post_meta($referringB, '_jw_team', [$member]);
+        update_post_meta($unrelated, '_jw_team', []);
 
         $titles = array_map(
             static fn (object $post): string => $post->post_title,

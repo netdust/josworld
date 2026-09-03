@@ -3,7 +3,7 @@ parameters:
 		-
 			message: '#^Call to method get\(\) on an unknown class NTDST_Data_Manager\.$#'
 			identifier: class.notFound
-			count: 2
+			count: 1
 			path: app/content/mu-plugins/josworld-core/services/content/CaseService.php
 
 		-
@@ -171,7 +171,13 @@ parameters:
 		-
 			message: '#^Function ntdst_data not found\.$#'
 			identifier: function.notFound
-			count: 7
+			count: 6
+			path: tests/Integration/CardFieldsModelTest.php
+
+		-
+			message: '#^Function ntdst_data not found\.$#'
+			identifier: function.notFound
+			count: 3
 			path: tests/Integration/CaseServiceEditorScreenTest.php
 
 		-
@@ -183,7 +189,7 @@ parameters:
 		-
 			message: '#^Function ntdst_data not found\.$#'
 			identifier: function.notFound
-			count: 4
+			count: 2
 			path: tests/Integration/CaseServiceRegistrationTest.php
 
 		-
@@ -255,12 +261,6 @@ parameters:
 		-
 			message: '#^Function ntdst_data not found\.$#'
 			identifier: function.notFound
-			count: 6
-			path: tests/Integration/TeamServiceRegistrationTest.php
-
-		-
-			message: '#^Instantiated class NTDST_RelationField not found\.$#'
-			identifier: class.notFound
 			count: 1
 			path: tests/Integration/TeamServiceRegistrationTest.php
 
