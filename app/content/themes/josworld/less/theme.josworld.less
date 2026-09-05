@@ -472,6 +472,7 @@ h4, .uk-h4 {
 @subnav-pill-item-hover-color:        @label-color;
 @subnav-pill-item-active-background:  @label-background;
 @subnav-pill-item-active-color:       @label-color;
+@subnav-item-disabled-color:          @label-color;   // a linkless pill is not "disabled" grey
 
 // ---------- Cards ----------
 @card-default-background:           @jw-white;
@@ -1300,4 +1301,11 @@ h4, .uk-h4 {
     font-size: @jw-t-body;
     font-weight: 700;
     line-height: @jw-lh-body;
+}
+
+// UIkit has no radius or size variable for a pill subnav item — the hook is the next rung.
+.hook-subnav-pill-item() {
+    border-radius: @label-border-radius;
+    font-size: @label-font-size;
+    line-height: @global-line-height;
 }
