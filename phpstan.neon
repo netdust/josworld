@@ -47,6 +47,12 @@ parameters:
         # The data manager: ntdst_data() and the model API are read at new call
         # sites (DownloadFormService) — scanned, so no new discovery-gap entry.
         - app/content/mu-plugins/ntdst-core/api/Data.php
+        # The outgoing-mail block is a standalone mu-plugin TEMPLATE deployed to
+        # servers, never autoloaded here; MailBlockGuardTest substitutes its
+        # __PRODUCTION_HOST__ placeholder and eval()s it, so
+        # ntdst_mail_block_is_production() is invisible to static discovery.
+        # Scanned for the symbol only — the template is not analysed.
+        - scripts/remote/00-block-outgoing-mail.php
     paths:
         - app/content/mu-plugins
         - app/content/themes
