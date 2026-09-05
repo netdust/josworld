@@ -1131,11 +1131,13 @@ h4, .uk-h4 {
 // the way the design draws it. Safe ONLY because this content row holds the
 // term list and nothing else — if a case card ever shows prose here, this line
 // would swallow it.
-.jw-case-card .el-content {
+.jw-case-card .el-content,
+.jw-tags {
     font-size: 0;
 }
 
-.jw-case-card .el-content a[rel="tag"] {
+.jw-case-card .el-content a[rel="tag"],
+.jw-tags a[rel="tag"] {
     display: inline-block;
     margin-right: @jw-s-2;
     padding: 0 @label-padding-horizontal;
@@ -1270,4 +1272,9 @@ h4, .uk-h4 {
     font-size: @jw-t-disclaimer;
     line-height: 1.33;
     letter-spacing: @jw-ls-none;
+}
+
+// A case single's fact dividers are ink, not the muted global border.
+.jw-hr-dark {
+    border-color: @jw-brown;
 }
