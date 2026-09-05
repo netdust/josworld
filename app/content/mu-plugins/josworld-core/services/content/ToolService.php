@@ -78,7 +78,7 @@ final class ToolService
             "show_ui" => true,
             "show_in_menu" => true,
             "query_var" => true,
-            "has_archive" => true,
+            "has_archive" => "gratis-aanbod",   // the listing at the design URL; singles stay under /tools/
             "hierarchical" => false,
             "supports" => ["title", "editor", "thumbnail"],
             "menu_icon" => "dashicons-download",

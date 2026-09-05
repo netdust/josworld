@@ -8,8 +8,8 @@
  * YOOtheme templates read directly. __() labels are ALWAYS DUTCH admin UI.
  * Never conflate the two.
  *
- * The model is its card: the one field a grid or CTA on another page needs
- * to show a case. The narrative (uitdaging, resultaat, testimonial, team…)
+ * The model is its card: the fields a grid or CTA on another page needs
+ * to show a case (client + the tile's hover image). The narrative (uitdaging, resultaat, testimonial, team…)
  * is built in the YOOtheme builder now, not stored here.
  *
  * The `dienst` taxonomy is declared WITH the model via register()'s
@@ -51,6 +51,11 @@ final class CaseService
                 'label' => __('Klant', JOSWORLD_CORE_TEXTDOMAIN),
                 'required' => true,
             ],
+            'hover_image' => [
+                'type' => 'image',
+                'label' => __('Hover-afbeelding', JOSWORLD_CORE_TEXTDOMAIN),
+                'description' => __('Tweede beeld dat een case-tegel toont bij hover.', JOSWORLD_CORE_TEXTDOMAIN),
+            ],
         ];
     }
 
@@ -86,6 +91,7 @@ final class CaseService
             'fields' => $this->getFields(),
             'meta_prefix' => JOSWORLD_CORE_META_PREFIX,
             'metabox_title' => __('Case-gegevens', JOSWORLD_CORE_TEXTDOMAIN),
+            'metabox_context' => 'side',
             // `dienst`, case-only, declared with the model — see class
             // docblock (no direct register_taxonomy() call).
             'taxonomies' => [

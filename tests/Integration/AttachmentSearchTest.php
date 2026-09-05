@@ -33,7 +33,7 @@ final class AttachmentSearchTest extends WP_UnitTestCase
         // test class only — the allow-list is derived from ALL registered
         // schemas, so a fixture model is enough; no production field needs
         // to reference either.
-        // @phpstan-ignore function.notFound (ntdst_data() cross-package discovery gap — see sibling test files)
+
         ntdst_data()->register('fixture_tool_linker', [
             'label' => 'Fixture Tool Linker',
             'fields' => [

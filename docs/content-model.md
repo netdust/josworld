@@ -66,16 +66,17 @@ whole reason it is written down here rather than assumed obvious.
 Source: `app/content/mu-plugins/josworld-core/services/content/CaseService.php`
 
 The site's primary sales asset. `public`, `has_archive`, slug `ons-werk`,
-REST base `cases`, `capability_type: post`. The card is one field — the
+REST base `cases`, `capability_type: post`. The card is two fields — the
 narrative (uitdaging, resultaat, testimonial, team) is built per case in
 the YOOtheme builder, not stored as meta.
 
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|
 | `client` | `_jw_client` | text | required |
+| `hover_image` | `_jw_hover_image` | image | optional; the second image a case grid tile shows on hover |
 
 `title`/`editor`/`thumbnail`/`excerpt` are native WP fields (`supports`),
-not meta. A single untabbed metabox — one field needs no tabs.
+not meta. A single untabbed metabox — two fields need no tabs.
 
 ## Post type: `team`
 
@@ -178,6 +179,7 @@ singular `custom<Type>` query — not a stored meta value.
 | model | field | meta_key |
 |---|---|---|
 | case | client | _jw_client |
+| case | hover_image | _jw_hover_image |
 | team | role | _jw_role |
 | team | bio | _jw_bio |
 | team | email | _jw_email |

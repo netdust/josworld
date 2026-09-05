@@ -140,7 +140,7 @@ Type: Flat
 // carry the smaller screens (see section 2) — that is UIkit's native
 // responsive-heading mechanism, so nothing bespoke is needed.
 @jw-t1:              76px;   // Figma "T1 desktop"     — Fraunces Light 300
-@jw-t2:              56px;   // DERIVED: no "T2 desktop" variable is published.
+@jw-t2:              60px;   // Figma "T2 desktop" — Fraunces Light, 60/60
                              // Interpolated between T1 (76) and T3 (40) on the
                              // scale's own ratio. Replace if Figma publishes one.
 @jw-t3:              40px;   // Figma "T3 desktop"     — Fraunces Regular 400
@@ -159,7 +159,7 @@ Type: Flat
 
 // Line heights, as unitless ratios derived from Figma's px lineHeight / size.
 @jw-lh-t1:           1;      // 76/76
-@jw-lh-t2:           1.1;    // derived with T2
+@jw-lh-t2:           1;      // 60/60
 @jw-lh-t3:           1.1;    // 44/40
 @jw-lh-t4:           1.18;   // 26/22
 @jw-lh-intro:        1.25;   // 40/32
@@ -277,7 +277,7 @@ Type: Flat
 @global-medium-gutter:              @jw-s-8;      // 32px
 @global-large-gutter:               @jw-s-16;     // 64px
 
-@global-control-height:             48px;
+@global-control-height:             44px;   // Figma "Button" and form field: 44px
 @global-control-small-height:       36px;
 @global-control-large-height:       56px;
 
@@ -381,6 +381,8 @@ h4, .uk-h4 {
 
 @text-large-font-size:              @jw-t-intro;      // 32px — was `.jw-intro`
 @text-large-line-height:            @jw-lh-intro;     // 1.25
+@text-meta-font-size:               @jw-t-nav-2;      // 12px — the meta line under a post title
+@text-meta-line-height:             1.17;             // 14/12
 
 // `lead` has a full typo surface (family / weight / transform / letter-spacing /
 // style, from the master's typo layer) but `large` has only size + line-height —
@@ -462,6 +464,17 @@ h4, .uk-h4 {
 @label-text-transform:              none;
 @label-font-size:                   @global-small-font-size;
 @label-padding-horizontal:          @jw-s-3;
+
+// A pill subnav (the diensten on a case single) wears the label look — same tokens.
+@subnav-pill-item-padding-vertical:   0;
+@subnav-pill-item-padding-horizontal: @label-padding-horizontal;
+@subnav-pill-item-background:         @label-background;
+@subnav-pill-item-color:              @label-color;
+@subnav-pill-item-hover-background:   @label-background;
+@subnav-pill-item-hover-color:        @label-color;
+@subnav-pill-item-active-background:  @label-background;
+@subnav-pill-item-active-color:       @label-color;
+@subnav-item-disabled-color:          @label-color;   // a linkless pill is not "disabled" grey
 
 // ---------- Cards ----------
 @card-default-background:           @jw-white;
@@ -1131,11 +1144,13 @@ h4, .uk-h4 {
 // the way the design draws it. Safe ONLY because this content row holds the
 // term list and nothing else — if a case card ever shows prose here, this line
 // would swallow it.
-.jw-case-card .el-content {
+.jw-case-card .el-content,
+.jw-tags {
     font-size: 0;
 }
 
-.jw-case-card .el-content a[rel="tag"] {
+.jw-case-card .el-content a[rel="tag"],
+.jw-tags a[rel="tag"] {
     display: inline-block;
     margin-right: @jw-s-2;
     padding: 0 @label-padding-horizontal;
@@ -1270,4 +1285,112 @@ h4, .uk-h4 {
     font-size: @jw-t-disclaimer;
     line-height: 1.33;
     letter-spacing: @jw-ls-none;
+}
+
+// A case single's fact dividers are ink, not the muted global border.
+.jw-hr-dark {
+    border-color: @jw-brown;
+}
+
+// A case single's team tile: the email reads as a link, in the link colour.
+.jw-team-tile .el-content {
+    color: @jw-raspberry;
+}
+
+// The tile's name is bound data (no HTML to bold), so the bold body face is a rule.
+.jw-team-tile .el-title {
+    font-family: @jw-font-body;
+    font-size: @jw-t-body;
+    font-weight: 700;
+    line-height: @jw-lh-body;
+}
+
+// UIkit has no radius or size variable for a pill subnav item — the hook is the next rung.
+.hook-subnav-pill-item() {
+    border-radius: @label-border-radius;
+    font-size: @label-font-size;
+    line-height: @global-line-height;
+}
+
+// Download form: the two consent rows read as one block; the input gap returns before the button.
+.ff-el-group:has(.ff-el-form-check) {
+    margin-bottom: 0;
+    .ff-el-form-check { margin-bottom: 4px; }
+}
+.ff-el-group:has(.ff-el-form-check) + .ff-el-group:not(:has(.ff-el-form-check)) {
+    margin-top: 20px;
+}
+
+// ---------- Fluent Forms ----------
+// FluentForm draws its own controls, not uk-input; map them onto the Figma "Form field"
+// (bold 18px label, 44px control with an 8px radius and a brown-60 border) and the pill button.
+.frm-fluent-form {
+    .ff-el-input--label label {
+        font-family: @jw-font-body;
+        font-size: @jw-t-body;
+        font-weight: 700;
+        color: @jw-brown;
+    }
+    .ff-el-form-control {
+        height: 44px;
+        padding: 12px 16px;
+        font-family: @jw-font-body;
+        font-size: @jw-t-body;
+        line-height: @jw-lh-body;
+        color: @jw-brown;
+        background: @jw-white;
+        border: 1px solid @jw-brown-60;
+        border-radius: @jw-r-md;
+        box-shadow: none;
+        &:focus { border-color: @jw-brown; }
+        &::placeholder { color: @jw-brown-60; }
+    }
+    textarea.ff-el-form-control {
+        height: auto;
+        min-height: 197px;
+    }
+    .ff-btn-submit {
+        min-width: 110px;
+        height: 44px;
+        padding: 0 20px;
+        font-family: @jw-font-display;
+        font-size: @jw-t-button;
+        line-height: @jw-lh-button;
+        border: 0;
+        border-radius: @jw-r-pill;
+    }
+}
+
+// ---------- Breadcrumbs (post header) ----------
+@breadcrumb-item-font-size:         @jw-t-nav;
+@breadcrumb-item-color:             @jw-brown;
+@breadcrumb-item-hover-color:       @jw-raspberry;
+@breadcrumb-item-active-color:      @jw-brown;
+@breadcrumb-divider-color:          @jw-brown;
+.hook-breadcrumb-item-active() { font-weight: 700; }
+// The post header reads "Blog & nieuws / title": the category level stays out of the trail.
+.jw-post-crumb .uk-breadcrumb > li:not(:first-child):not(:last-child) { display: none; }
+
+// ---------- Blog article ----------
+// Figma "Body blog (bigger spacing)": 18/30 for easier reading; the first paragraph is the
+// 24px intro, h2/h3 take the T3/T4 roles so an editor's H2 is not the 60px page title.
+.jw-blog-body {
+    p, li { line-height: (30 / 18); }
+    .uk-panel > p:first-child {
+        font-size: @jw-t-body-lg;
+        line-height: @jw-lh-body-lg;
+    }
+    h2 { font-size: @jw-t3; line-height: @jw-lh-t3; }
+    h3 { font-family: @jw-font-body; font-size: @jw-t4; font-weight: 600; line-height: @jw-lh-t4; }
+    h2, h3 { margin-top: @jw-s-8; }
+    blockquote {
+        margin: @jw-s-16 0;
+        font-family: @jw-font-display;
+        font-size: @jw-t2;
+        font-weight: 300;
+        font-style: normal;
+        line-height: @jw-lh-t2;
+        text-align: center;
+    }
+    img { border-radius: 0; }
 }

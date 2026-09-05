@@ -48,7 +48,12 @@ final class VacatureToolRegistrationTest extends WP_UnitTestCase
         $tool = get_post_type_object('tool');
         $this->assertNotNull($tool);
         $this->assertTrue($tool->public, 'tool must be public');
-        $this->assertTrue($tool->has_archive, 'tool must have an archive (FR-4)');
+        $this->assertNotFalse($tool->has_archive, 'tool must have an archive (FR-4)');
+        $this->assertSame(
+            'gratis-aanbod',
+            $tool->has_archive,
+            'the tools listing lives at /gratis-aanbod/, the design URL; singles stay under /tools/',
+        );
     }
 
     /**

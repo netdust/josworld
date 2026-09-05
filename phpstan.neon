@@ -44,6 +44,9 @@ parameters:
         # discoverable. Its pre-existing baseline rows were pruned when
         # discovery made them unmatched.
         - app/content/mu-plugins/ntdst-core/core/Container.php
+        # The data manager: ntdst_data() and the model API are read at new call
+        # sites (DownloadFormService) — scanned, so no new discovery-gap entry.
+        - app/content/mu-plugins/ntdst-core/api/Data.php
     paths:
         - app/content/mu-plugins
         - app/content/themes
