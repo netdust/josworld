@@ -1312,7 +1312,8 @@ h4, .uk-h4 {
 
 // Download form: the two consent rows read as one block; the input gap returns before the button.
 .ff-el-group:has(.ff-el-form-check) {
-    margin-bottom: 8px;
+    margin-bottom: 0;
+    .ff-el-form-check { margin-bottom: 4px; }
 }
 .ff-el-group:has(.ff-el-form-check) + .ff-el-group:not(:has(.ff-el-form-check)) {
     margin-top: 20px;
