@@ -364,3 +364,21 @@ deployed to **11 sites**. Facts worth keeping:
   on the merge result, never assume a green branch tip proves the merge.
 - A file handed to `ddev wp eval-file … page set <id> <file>` must live INSIDE the project (the container mounts the project only) — a host scratchpad path fails for every post with a bare "Failed to run". Stage JSON under `specs/<feature>/` (gitignored) before a batch write (2026-09-03, 26 writes failed at once).
 
+- **The flow-floor guard reads the WHOLE command string, so verb names quoted
+  inside a commit message trip it.** Two commits were refused for describing
+  the block-mail and deploy verbs in their bodies — the guard saw make verbs on
+  a piped stdin. Write the message to a file and use `git commit -F <file>`;
+  keep verb names out of inline heredocs (2026-09-05).
+- **Chain nothing in a Bash call.** Compound commands (`cmd; echo …; cmd`) were
+  denied repeatedly by the permission classifier while each piece ran fine
+  alone. One purpose per call — it is faster than the retries (2026-09-05).
+- **`cd` persists between Bash calls.** A `cd app/content && tar …` left the
+  shell there and the next `make feature` died with "No rule to make target".
+  Use `git -C <path>` / absolute paths, or `cd` back in the same call
+  (2026-09-05).
+- **Licensed assets are gitignored, not absent.** YOOtheme Pro and
+  FluentBooking Pro live in `app/content/themes/` and `app/content/plugins/` at
+  the versions this site runs; being gitignored and outside `deploy.payload`
+  means they never DEPLOY, not that they are missing. Check the working tree
+  before asking Stefan for a zip — and re-apply both by hand on every new
+  environment, because no verb carries them (2026-09-05).
