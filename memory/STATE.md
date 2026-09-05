@@ -31,6 +31,86 @@
   `parallax_rotate`, `parallax_target`, which the linter says are not `image`
   props (stored, emit nothing). Patched with the positional `no-lint` word;
   the three props are an open question, not fixed here.
+## FluentCRM is live and wired to the forms (2026-09-05, branch feature/crm-integration)
+
+- **Free FluentCRM 3.1.13 covers josworld's flows; Pro was not bought.** Verified
+  against the installed build, not the marketing page: the FluentForms feed
+  (`app/Services/ExternalIntegrations/FluentForm/Bootstrap.php`) has no Pro gate,
+  free funnels carry the FluentForm-submission trigger with apply/detach
+  tag+list+company, send-email and wait actions, the Companies (B2B) module is
+  free, and FluentBooking's CRM integration gates only on `defined('FLUENTCRM')`.
+  Pro holds benchmarks, funnel branching, dynamic segments, the visual email
+  builder, recurring campaigns, webhooks, SMS and advanced reports — all scale
+  features. Revisit when one of those actually bites, or via the FluentBooking
+  Pro bundle. **Pro does NOT fix the multilingual gap** (below): FluentCRM has no
+  per-contact language in either edition.
+- **Consent model, decided with Stefan.** Both lead forms carry the same pair:
+  `privacy` (required) → the contact may exist; `nieuwsbrief` (optional, value
+  `ja`) → marketing consent. So every form gets TWO feeds — an unconditional one
+  onto the operational **Leads** list, and a conditional one onto **Nieuwsbrief**.
+  **Never send a campaign to Leads.** Single opt-in (`double_opt_in: false`), and
+  `force_subscribe: false` so an unsubscribed contact is never resurrected.
+- **Feeds are ONE ROW PER FEED**, not a JSON array in one row —
+  `GlobalNotificationManager` json_decodes each `fluentcrm_feeds` row into a
+  single feed, so an array is silently ignored and nothing runs.
+  `Helper::setFormMeta` cannot write them (`FormMeta::persist` is
+  update-or-create per meta_key and collapses the set); the seed deletes and
+  re-inserts. Booking feeds are the same shape in `fcal_meta`
+  (`object_type` = `calendar_event`).
+- **A checkbox condition uses `=`, not `contains`** — ConditionAssesor's `=`
+  branch does `in_array($value, flatten($input))` for array inputs, while
+  `contains` calls `Str::contains` on the array.
+- **`source_url` is `site_url($referer)`** — on this `custom-app` structure that
+  means every submission arrives as `/wp/fr/…`. CrmContactLanguageService strips
+  the site base path before reading the language segment; without that every
+  French and English contact is silently tagged Dutch. Caught only by driving a
+  real submission — the unit test that pins it is the regression guard.
+- **Verified by real submissions**, not by reading config: three POSTs to
+  `admin-ajax.php?action=fluentform_submit` (fr + opt-in, en without opt-in, nl +
+  opt-in) produced `lang-fr`/`lang-en`/`lang-nl` with the en contact on **leads
+  only**. Test contacts and the 5 test submissions were deleted afterwards.
+  The booking feed is verified at the loader (`getNotificationFeeds` finds it) —
+  **no real booking was made**, so that path is configured but not exercised.
+- **CRM setup completed (2026-09-05).** Sender is `Jos <jos@jos.agency>` — the
+  address they publish on their own contact page, chosen over josworld.com and
+  the `jos@josworld.org` the stage form notifies (three domains are in play;
+  josworld.org looks like a typo worth confirming). Business name/address come
+  from page 22: `Jos, Lakensestraat 99, 1000 Brussel` (VAT BE 0686.792.761).
+  `email_settings` is the authoritative sender pair — a campaign's own
+  `mailer_settings` default to `is_custom => no` and fall back to it; the
+  vestigial `campaign.from` node in the same option has no reader in 3.1.13.
+- **`pref_list_type` is `filtered_only`, never `all`** — `all` publishes EVERY
+  list on the public preference page, which would put the operational Leads list
+  up for anyone to join. Only Nieuwsbrief is public; verified via
+  `Helper::getPublicLists()`.
+- **The footer is Dutch and singular** — one footer serves all three languages
+  because FluentCRM has no per-contact language in either edition. Verified
+  rendering to `Jos, Lakensestraat 99, 1000 Brussel …`; the `##crm.unsubscribe_url##`
+  pair stays literal until send time, same as FluentCRM's own default footer.
+- **`fluentcrm_setup_wizard_ran` is set to `yes`** — until it is,
+  `AdminMenu::mayBeRedirect` sends every admin visit to the setup wizard, which
+  would then overwrite `business_settings` on completion.
+- **Unsubscribe / manage-preferences / confirmation pages are virtual**
+  (ExternalPages router) — no WP pages to create.
+- **No welcome automation exists yet.** The free funnel blocks (FluentForm
+  trigger → tag → wait → send email) can build a per-language drip; that needs
+  Dutch/FR/EN copy from the client, so it was deliberately not invented.
+- **FluentSMTP has NO connection configured** (only `_fluentsmtp_connection_health`
+  exists). Nothing sends properly from production until an SPF/DKIM-authorised
+  connection for `jos.agency` is set up — the sender address alone is not enough.
+- **The seed is `specs/crm-integration/seed-crm.php`** (idempotent, `DRY=1`
+  supported), following the cpt-builder-singles precedent — and `specs/` is
+  gitignored, so like every other DB-only artifact here it does NOT travel. It
+  joins the existing "turn DB-only site structure into a seed script before first
+  deploy" task, now with a second reason: `app/content/plugins/*` is gitignored
+  too, so FluentCRM itself must be installed per host before the seed can run.
+- **Two STATE facts were stale and are corrected:** origin DOES exist
+  (`git@github.com:netdust/josworld.git`), and FluentForms 6.2.13 IS installed and
+  active — the older "no form plugin is installed" note is wrong.
+- **`DownloadFormService` exists only on `feature/case-hover-image`**, not on
+  staging or main, so on this branch the tool-download confirmation still renders
+  `{tool_file_url}` literally. The CRM feeds are independent of it; the two
+  branches need merging before the download flow is whole.
 
 ## CPT singles built in YOOtheme (2026-09-03, branch feature/cpt-builder-singles)
 

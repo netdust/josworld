@@ -64,6 +64,9 @@ add_action('plugins_loaded', function (): void {
     // Admin-only service:
     require_once $dir . '/admin/AdminUIService.php';
 
+    // Form service:
+    require_once $dir . '/forms/CrmContactLanguageService.php';
+
     // Multilingual service:
     require_once $dir . '/multilingual/MultilingualService.php';
 
@@ -84,6 +87,10 @@ add_action('plugins_loaded', function (): void {
         if (is_admin()) {
             ntdst_get(\josworld\services\admin\AdminUIService::class);
         }
+
+        // Form service — resolved unconditionally: the FluentCRM/Polylang
+        // absence guards live INSIDE the service, as below.
+        ntdst_get(\josworld\services\forms\CrmContactLanguageService::class);
 
         // Multilingual service — resolved unconditionally: the Polylang
         // absence guards live INSIDE the service, never at this call site.
