@@ -212,3 +212,6 @@ app/content/mu-plugins/ntdst-baseline/
 # Local reference material: design-asset exports and paid plugin zips never enter the repo.
 docs/*.zip
 docs/Assets-*/
+
+# Translation packs are per-environment (wp language … install), not source
+app/content/languages/
