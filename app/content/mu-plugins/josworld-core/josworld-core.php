@@ -67,6 +67,9 @@ add_action('plugins_loaded', function (): void {
     // Multilingual service:
     require_once $dir . '/multilingual/MultilingualService.php';
 
+    // Forms: the tool download confirmation.
+    require_once $dir . '/forms/DownloadFormService.php';
+
     unset($dir); // no longer needed after the require_once list above
 
     add_action('after_setup_theme', function (): void {
@@ -85,5 +88,8 @@ add_action('plugins_loaded', function (): void {
         // Multilingual service — resolved unconditionally: the Polylang
         // absence guards live INSIDE the service, never at this call site.
         ntdst_get(\josworld\services\multilingual\MultilingualService::class);
+
+        // The download form's confirmation runs on a front-end submission.
+        ntdst_get(\josworld\services\forms\DownloadFormService::class);
     }, 5);
 }, 5);
