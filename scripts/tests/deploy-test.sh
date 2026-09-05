@@ -103,6 +103,11 @@ assert_eq "does not exclude *.map (font-encoding tables are not source maps)" \
   "0" "$(scripts/site deploy.exclude | grep -cx '\*\.map')"
 assert_eq "excludes repo metadata" \
   "1" "$(scripts/site deploy.exclude | grep -cx '\.git\*')"
+# The mail block is installed into content/mu-plugins (a payload dir, synced
+# with --delete) and exists only on the server. Unexcluded, every deploy
+# deletes it and a non-production environment silently starts sending real mail.
+assert_eq "excludes the outgoing-mail block so --delete cannot remove it" \
+  "1" "$(scripts/site deploy.exclude | grep -cx '00-block-outgoing-mail\.php')"
 fi
 
 echo

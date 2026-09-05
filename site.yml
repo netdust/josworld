@@ -86,6 +86,11 @@ deploy:
     # these INSIDE a payload directory, where static files are served.
     - "/memory/"
     - "/tasks/"
+    # The outgoing-mail block lives in content/mu-plugins — a payload directory
+    # rsynced with --delete — but exists ONLY on the server, never locally.
+    # Without this line every deploy silently deletes it and staging starts
+    # sending real mail again. Excluded files are protected from --delete.
+    - "00-block-outgoing-mail.php"
 
   # git-push only. A push alone does NOT deploy: Ploi may have no repository
   # connected, and PHP-FPM often runs opcache.validate_timestamps=0, so the
