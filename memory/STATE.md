@@ -31,6 +31,38 @@
   `parallax_rotate`, `parallax_target`, which the linter says are not `image`
   props (stored, emit nothing). Patched with the positional `no-lint` word;
   the three props are an open question, not fixed here.
+## Staging is provisioned and WordPress runs; only licensed assets missing (2026-09-05)
+
+- **Everything below jos-server `~/subsites/staging.jos.agency`.** `.env` (0600),
+  WP core 7.1, `wp-config.php` / `index.php` / `.htaccess`, `composer.json` +
+  lock, `vendor/`, the payload (mu-plugins + josworld theme), the five free
+  plugins pinned to local versions, 274 upload files, and the imported database
+  (52 tables, 173 URL replacements `josworld.ddev.site` → `staging.jos.agency`).
+  `wp-login.php` serves 200/6615 bytes — WordPress boots.
+- **DB: `ID247703_josstage` on `ID247703_josstage.db.webhosting.be`** (MySQL
+  8.0.36). Combell uses a PER-DATABASE hostname; `localhost` has no MySQL and
+  the shared `mysql072.webhosting.be` frontend rejects the user.
+- **Composer needs `--prefer-source` on the server.** `netdust/ntdst-baseline`
+  is PRIVATE and composer's dist path fetches a GitHub API zipball over HTTPS,
+  which an SSH deploy key cannot authenticate — it 404s. `--prefer-source`
+  clones over SSH and works. (`netdust/ntdst-core` is PUBLIC; site.yml's note
+  about "the private netdust repos", plural, is wrong.)
+- **Deploy key #162376841 on `netdust/ntdst-baseline`**, read-only, titled
+  "josworld staging (jos-server) — read-only"; private half at
+  `~/.ssh/id_ed25519_ntdst` on jos-server with a matching `~/.ssh/config`
+  github.com entry. Revoke in the repo's Deploy keys settings to undo.
+- **The front page is BLANK because `template` is `yootheme`** and the licensed
+  parent theme is not on the server (gitignored, not in the payload), so
+  `wp theme list` reports nothing at all. This is the only thing between staging
+  and a rendering site.
+- **The CRM config travelled intact**: sender `Jos <jos@jos.agency>`,
+  `pref_list_type` `filtered_only` with only `nieuwsbrief` public, both lists,
+  all seven tags, five form feeds, zero contacts.
+- **TLS is a self-signed placeholder** — Combell has issued no certificate for
+  staging.jos.agency yet, so browsers and curl refuse without `-k`.
+- **Still needed**: the YOOtheme Pro parent theme and FluentBooking Pro (both
+  licensed, both gitignored), and the certificate.
+
 ## Combell targets configured; staging is provisioned but EMPTY (2026-09-05)
 
 - **`jos-server` = ssh072.webhosting.be, user `josagency`** (host key ED25519
