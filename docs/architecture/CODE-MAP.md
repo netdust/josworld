@@ -23,6 +23,33 @@ trusted, so only what a session must not re-derive lands here.
 - **Every layout write goes through `.yoo-tools/yoo-content.php` as an admin.** KSES
   destroys a layout written any other way; a layout needs a root `version`.
 
+## The CRM surface (2026-09-05)
+
+- **A FluentForms CRM feed is ONE DATABASE ROW PER FEED.**
+  `GlobalNotificationManager` reads every `fluentcrm_feeds` row for the form and
+  json_decodes each into a single feed, so an array of feeds in one row is silently
+  ignored — no error, nothing runs. `Helper::setFormMeta` cannot write a set either
+  (`FormMeta::persist` is update-or-create per meta_key and collapses them); delete the
+  form's rows and insert one per feed. Booking feeds are the same shape in `fcal_meta`
+  with `object_type` = `calendar_event`.
+- **Consent is expressed as two feeds, not one.** Every lead form carries `privacy`
+  (required — the contact may exist) and `nieuwsbrief` (optional, value `ja` — marketing
+  consent). So each form gets an unconditional feed onto the operational **Leads** list
+  and a conditional one onto **Nieuwsbrief**. Never send a campaign to Leads, and keep
+  `pref_list_type` on `filtered_only` — `all` publishes every list, Leads included, on
+  the public preference page.
+- **A checkbox condition uses `=`, not `contains`.** ConditionAssesor's `=` branch does
+  `in_array($value, flatten($input))` for array inputs; `contains` calls `Str::contains`
+  on the array and misbehaves.
+- **`source_url` carries the `/wp` prefix.** FluentForms stores it as
+  `site_url($referer)`, and this is a `custom-app` structure, so every submission arrives
+  as `/wp/fr/…`. `CrmContactLanguageService` strips the site base path before reading the
+  language segment — without that the first segment is `wp`, no language matches, and
+  every French and English contact is silently tagged Dutch.
+- **FluentCRM and Polylang are both gitignored**, so "neither is installed" is the
+  default state of a fresh clone. Every call out of `CrmContactLanguageService` is
+  guarded, the same absence contract `MultilingualService` documents.
+
 ## Boundaries
 
 - `app/content/mu-plugins/josworld-core/` is the business logic (services, one per CPT,
