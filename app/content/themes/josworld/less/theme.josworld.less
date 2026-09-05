@@ -381,6 +381,8 @@ h4, .uk-h4 {
 
 @text-large-font-size:              @jw-t-intro;      // 32px — was `.jw-intro`
 @text-large-line-height:            @jw-lh-intro;     // 1.25
+@text-meta-font-size:               @jw-t-nav-2;      // 12px — the meta line under a post title
+@text-meta-line-height:             1.17;             // 14/12
 
 // `lead` has a full typo surface (family / weight / transform / letter-spacing /
 // style, from the master's typo layer) but `large` has only size + line-height —
@@ -1357,4 +1359,38 @@ h4, .uk-h4 {
         border: 0;
         border-radius: @jw-r-pill;
     }
+}
+
+// ---------- Breadcrumbs (post header) ----------
+@breadcrumb-item-font-size:         @jw-t-nav;
+@breadcrumb-item-color:             @jw-brown;
+@breadcrumb-item-hover-color:       @jw-raspberry;
+@breadcrumb-item-active-color:      @jw-brown;
+@breadcrumb-divider-color:          @jw-brown;
+.hook-breadcrumb-item-active() { font-weight: 700; }
+// The post header reads "Blog & nieuws / title": the category level stays out of the trail.
+.jw-post-crumb .uk-breadcrumb > li:not(:first-child):not(:last-child) { display: none; }
+
+// ---------- Blog article ----------
+// Figma "Body blog (bigger spacing)": 18/30 for easier reading; the first paragraph is the
+// 24px intro, h2/h3 take the T3/T4 roles so an editor's H2 is not the 60px page title.
+.jw-blog-body {
+    p, li { line-height: (30 / 18); }
+    .uk-panel > p:first-child {
+        font-size: @jw-t-body-lg;
+        line-height: @jw-lh-body-lg;
+    }
+    h2 { font-size: @jw-t3; line-height: @jw-lh-t3; }
+    h3 { font-family: @jw-font-body; font-size: @jw-t4; font-weight: 600; line-height: @jw-lh-t4; }
+    h2, h3 { margin-top: @jw-s-8; }
+    blockquote {
+        margin: @jw-s-16 0;
+        font-family: @jw-font-display;
+        font-size: @jw-t2;
+        font-weight: 300;
+        font-style: normal;
+        line-height: @jw-lh-t2;
+        text-align: center;
+    }
+    img { border-radius: 0; }
 }
