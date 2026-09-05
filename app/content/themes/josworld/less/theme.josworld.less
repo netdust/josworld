@@ -140,7 +140,7 @@ Type: Flat
 // carry the smaller screens (see section 2) — that is UIkit's native
 // responsive-heading mechanism, so nothing bespoke is needed.
 @jw-t1:              76px;   // Figma "T1 desktop"     — Fraunces Light 300
-@jw-t2:              56px;   // DERIVED: no "T2 desktop" variable is published.
+@jw-t2:              60px;   // Figma "T2 desktop" — Fraunces Light, 60/60
                              // Interpolated between T1 (76) and T3 (40) on the
                              // scale's own ratio. Replace if Figma publishes one.
 @jw-t3:              40px;   // Figma "T3 desktop"     — Fraunces Regular 400
@@ -159,7 +159,7 @@ Type: Flat
 
 // Line heights, as unitless ratios derived from Figma's px lineHeight / size.
 @jw-lh-t1:           1;      // 76/76
-@jw-lh-t2:           1.1;    // derived with T2
+@jw-lh-t2:           1;      // 60/60
 @jw-lh-t3:           1.1;    // 44/40
 @jw-lh-t4:           1.18;   // 26/22
 @jw-lh-intro:        1.25;   // 40/32
@@ -277,7 +277,7 @@ Type: Flat
 @global-medium-gutter:              @jw-s-8;      // 32px
 @global-large-gutter:               @jw-s-16;     // 64px
 
-@global-control-height:             48px;
+@global-control-height:             44px;   // Figma "Button" and form field: 44px
 @global-control-small-height:       36px;
 @global-control-large-height:       56px;
 
