@@ -91,6 +91,7 @@ final class CaseService
             'fields' => $this->getFields(),
             'meta_prefix' => JOSWORLD_CORE_META_PREFIX,
             'metabox_title' => __('Case-gegevens', JOSWORLD_CORE_TEXTDOMAIN),
+            'metabox_context' => 'side',
             // `dienst`, case-only, declared with the model — see class
             // docblock (no direct register_taxonomy() call).
             'taxonomies' => [

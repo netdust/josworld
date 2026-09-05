@@ -122,5 +122,11 @@ final class CaseServiceEditorScreenTest extends WP_UnitTestCase
             $config['field_groups'] ?? [],
             'a card with no tabs must declare no field_groups',
         );
+
+        $this->assertSame(
+            'side',
+            $config['metabox_context'] ?? 'normal',
+            'the card is one field — it belongs in the side panel, beside publish and the taxonomy',
+        );
     }
 }
