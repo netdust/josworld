@@ -31,6 +31,37 @@
   `parallax_rotate`, `parallax_target`, which the linter says are not `image`
   props (stored, emit nothing). Patched with the positional `no-lint` word;
   the three props are an open question, not fixed here.
+## Combell targets configured; staging is provisioned but EMPTY (2026-09-05)
+
+- **`jos-server` = ssh072.webhosting.be, user `josagency`** (host key ED25519
+  `SHA256:prtRV28/nXOuuhi4cyjIer449vr7v7Uc/bVSeu+s/ro`, accepted 2026-09-05).
+  Both rungs live on that one box: production `~/www`, staging
+  `~/subsites/staging.jos.agency`. Ledger at `~/.deploy-state` — home is not
+  served, `www` and `subsites/` are. Domains are **jos.agency**, not
+  josworld.com (that placeholder is gone from site.yml).
+- **Server toolchain is good**: PHP 8.4.25, composer, wp-cli, rsync, git.
+- **The doctor is green and the staging dry run gate-passed** at 15352ff.
+  **No real deploy has been run** — deliberately, see below.
+- **Shipping the payload alone does not yield a running site.** `deploy.payload`
+  is `content/mu-plugins` + `content/themes/josworld` only, and BOTH webroots are
+  freshly provisioned and empty (a placeholder `index.html`). `app/wp/`,
+  `app/vendor/` and `app/.env` are all gitignored AND outside the payload, so
+  WP core, the autoloader and the config never cross the wire. Going ahead now
+  would stamp the ledger and move `deployed/staging` while nothing runs there.
+- **What a first staging bring-up still needs** (in order): a Combell database
+  + credentials to write `app/.env` on the server (**only obtainable from the
+  Combell panel — this is the blocker**); `wp core download`; a composer install
+  in `app/`; the six gitignored third-party plugins, two of them licensed
+  (YOOtheme Pro, FluentBooking Pro); a DB export rewritten from
+  `josworld.ddev.site` to `staging.jos.agency`; `uploads/`; and **the
+  outgoing-mail block installed BEFORE any database import** — FluentCRM now has
+  a real sender (`jos@jos.agency`) and staging must not mail real contacts.
+- **site.yml's framework OPEN QUESTION resolves to "payload" by default** — the
+  dry run shows `ntdst-core` and `ntdst-baseline` riding along from the working
+  tree. Recommended to keep it that way rather than put a deploy key for the
+  private netdust repos on a client shared host; the guard is to verify the
+  installed versions match `app/composer.lock` beforehand.
+
 ## FluentCRM is live and wired to the forms (2026-09-05, branch feature/crm-integration)
 
 - **Free FluentCRM 3.1.13 covers josworld's flows; Pro was not bought.** Verified
