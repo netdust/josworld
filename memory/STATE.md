@@ -31,6 +31,32 @@
   `parallax_rotate`, `parallax_target`, which the linter says are not `image`
   props (stored, emit nothing). Patched with the positional `no-lint` word;
   the three props are an open question, not fixed here.
+## staging.jos.agency is LIVE and matches local (2026-09-05)
+
+- **The site renders in all three languages.** Route-for-route identical to
+  local, within ~100 bytes: `/` 200, `/fr/` → `/fr/homepage-fr/` 200, `/en/`
+  200, `/team/katrien-darras/` 200. `/cases/`, `/tools/` and `/vacatures/` 404
+  on staging AND locally — pre-existing site behaviour, not migration damage.
+  Always diff a route against local before calling it broken.
+- **The licensed assets were in josworld's OWN working tree all along** —
+  `app/content/themes/yootheme` (5.0.43) and
+  `app/content/plugins/fluent-booking-pro` (2.3.0). They are gitignored, which
+  is why they are absent from `deploy.payload`, NOT absent from disk. Do not go
+  hunting other projects for them: todai-client carries an older YOOtheme
+  (5.0.35). Both were archived and extracted into the staging webroot; they must
+  be re-applied by hand on any future environment, since no verb carries them.
+- **A child theme whose parent is missing makes `wp theme list` print NOTHING**
+  — not the child, not an error. That empty table was the only symptom of the
+  blank front page; `template` said `yootheme` while `content/themes/` held only
+  `josworld`. Worth recognising instantly next time.
+- **`wp rewrite flush --hard` is required after the import** — the search-replace
+  leaves `rewrite_rules` empty.
+- **Combell's placeholder `index.html` was removed** from the staging webroot so
+  index.php is unambiguous.
+- **Only TLS remains**: staging.jos.agency still serves a self-signed
+  certificate, so browsers refuse it. Combell must issue one; nothing on the
+  server side can fix it.
+
 ## Staging is provisioned and WordPress runs; only licensed assets missing (2026-09-05)
 
 - **Everything below jos-server `~/subsites/staging.jos.agency`.** `.env` (0600),
