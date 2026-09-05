@@ -1309,3 +1309,11 @@ h4, .uk-h4 {
     font-size: @label-font-size;
     line-height: @global-line-height;
 }
+
+// Download form: the two consent rows read as one block; the input gap returns before the button.
+.ff-el-group:has(.ff-el-form-check) {
+    margin-bottom: 8px;
+}
+.ff-el-group:has(.ff-el-form-check) + .ff-el-group:not(:has(.ff-el-form-check)) {
+    margin-top: 20px;
+}
