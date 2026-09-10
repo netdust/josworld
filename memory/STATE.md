@@ -10,6 +10,13 @@
   slide over each other until the section ends (YOOtheme renders `uk-sticky`
   with `end: !.uk-section`; equal z-index, DOM order stacks them). Reference:
   duwtje.com "Interventies" (CSS sticky, 60px step) — same end state.
+- **Dwell comes from a spacer row, never from padding.** UIkit's sticky `end`
+  subtracts the section's own padding-bottom, and a margin on the card grid
+  grows the sticky column itself — neither holds the stack. C3 ends with an
+  empty row named `spacer` (`height: viewport`, `height_viewport: 25`, its
+  column `visibility: m`) so the last card stays centred for 25vh and releases
+  as the section's bottom meets the viewport's. The section also carries
+  `padding_bottom: xlarge` (160px here) so the muted band ends near that edge.
 - **The layout lives in the DB**: `tests/E2E/diensten-stack.spec.ts` is the
   proof; a deploy carries only the spec — re-apply the page JSON on staging
   (`yoo-content.php page set 17|18`, `no-lint` for the known A5 parallax props).
