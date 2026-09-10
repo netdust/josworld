@@ -6,7 +6,7 @@
 
 - **No custom JS.** The three-card grid in `C3` on pages 17 and 18 became three
   centered rows; each column carries `position_sticky: section`,
-  `position_sticky_offset` 40px / 80px / 120px and breakpoint `m`, so the cards
+  `position_sticky_offset` `50vh - 50%` (every card rests centered on screen; refined from 40/80/120px on request) and breakpoint `m`, so the cards
   slide over each other until the section ends (YOOtheme renders `uk-sticky`
   with `end: !.uk-section`; equal z-index, DOM order stacks them). Reference:
   duwtje.com "Interventies" (CSS sticky, 60px step) — same end state.
