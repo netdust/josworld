@@ -685,21 +685,25 @@ h4, .uk-h4 {
 @subnav-divider-border-height:      1em;
 @subnav-divider-margin-horizontal:  @jw-s-2;
 
-// No radius variable exists for the dropbar (master/border-radius has none);
-// the frame rounds the panel's bottom corners.
-.uk-dropbar-top {
-    border-bottom-left-radius: 24px;
-    border-bottom-right-radius: 24px;
-}
-
-// With the transparent mobile header the theme insets the dropbar behind it and
-// its drop script stretches the panel to the viewport (`stretch: true` is
-// hard-coded in templates/header-mobile.php). The frame ends the panel at its
-// content with the page visible beneath; `!important` is what beats the inline
-// height, and the cap keeps a long menu scrollable on a short phone.
+// With the transparent mobile header the theme insets the dropbar behind it
+// and its drop script stretches the box to the viewport (`stretch: true` is
+// hard-coded in templates/header-mobile.php) while the reveal animation
+// transitions that same inline height — so the box cannot be sized by CSS
+// without killing the animation. The lemon panel is therefore painted on the
+// inner wrapper, which is content-sized: the box stays transparent and keeps
+// animating, the panel ends under the button with the page visible beneath.
+// No radius variable exists for the dropbar (master/border-radius has none).
 .uk-dropbar-inset.uk-dropbar-top {
-    height: auto !important;
-    max-height: 100vh;
+    padding: 0;
+    background: transparent;
+
+    > .tm-height-min-1-1 {
+        min-height: 0;
+        padding: 0 @dropbar-padding-horizontal @dropbar-padding-bottom;
+        background: @dropbar-background;
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+    }
 }
 
 // Grid dividers are their own variable (NOT @base-hr-border, which drives <hr>).

@@ -133,9 +133,11 @@ test.describe('mobile menu (phone)', () => {
     await page.locator('.tm-header-mobile .uk-navbar-toggle').click();
     const panel = page.locator('#tm-dialog-mobile.uk-dropbar');
     await expect(panel).toBeVisible();
-    expect(await panel.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 247, 148)');
-    expect(Math.round((await panel.boundingBox())!.y)).toBe(0);
-    expect((await panel.boundingBox())!.height).toBeLessThan(844 - 60);
+    const lemon = panel.locator('> .tm-height-min-1-1');
+    expect(await lemon.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 247, 148)');
+    expect(Math.round((await lemon.boundingBox())!.y)).toBe(0);
+    expect((await lemon.boundingBox())!.height).toBeLessThan(844 - 60);
+    expect(await panel.getAttribute('uk-drop')).toContain('reveal-top');
     expect(await panel.locator('.uk-subnav a').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe('16px');
     expect(await panel.locator('.uk-nav-primary > li > a').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe('24px');
     expect(await panel.locator('.uk-nav-primary > li').count()).toBe(4);
