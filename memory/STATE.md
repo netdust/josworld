@@ -5,7 +5,9 @@
 ## C3 · Diensten cards stack centred on screen (2026-09-10, final)
 
 - **No custom JS.** The three-card grid in `C3` on pages 17, 18 and 64 is
-  three centred rows; each column carries `position_sticky: section`,
+  three centred rows, each holding ONE `panel` element (Stefan: a single
+  card is a panel, never a one-item grid; the panel takes the grid's card
+  props plus the item's content 1:1); each column carries `position_sticky: section`,
   `position_sticky_offset` `50vh - 50%` and breakpoint `m`, so every card
   rests in the middle of the viewport and the next slides over it (YOOtheme
   renders `uk-sticky` with `end: !.uk-section`; DOM order stacks them).
