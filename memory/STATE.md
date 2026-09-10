@@ -69,7 +69,9 @@
   animation (tried `height: auto !important`, also class-gated — Stefan:
   "animation is gone"). The rule that works paints the lemon, padding and
   24px radius on the inner `.tm-height-min-1-1` wrapper (content-sized) and
-  leaves the box transparent and animating. Proven no-setting case.
+  leaves the box transparent and animating — as a DESCENDANT selector: the
+  reveal wraps the content in a temporary unclassed div for its duration and
+  a child selector loses the lemon mid-animation. Proven no-setting case.
   `nav_item`s render as `.el-item`, so specs scope tiles to `main`.
 - `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900 and the
   mobile menu at 390×844.

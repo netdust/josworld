@@ -133,7 +133,7 @@ test.describe('mobile menu (phone)', () => {
     await page.locator('.tm-header-mobile .uk-navbar-toggle').click();
     const panel = page.locator('#tm-dialog-mobile.uk-dropbar');
     await expect(panel).toBeVisible();
-    const lemon = panel.locator('> .tm-height-min-1-1');
+    const lemon = panel.locator('.tm-height-min-1-1');
     expect(await lemon.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 247, 148)');
     expect(Math.round((await lemon.boundingBox())!.y)).toBe(0);
     expect((await lemon.boundingBox())!.height).toBeLessThan(844 - 60);

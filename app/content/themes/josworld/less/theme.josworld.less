@@ -697,7 +697,9 @@ h4, .uk-h4 {
     padding: 0;
     background: transparent;
 
-    > .tm-height-min-1-1 {
+    // A descendant, not a child: the reveal animation wraps the content in a
+    // temporary div for its duration, and a child selector loses the lemon there.
+    .tm-height-min-1-1 {
         min-height: 0;
         padding: 0 @dropbar-padding-horizontal @dropbar-padding-bottom;
         background: @dropbar-background;
