@@ -2,6 +2,20 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## C3 · Diensten cards stack while scrolling (2026-09-10, feature/c3-stacking-cards)
+
+- **No custom JS.** The three-card grid in `C3` on pages 17 and 18 became three
+  centered rows; each column carries `position_sticky: section`,
+  `position_sticky_offset` 40px / 80px / 120px and breakpoint `m`, so the cards
+  slide over each other until the section ends (YOOtheme renders `uk-sticky`
+  with `end: !.uk-section`; equal z-index, DOM order stacks them). Reference:
+  duwtje.com "Interventies" (CSS sticky, 60px step) — same end state.
+- **The layout lives in the DB**: `tests/E2E/diensten-stack.spec.ts` is the
+  proof; a deploy carries only the spec — re-apply the page JSON on staging
+  (`yoo-content.php page set 17|18`, `no-lint` for the known A5 parallax props).
+- `yoo-content.php page set` refuses a path outside the container: copy the
+  file into the project (`.yoo-tools/`) first.
+
 ## Case tiles show a second image on hover (2026-09-03, branch feature/case-hover-image)
 
 - **Nothing new was built** — YOOtheme's `grid_item` and `panel` carry a native
