@@ -678,8 +678,11 @@ h4, .uk-h4 {
 @nav-secondary-item-active-color:   @jw-text;
 @nav-secondary-item-padding-vertical: @jw-s-1;   // 8px between links
 
-// "NL | EN | FR" is the divider subnav; the global border is invisible on lemon.
+// "NL | EN | FR" is the divider subnav at the 16px navigation role; the global
+// border is invisible on lemon and the bar is a glyph-high hairline, not 1.5em.
+@subnav-item-font-size:             @jw-t-nav;
 @subnav-divider-border:             @jw-brown;
+@subnav-divider-border-height:      1em;
 @subnav-divider-margin-horizontal:  @jw-s-2;
 
 // No radius variable exists for the dropbar (master/border-radius has none);

@@ -46,7 +46,7 @@
 - **Deploy note**: the DB content (pages 11, 12, 13, 17, 18, 64, 146; templates
   Hhoi7Wz0, WXXvROde, RMMlzZVy; library 239efdaf; config `less.@internal-fonts` + `footer.content` sticky) and the
   recompiled `css/theme.*.css` + theme `dist/` are outside the payload —
-  re-apply on staging in the same sitting as the deploy, plus `widget_builderwidget` #3 and `mobile.dialog.layout`.
+  re-apply on staging in the same sitting as the deploy, plus `widget_builderwidget` #3, `mobile.dialog.layout` and `mobile.header.transparent`.
 - **Mobile menu = Figma "Mobile menu open" (1166:4706), settings only**:
   `mobile.dialog.layout: dropbar-top` (lemon `@dropbar-*`, 48/16/24 padding,
   page stays visible beneath, `reveal-top` animation already configured),
@@ -57,8 +57,11 @@
   language homes — no current-language underline), full-width `large`
   secondary button (control-large 46 + border = 48). Control heights carry the
   1px border: small 38 → 40, large 46 → 48. The only rule: `.uk-dropbar-top`
-  bottom radius 24 (no variable exists). The header row above stays beige;
-  Figma paints it lemon — a transparent-header setting, not applied.
+  bottom radius 24 (no variable exists). **`mobile.header.transparent: true`** makes
+  the dropbar inset behind the header, so the lemon panel starts at the top
+  with the logo and the cross inside it (Stefan, 2026-09-10: the beige header
+  row above the panel "doesn't look like it at all"). The subnav item size is
+  the 16px nav role site-wide (the desktop toolbar keeps its own 14px rule).
   `nav_item`s render as `.el-item`, so specs scope tiles to `main`.
 - `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900 and the
   mobile menu at 390×844.
