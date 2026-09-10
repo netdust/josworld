@@ -278,8 +278,8 @@ Type: Flat
 @global-large-gutter:               @jw-s-16;     // 64px
 
 @global-control-height:             44px;   // Figma "Button" and form field: 44px
-@global-control-small-height:       36px;
-@global-control-large-height:       56px;
+@global-control-small-height:       38px;   // + the 1px border = Figma's 40px pill
+@global-control-large-height:       46px;   // + border = the 48px mobile-menu CTA ("slightly taller", Figma note)
 
 // ---------- Base elements: body + headings ----------
 @base-body-background:              @jw-bg;
@@ -405,6 +405,12 @@ h4, .uk-h4 {
 // overridden here, since Fraunces at 18px sentence-case is the design.
 @button-font-size:                  @jw-t-button;
 @button-large-font-size:            @jw-t-button;
+// Figma draws ONE button text: 18px on the 40px navbar / case-grid pill as on the
+// 44px form button. UIkit's small variant drops to @global-small-font-size (14px)
+// and every builder button on the site is `button_size: small`, so the small
+// variant takes the same text, Figma's 40px height and its 20px inset.
+@button-small-font-size:            @jw-t-button;
+@button-small-padding-horizontal:   20px;
 @button-line-height:                @global-control-height;
 @button-large-line-height:          @global-control-large-height;
 @button-small-line-height:          @global-control-small-height;
@@ -466,7 +472,7 @@ h4, .uk-h4 {
 @label-padding-horizontal:          @jw-s-3;
 
 // A pill subnav (the diensten on a case single) wears the label look — same tokens.
-@subnav-pill-item-padding-vertical:   0;
+@subnav-pill-item-padding-vertical:   @jw-s-1;   // 26px tall, the Figma pill
 @subnav-pill-item-padding-horizontal: @label-padding-horizontal;
 @subnav-pill-item-background:         @label-background;
 @subnav-pill-item-color:              @label-color;
@@ -588,6 +594,18 @@ h4, .uk-h4 {
 @navbar-nav-gap-m:                  @jw-s-12;   // 48px between nav items
 @navbar-gap-m:                      @jw-s-12;   // 48px between navbar sections
 
+// The sticky navbar (`navbar.sticky: 2`, back on scroll-up) re-enters as a bare
+// transparent bar on the page. UIkit adds `uk-navbar-sticky` to the container in
+// that state and `.hook-navbar-sticky()` is its extension point: a white bar
+// with a little room around the 80px item row. The `:not()` matches the theme's
+// own container rule in specificity (the master box-shadow hook does the same),
+// or the transparent @navbar-background wins.
+.hook-navbar-sticky() {
+    padding-top: @jw-s-3;
+    padding-bottom: @jw-s-3;
+    &:not(.uk-navbar-transparent) { background-color: @jw-white; }
+}
+
 // ---------- Toolbar (the utility row above the navbar) ----------
 // The toolbar menu renders as `uk-subnav`, NOT as a navbar nav, so it takes an
 // entirely separate variable set from the block above.
@@ -614,12 +632,81 @@ h4, .uk-h4 {
     text-decoration: none;
 }
 
+// The toolbar menu is a `uk-dropnav`, so the language switcher opens a plain
+// `uk-dropdown` — the `@navbar-dropdown-*` values above never reach it. Same
+// radius as the form fields, same 12px as the "NL" trigger.
+@dropdown-border-radius:            @jw-r-md;
+@dropdown-min-width:                120px;      // three two-letter items, not UIkit's 200
+@dropdown-nav-item-color:           @jw-text;   // muted grey read as disabled next to the trigger
+@dropdown-nav-item-hover-color:     @jw-accent;
+.hook-dropdown-nav() {
+    font-size: @jw-t-nav-2;
+}
+
 // ---------- Offcanvas (the mobile dialog panel) ----------
 // Defaults to @global-secondary-background, i.e. raspberry — which collides
 // with the raspberry CTA inside it and forces the button to flip to lemon.
 // Brown is this palette's designated panel surface: it inverts to beige text
 // with a lemon primary, the pairing section 2's inverse block already defines.
 @offcanvas-bar-background:          @jw-brown;
+
+// ---------- Mobile dialog (the Figma "Mobile menu open" frame) ----------
+// `mobile.dialog.layout: dropbar-top`: a lemon panel dropped under the mobile
+// header with the page still visible beneath. 48 above the first link, 16 at
+// the sides, 24 under the button — the frame's own rhythm.
+@dropbar-background:                @jw-lemon;
+@dropbar-color:                     @jw-text;
+@dropbar-padding-top:               @jw-s-12;
+@dropbar-padding-bottom:            @jw-s-6;
+@dropbar-padding-horizontal:        @jw-s-4;
+
+// The main links are the 24/32 "body bigger" role (nav primary), the second
+// group the 16/22 navigation role (nav secondary); neither style is used
+// anywhere else, so both map straight onto the frame.
+@nav-primary-font-size:             @jw-t-body-lg;
+@nav-primary-line-height:           @jw-lh-body-lg;
+@nav-primary-letter-spacing:        @jw-ls-body;
+@nav-primary-item-color:            @jw-text;
+@nav-primary-item-hover-color:      @jw-accent;
+@nav-primary-item-active-color:     @jw-text;
+@nav-primary-item-padding-vertical: @jw-s-2;     // 16px between links
+
+@nav-secondary-font-size:           @jw-t-nav;
+@nav-secondary-line-height:         @jw-lh-nav;
+@nav-secondary-item-color:          @jw-text;
+@nav-secondary-item-hover-color:    @jw-accent;
+@nav-secondary-item-active-color:   @jw-text;
+@nav-secondary-item-padding-vertical: @jw-s-1;   // 8px between links
+
+// "NL | EN | FR" is the divider subnav at the 16px navigation role; the global
+// border is invisible on lemon and the bar is a glyph-high hairline, not 1.5em.
+@subnav-item-font-size:             @jw-t-nav;
+@subnav-divider-border:             @jw-brown;
+@subnav-divider-border-height:      1em;
+@subnav-divider-margin-horizontal:  @jw-s-2;
+
+// With the transparent mobile header the theme insets the dropbar behind it
+// and its drop script stretches the box to the viewport (`stretch: true` is
+// hard-coded in templates/header-mobile.php) while the reveal animation
+// transitions that same inline height — so the box cannot be sized by CSS
+// without killing the animation. The lemon panel is therefore painted on the
+// inner wrapper, which is content-sized: the box stays transparent and keeps
+// animating, the panel ends under the button with the page visible beneath.
+// No radius variable exists for the dropbar (master/border-radius has none).
+.uk-dropbar-inset.uk-dropbar-top {
+    padding: 0;
+    background: transparent;
+
+    // A descendant, not a child: the reveal animation wraps the content in a
+    // temporary div for its duration, and a child selector loses the lemon there.
+    .tm-height-min-1-1 {
+        min-height: 0;
+        padding: 0 @dropbar-padding-horizontal @dropbar-padding-bottom;
+        background: @dropbar-background;
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+    }
+}
 
 // Grid dividers are their own variable (NOT @base-hr-border, which drives <hr>).
 // Default is @global-border — invisible against the lemon block, where the design
@@ -1160,7 +1247,7 @@ h4, .uk-h4 {
 .jw-tags a[rel="tag"] {
     display: inline-block;
     margin-right: @jw-s-2;
-    padding: 0 @label-padding-horizontal;
+    padding: @jw-s-1 @label-padding-horizontal;   // 26px tall, the Figma pill
     background: @label-background;
     border-radius: @label-border-radius;
     font-size: @label-font-size;
@@ -1254,6 +1341,23 @@ h4, .uk-h4 {
         width: auto;
         filter: grayscale(1);
     }
+
+    // A steady flow, not a scroll-driven slider (Stefan, 2026-09-10). The wall is
+    // a grid on `auto` widths whose track runs one linear keyframe; the items are
+    // two identical halves, so -50% loops without a seam. Keep it two halves.
+    > .uk-grid {
+        flex-wrap: nowrap;
+        width: max-content;
+        animation: jw-marquee 40s linear infinite;
+    }
+}
+
+@keyframes jw-marquee {
+    to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .jw-logo-wall > .uk-grid { animation: none; }
 }
 
 
@@ -1368,6 +1472,18 @@ h4, .uk-h4 {
     }
 }
 
+// ---------- Plain pages (no builder layout — the privacy policy) ----------
+// The fallback page template titles with `uk-article-title`; Figma sets those
+// page titles in the intro role, like Blog & nieuws.
+@article-title-font-size-m:         @jw-t-intro;
+@article-title-font-size:           @jw-t-intro;
+@article-title-line-height:         @jw-lh-intro;
+.hook-article-title() {
+    font-family: @jw-font-body;
+    font-weight: @jw-fw-regular;
+    letter-spacing: @jw-ls-intro;
+}
+
 // ---------- Breadcrumbs (post header) ----------
 @breadcrumb-item-font-size:         @jw-t-nav;
 @breadcrumb-item-color:             @jw-brown;
@@ -1398,6 +1514,7 @@ h4, .uk-h4 {
         font-style: normal;
         line-height: @jw-lh-t2;
         text-align: center;
+        p { line-height: inherit; }   // the 30/18 body rule above would win
     }
     img { border-radius: 0; }
 }

@@ -382,3 +382,12 @@ deployed to **11 sites**. Facts worth keeping:
   means they never DEPLOY, not that they are missing. Check the working tree
   before asking Stefan for a zip — and re-apply both by hand on every new
   environment, because no verb carries them (2026-09-05).
+
+## 2026-09-10 — a scroll effect is a builder field before it is CSS
+
+Stefan: "you used yootheme settings right? no custom css" — after the footer reveal
+had been built as a sticky footer in `theme.josworld.less`. YOOtheme sections carry
+`sticky: cover | reveal` (Sticky Effect), which IS the footer-reveal pattern, with the
+stacking handled in the parent theme. Rule: for any motion/scroll behaviour, grep
+`packages/builder/elements/<element>/element.php` for the field first; write a rule
+only when the grep proves the field absent, and say so in the report.

@@ -2,6 +2,80 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Design fixes against Figma (2026-09-10, branch feature/design-fixes)
+
+- **Figma file** `bwFc8dsfRNScrQgOwUcXKW` (Jos-website), page `625:2790`
+  "Copywriting + Dev"; frames: Homepage 625:10088, Voor overheden 625:10567,
+  Ons werk 625:11747, Team 625:12235, Jobs 625:12258, Waarom Jos 625:12616,
+  Diensten 625:12692, Blog 625:12769, Blog item 625:12791, Privacy 625:12821,
+  Footer instance 625:10554, Nav bar 625:12828. `get_metadata` on the page
+  node is 363 KB — call it on a frame.
+- **Every builder button is `button_size: small`**, and UIkit's small variant
+  drops to 14px: `@button-small-font-size` now carries the 18px Figma text,
+  40px height, 20px inset. The tertiary `uk-button-text` links share it.
+- **Page titles on Ons werk / Jobs / Diensten / Privacy are the 32px Inter
+  intro role in Figma** (like Blog & nieuws), not T1: `title_style:
+  text-large` on the archive templates (Hhoi7Wz0, WXXvROde) and page 13;
+  Privacy has no builder layout, so the fallback `uk-article-title` takes the
+  role through `@article-title-*` + `.hook-article-title()`.
+- **The language switcher is a toolbar `uk-dropnav`** → plain `uk-dropdown`;
+  the `@navbar-dropdown-*` values never reached it. Radius, 12px, 120px wide.
+- **Footer reveal is a section SETTING**: `sticky: reveal` ("Sticky Effect →
+  Reveal") on the footer's one section in `config.footer.content`. YOOtheme
+  emits its own `uk-sticky` + negative z-index and the parent theme's LESS
+  carries the main/footer stacking. A first pass did it in CSS (sticky footer +
+  z-index on main/header) and Stefan asked for the setting — the section field
+  also offers `cover`; check `section/element.php` before writing an effect.
+- **Logo wall is a grid on `auto` widths** with a linear keyframe on
+  `> .uk-grid`, two identical halves (`.yoo-tools/logo-marquee.py` converts a
+  slider and pads/mirrors the halves; `scan-logo.php` lists the trees). Pages
+  11, 17, 18, 64.
+- **Logo eye**: `TRAVEL_FRACTION` 0.72 → 1.15 in `src/logo-eye.js`; the pupil
+  rides the rim like the SMIL export. `dist/` is gitignored — rebuild on deploy.
+- **Fonts**: `less.@internal-fonts` in the config now lists `Fraunces:300,400,400i`
+  (the footer headings are `<em>` in Fraunces; the italic was synthesised).
+- **Photo credit** (Stefan approved 2026-09-10): a `text` element `text_style:
+  meta`, `position: absolute` right/bottom 16, `text_align: right`, `class:
+  uk-light` beside the image in its column. Live on case 146's first wide photo
+  and saved as library section `W3 · Case — beeld breed + fotocredit`
+  (`239efdaf`) — the library holds layouts and sections only, never a lone
+  element, so the credit travels with its section.
+- **Sticky navbar** (`navbar.sticky: 2`) gets a white bar + 12px padding via
+  `.hook-navbar-sticky()`; the background needs `&:not(.uk-navbar-transparent)`
+  or the theme's transparent `@navbar-background` container rule outranks it.
+- **Deploy note**: the DB content (pages 11, 12, 13, 17, 18, 64, 146; templates
+  Hhoi7Wz0, WXXvROde, RMMlzZVy; library 239efdaf; config `less.@internal-fonts` + `footer.content` sticky) and the
+  recompiled `css/theme.*.css` + theme `dist/` are outside the payload —
+  re-apply on staging in the same sitting as the deploy, plus `widget_builderwidget` #3, `mobile.dialog.layout` and `mobile.header.transparent`.
+- **Mobile menu = Figma "Mobile menu open" (1166:4706), settings only**:
+  `mobile.dialog.layout: dropbar-top` (lemon `@dropbar-*`, 48/16/24 padding,
+  page stays visible beneath, `reveal-top` animation already configured),
+  `menu.positions.dialog-mobile.menu` emptied, and the layout lives in
+  **builderwidget-3** "Dialog Mobile CTA" (`.yoo-tools/widget3.json`, written
+  with `update-widget.php 3`): nav `primary` (mapped to 24/32), nav
+  `secondary` (16/22), subnav `divider` NL | EN | FR (static links to the
+  language homes — no current-language underline), full-width `large`
+  secondary button (control-large 46 + border = 48). Control heights carry the
+  1px border: small 38 → 40, large 46 → 48. The only rule: `.uk-dropbar-top`
+  bottom radius 24 (no variable exists). **`mobile.header.transparent: true`** makes
+  the dropbar inset behind the header, so the lemon panel starts at the top
+  with the logo and the cross inside it (Stefan, 2026-09-10: the beige header
+  row above the panel "doesn't look like it at all"). The subnav item size is
+  the 16px nav role site-wide (the desktop toolbar keeps its own 14px rule).
+  **Inset dropbar = viewport height, and its height IS the reveal animation**:
+  with the transparent header the drop script stretches the box (`stretch:
+  true` hard-coded in `templates/header-mobile.php`) and `reveal-top`
+  transitions that same inline height, so any CSS height on the box kills the
+  animation (tried `height: auto !important`, also class-gated — Stefan:
+  "animation is gone"). The rule that works paints the lemon, padding and
+  24px radius on the inner `.tm-height-min-1-1` wrapper (content-sized) and
+  leaves the box transparent and animating — as a DESCENDANT selector: the
+  reveal wraps the content in a temporary unclassed div for its duration and
+  a child selector loses the lemon mid-animation. Proven no-setting case.
+  `nav_item`s render as `.el-item`, so specs scope tiles to `main`.
+- `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900 and the
+  mobile menu at 390×844.
+
 ## Phone layout fixes: A3 photo, A5 sun card, C5 slider (2026-09-10)
 
 - **Per-breakpoint variants are DUPLICATE ELEMENTS with `visibility`**, the
