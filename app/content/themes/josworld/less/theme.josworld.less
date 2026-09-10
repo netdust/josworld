@@ -1426,29 +1426,6 @@ h4, .uk-h4 {
     letter-spacing: @jw-ls-intro;
 }
 
-// ---------- Footer reveal ----------
-// Figma's footer note: "revealed on parallax". The page slides up over a footer
-// pinned to the viewport bottom — sticky, no script. Everything above it needs
-// a background and a stacking level, or the footer shows through the header and
-// the unstyled sections; the header sits above main so its dropdowns survive.
-// Desktop only: below `l` the footer is taller than the viewport and a pinned
-// footer would never show its top.
-@media (min-width: @breakpoint-large) {
-    .tm-page > .tm-toolbar,
-    .tm-page > .tm-header,
-    .tm-page > main {
-        position: relative;
-        background-color: @global-background;
-    }
-    .tm-page > .tm-toolbar,
-    .tm-page > .tm-header { z-index: 2; }
-    .tm-page > main { z-index: 1; }
-    .tm-page > footer {
-        position: sticky;
-        bottom: 0;
-    }
-}
-
 // ---------- Breadcrumbs (post header) ----------
 @breadcrumb-item-font-size:         @jw-t-nav;
 @breadcrumb-item-color:             @jw-brown;

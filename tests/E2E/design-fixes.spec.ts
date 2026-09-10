@@ -74,10 +74,11 @@ test.describe('design fixes (desktop)', () => {
     expect(italic).toBe(true);
   });
 
-  test('footer is revealed under the page on desktop', async ({ page }) => {
+  test('footer section carries the builder Reveal sticky effect', async ({ page }) => {
     await page.goto('/');
-    expect(await page.locator('footer').evaluate((el) => getComputedStyle(el).position)).toBe('sticky');
-    expect(await page.locator('#tm-main').evaluate((el) => getComputedStyle(el).zIndex)).toBe('1');
+    const section = page.locator('footer .uk-section').first();
+    expect(await section.getAttribute('uk-sticky')).toContain('position: bottom');
+    expect(await section.evaluate((el) => el.classList.contains('uk-position-z-index-negative'))).toBe(true);
   });
 
   test('client logos flow on their own, not on scroll', async ({ page }) => {

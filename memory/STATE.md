@@ -20,9 +20,12 @@
   role through `@article-title-*` + `.hook-article-title()`.
 - **The language switcher is a toolbar `uk-dropnav`** → plain `uk-dropdown`;
   the `@navbar-dropdown-*` values never reached it. Radius, 12px, 120px wide.
-- **Footer reveal is CSS sticky** (`.tm-page > footer`, `l` and up); main,
-  header and toolbar get a background + z-index (header above main so its
-  dropdowns survive). Short pages hide the footer's first ~200px until scrolled.
+- **Footer reveal is a section SETTING**: `sticky: reveal` ("Sticky Effect →
+  Reveal") on the footer's one section in `config.footer.content`. YOOtheme
+  emits its own `uk-sticky` + negative z-index and the parent theme's LESS
+  carries the main/footer stacking. A first pass did it in CSS (sticky footer +
+  z-index on main/header) and Stefan asked for the setting — the section field
+  also offers `cover`; check `section/element.php` before writing an effect.
 - **Logo wall is a grid on `auto` widths** with a linear keyframe on
   `> .uk-grid`, two identical halves (`.yoo-tools/logo-marquee.py` converts a
   slider and pads/mirrors the halves; `scan-logo.php` lists the trees). Pages
@@ -41,7 +44,7 @@
   `.hook-navbar-sticky()`; the background needs `&:not(.uk-navbar-transparent)`
   or the theme's transparent `@navbar-background` container rule outranks it.
 - **Deploy note**: the DB content (pages 11, 12, 13, 17, 18, 64, 146; templates
-  Hhoi7Wz0, WXXvROde, RMMlzZVy; library 239efdaf; config `less.@internal-fonts`) and the
+  Hhoi7Wz0, WXXvROde, RMMlzZVy; library 239efdaf; config `less.@internal-fonts` + `footer.content` sticky) and the
   recompiled `css/theme.*.css` + theme `dist/` are outside the payload —
   re-apply on staging in the same sitting as the deploy.
 - `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900.
