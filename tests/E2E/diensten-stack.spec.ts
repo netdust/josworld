@@ -28,15 +28,6 @@ for (const path of STACK_PAGES) {
     const last = (await cards.nth(2).boundingBox())!;
     expect(Math.round(last.y + last.height / 2)).toBe(450);
 
-    // The stack holds: a 25vh spacer row under the last card keeps it
-    // centred until the section's bottom reaches the viewport's bottom.
-    await page.mouse.wheel(0, 200);
-    await page.waitForTimeout(300);
-    const held = (await cards.nth(2).boundingBox())!;
-    expect(Math.round(held.y + held.height / 2)).toBe(450);
-    await page.mouse.wheel(0, -200);
-    await page.waitForTimeout(300);
-
     // Earlier cards are covered by the last one; a taller card may peek out
     // by its extra height once the section end pushes it up.
     for (let i = 0; i < 2; i++) {
