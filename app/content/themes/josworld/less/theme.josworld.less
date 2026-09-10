@@ -692,6 +692,16 @@ h4, .uk-h4 {
     border-bottom-right-radius: 24px;
 }
 
+// With the transparent mobile header the theme insets the dropbar behind it and
+// its drop script stretches the panel to the viewport (`stretch: true` is
+// hard-coded in templates/header-mobile.php). The frame ends the panel at its
+// content with the page visible beneath; `!important` is what beats the inline
+// height, and the cap keeps a long menu scrollable on a short phone.
+.uk-dropbar-inset.uk-dropbar-top {
+    height: auto !important;
+    max-height: 100vh;
+}
+
 // Grid dividers are their own variable (NOT @base-hr-border, which drives <hr>).
 // Default is @global-border — invisible against the lemon block, where the design
 // wants a hard black rule between the two columns.

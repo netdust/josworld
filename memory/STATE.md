@@ -62,6 +62,11 @@
   with the logo and the cross inside it (Stefan, 2026-09-10: the beige header
   row above the panel "doesn't look like it at all"). The subnav item size is
   the 16px nav role site-wide (the desktop toolbar keeps its own 14px rule).
+  **Inset dropbar = viewport height**: with the transparent header the drop
+  script stretches the panel (`stretch: true` hard-coded in
+  `templates/header-mobile.php`, inline `height`); the frame ends it at its
+  content, so `.uk-dropbar-inset.uk-dropbar-top { height: auto !important }`
+  is the second rule in this block — a proven no-setting case.
   `nav_item`s render as `.el-item`, so specs scope tiles to `main`.
 - `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900 and the
   mobile menu at 390×844.

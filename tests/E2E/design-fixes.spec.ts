@@ -135,6 +135,7 @@ test.describe('mobile menu (phone)', () => {
     await expect(panel).toBeVisible();
     expect(await panel.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 247, 148)');
     expect(Math.round((await panel.boundingBox())!.y)).toBe(0);
+    expect((await panel.boundingBox())!.height).toBeLessThan(844 - 60);
     expect(await panel.locator('.uk-subnav a').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe('16px');
     expect(await panel.locator('.uk-nav-primary > li > a').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe('24px');
     expect(await panel.locator('.uk-nav-primary > li').count()).toBe(4);
