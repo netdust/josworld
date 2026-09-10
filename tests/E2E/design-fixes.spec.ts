@@ -81,11 +81,13 @@ test.describe('design fixes (desktop)', () => {
     expect(await section.evaluate((el) => el.classList.contains('uk-position-z-index-negative'))).toBe(true);
   });
 
-  test('client logos flow on their own, not on scroll', async ({ page }) => {
+  test('client logos autoplay in an endless loop, not on scroll', async ({ page }) => {
     await page.goto('/');
     const wall = page.locator('.jw-logo-wall').first();
-    expect(await wall.getAttribute('uk-slider')).toBeNull();
-    expect(await wall.locator('.uk-grid').first().evaluate((el) => getComputedStyle(el).animationName)).toBe('jw-marquee');
+    const slider = (await wall.getAttribute('uk-slider')) ?? '';
+    expect(slider).toMatch(/autoplay: (1|true)/);
+    expect(slider).not.toContain('parallax: true');
+    expect(slider).not.toContain('finite: true');
   });
 
   test('language dropdown has rounded corners and the toolbar text size', async ({ page }) => {

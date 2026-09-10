@@ -26,10 +26,13 @@
   carries the main/footer stacking. A first pass did it in CSS (sticky footer +
   z-index on main/header) and Stefan asked for the setting — the section field
   also offers `cover`; check `section/element.php` before writing an effect.
-- **Logo wall is a grid on `auto` widths** with a linear keyframe on
-  `> .uk-grid`, two identical halves (`.yoo-tools/logo-marquee.py` converts a
-  slider and pads/mirrors the halves; `scan-logo.php` lists the trees). Pages
-  11, 17, 18, 64.
+- **Logo wall is YOOtheme's autoplaying panel-slider** (`slider_autoplay`,
+  interval 5 s, velocity 0.2, infinite, no pause on hover): the whole track
+  glides one logo, rests, glides — endless without duplicate halves. The CSS
+  marquee tried first (grid + keyframe, `-50%`) ran out of logos on the right
+  once a half-track was narrower than the screen; Stefan chose the native
+  slider (2026-09-10). `.yoo-tools/logo-autoplay.py` converts; pages 11, 17,
+  18, 64.
 - **Logo eye**: `TRAVEL_FRACTION` 0.72 → 1.15 in `src/logo-eye.js`; the pupil
   rides the rim like the SMIL export. `dist/` is gitignored — rebuild on deploy.
 - **Fonts**: `less.@internal-fonts` in the config now lists `Fraunces:300,400,400i`
