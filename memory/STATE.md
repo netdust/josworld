@@ -14,6 +14,11 @@
   A stack NEEDS one sticky column per card — there is no sticky on grid
   items or panels — so this is the builder structure; Stefan accepted it
   (2026-09-10, after a round-trip through revert).
+- **`C11 · Kaartenstapel` is the LIBRARY version of the stack** (2HYuL8CI):
+  the same build without the intro row, four panels; placed on Waarom Jos
+  (12), Samenwerken (14) and the test page (64), all converted 2026-09-10.
+  C3 is not in the library — it is C11 plus the intro row, on 17/18/64.
+  `library set` updates the entry in place when the name matches.
 - **A taller card peeks by its extra height** under the card on top (page
   18's first card runs one line longer). Content, not timing; accepted.
 - **Do not add a spacer for dwell.** UIkit's sticky `end` subtracts the
