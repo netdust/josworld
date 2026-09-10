@@ -41,7 +41,7 @@ test.describe('design fixes (desktop)', () => {
   test('team tiles space the text under the photo like the tool tiles', async ({ page }) => {
     const gap = async (path: string) => {
       await page.goto(path);
-      return page.locator('.el-item').first().evaluate((it) => {
+      return page.locator('main .el-item').first().evaluate((it) => {
         const img = it.querySelector('img')!.getBoundingClientRect();
         return Math.round(it.querySelector('.el-title')!.getBoundingClientRect().top - img.bottom);
       });
@@ -122,5 +122,25 @@ test.describe('design fixes (desktop)', () => {
     await bar.waitFor();
     const st = await bar.evaluate((el) => { const c = getComputedStyle(el); return [c.backgroundColor, c.paddingTop, c.paddingBottom]; });
     expect(st).toEqual(['rgb(255, 255, 255)', '12px', '12px']);
+  });
+});
+
+test.describe('mobile menu (phone)', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('the burger opens the Figma dropbar: lemon panel, two nav sizes, language row, tall CTA', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('.tm-header-mobile .uk-navbar-toggle').click();
+    const panel = page.locator('#tm-dialog-mobile.uk-dropbar');
+    await expect(panel).toBeVisible();
+    expect(await panel.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 247, 148)');
+    expect(await panel.locator('.uk-nav-primary > li > a').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe('24px');
+    expect(await panel.locator('.uk-nav-primary > li').count()).toBe(4);
+    expect(await panel.locator('.uk-nav-secondary > li > a').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe('16px');
+    expect(await panel.locator('.uk-subnav-divider > li').count()).toBe(3);
+    const btn = panel.locator('.uk-button-secondary').first();
+    expect(Math.round((await btn.boundingBox())!.height)).toBe(48);
+    expect(Math.round((await btn.boundingBox())!.width)).toBe(390 - 2 * 16);
+    expect(await page.locator('#tm-dialog-mobile .uk-nav-default').count()).toBe(0);
   });
 });

@@ -278,8 +278,8 @@ Type: Flat
 @global-large-gutter:               @jw-s-16;     // 64px
 
 @global-control-height:             44px;   // Figma "Button" and form field: 44px
-@global-control-small-height:       40px;   // Figma "Button Secondary": 40px
-@global-control-large-height:       56px;
+@global-control-small-height:       38px;   // + the 1px border = Figma's 40px pill
+@global-control-large-height:       46px;   // + border = the 48px mobile-menu CTA ("slightly taller", Figma note)
 
 // ---------- Base elements: body + headings ----------
 @base-body-background:              @jw-bg;
@@ -649,6 +649,45 @@ h4, .uk-h4 {
 // Brown is this palette's designated panel surface: it inverts to beige text
 // with a lemon primary, the pairing section 2's inverse block already defines.
 @offcanvas-bar-background:          @jw-brown;
+
+// ---------- Mobile dialog (the Figma "Mobile menu open" frame) ----------
+// `mobile.dialog.layout: dropbar-top`: a lemon panel dropped under the mobile
+// header with the page still visible beneath. 48 above the first link, 16 at
+// the sides, 24 under the button — the frame's own rhythm.
+@dropbar-background:                @jw-lemon;
+@dropbar-color:                     @jw-text;
+@dropbar-padding-top:               @jw-s-12;
+@dropbar-padding-bottom:            @jw-s-6;
+@dropbar-padding-horizontal:        @jw-s-4;
+
+// The main links are the 24/32 "body bigger" role (nav primary), the second
+// group the 16/22 navigation role (nav secondary); neither style is used
+// anywhere else, so both map straight onto the frame.
+@nav-primary-font-size:             @jw-t-body-lg;
+@nav-primary-line-height:           @jw-lh-body-lg;
+@nav-primary-letter-spacing:        @jw-ls-body;
+@nav-primary-item-color:            @jw-text;
+@nav-primary-item-hover-color:      @jw-accent;
+@nav-primary-item-active-color:     @jw-text;
+@nav-primary-item-padding-vertical: @jw-s-2;     // 16px between links
+
+@nav-secondary-font-size:           @jw-t-nav;
+@nav-secondary-line-height:         @jw-lh-nav;
+@nav-secondary-item-color:          @jw-text;
+@nav-secondary-item-hover-color:    @jw-accent;
+@nav-secondary-item-active-color:   @jw-text;
+@nav-secondary-item-padding-vertical: @jw-s-1;   // 8px between links
+
+// "NL | EN | FR" is the divider subnav; the global border is invisible on lemon.
+@subnav-divider-border:             @jw-brown;
+@subnav-divider-margin-horizontal:  @jw-s-2;
+
+// No radius variable exists for the dropbar (master/border-radius has none);
+// the frame rounds the panel's bottom corners.
+.uk-dropbar-top {
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
+}
 
 // Grid dividers are their own variable (NOT @base-hr-border, which drives <hr>).
 // Default is @global-border — invisible against the lemon block, where the design

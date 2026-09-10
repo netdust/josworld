@@ -46,8 +46,22 @@
 - **Deploy note**: the DB content (pages 11, 12, 13, 17, 18, 64, 146; templates
   Hhoi7Wz0, WXXvROde, RMMlzZVy; library 239efdaf; config `less.@internal-fonts` + `footer.content` sticky) and the
   recompiled `css/theme.*.css` + theme `dist/` are outside the payload —
-  re-apply on staging in the same sitting as the deploy.
-- `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900.
+  re-apply on staging in the same sitting as the deploy, plus `widget_builderwidget` #3 and `mobile.dialog.layout`.
+- **Mobile menu = Figma "Mobile menu open" (1166:4706), settings only**:
+  `mobile.dialog.layout: dropbar-top` (lemon `@dropbar-*`, 48/16/24 padding,
+  page stays visible beneath, `reveal-top` animation already configured),
+  `menu.positions.dialog-mobile.menu` emptied, and the layout lives in
+  **builderwidget-3** "Dialog Mobile CTA" (`.yoo-tools/widget3.json`, written
+  with `update-widget.php 3`): nav `primary` (mapped to 24/32), nav
+  `secondary` (16/22), subnav `divider` NL | EN | FR (static links to the
+  language homes — no current-language underline), full-width `large`
+  secondary button (control-large 46 + border = 48). Control heights carry the
+  1px border: small 38 → 40, large 46 → 48. The only rule: `.uk-dropbar-top`
+  bottom radius 24 (no variable exists). The header row above stays beige;
+  Figma paints it lemon — a transparent-header setting, not applied.
+  `nav_item`s render as `.el-item`, so specs scope tiles to `main`.
+- `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900 and the
+  mobile menu at 390×844.
 
 ## Phone layout fixes: A3 photo, A5 sun card, C5 slider (2026-09-10)
 
