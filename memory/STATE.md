@@ -43,36 +43,19 @@
 - **Sticky navbar** (`navbar.sticky: 2`) gets a white bar + 12px padding via
   `.hook-navbar-sticky()`; the background needs `&:not(.uk-navbar-transparent)`
   or the theme's transparent `@navbar-background` container rule outranks it.
-- **Deploy note**: the DB content (pages 11, 12, 13, 17, 18, 64, 146; templates
-  Hhoi7Wz0, WXXvROde, RMMlzZVy; library 239efdaf; config `less.@internal-fonts` + `footer.content` sticky) and the
-  recompiled `css/theme.*.css` + theme `dist/` are outside the payload —
-  re-apply on staging in the same sitting as the deploy, plus `widget_builderwidget` #3, `mobile.dialog.layout` and `mobile.header.transparent`.
-- **Mobile menu = Figma "Mobile menu open" (1166:4706), settings only**:
-  `mobile.dialog.layout: dropbar-top` (lemon `@dropbar-*`, 48/16/24 padding,
-  page stays visible beneath, `reveal-top` animation already configured),
-  `menu.positions.dialog-mobile.menu` emptied, and the layout lives in
-  **builderwidget-3** "Dialog Mobile CTA" (`.yoo-tools/widget3.json`, written
-  with `update-widget.php 3`): nav `primary` (mapped to 24/32), nav
-  `secondary` (16/22), subnav `divider` NL | EN | FR (static links to the
-  language homes — no current-language underline), full-width `large`
-  secondary button (control-large 46 + border = 48). Control heights carry the
-  1px border: small 38 → 40, large 46 → 48. The only rule: `.uk-dropbar-top`
-  bottom radius 24 (no variable exists). **`mobile.header.transparent: true`** makes
-  the dropbar inset behind the header, so the lemon panel starts at the top
-  with the logo and the cross inside it (Stefan, 2026-09-10: the beige header
-  row above the panel "doesn't look like it at all"). The subnav item size is
-  the 16px nav role site-wide (the desktop toolbar keeps its own 14px rule).
-  **Inset dropbar = viewport height, and its height IS the reveal animation**:
-  with the transparent header the drop script stretches the box (`stretch:
-  true` hard-coded in `templates/header-mobile.php`) and `reveal-top`
-  transitions that same inline height, so any CSS height on the box kills the
-  animation (tried `height: auto !important`, also class-gated — Stefan:
-  "animation is gone"). The rule that works paints the lemon, padding and
-  24px radius on the inner `.tm-height-min-1-1` wrapper (content-sized) and
-  leaves the box transparent and animating — as a DESCENDANT selector: the
-  reveal wraps the content in a temporary unclassed div for its duration and
-  a child selector loses the lemon mid-animation. Proven no-setting case.
-  `nav_item`s render as `.el-item`, so specs scope tiles to `main`.
+- **Deployed to staging 2026-09-10 @ 519b3b9** (the finish verb, then the
+  staging deploy verb; the payload carries `dist/` because rsync copies the
+  directory, gitignore or not). Re-applied the same sitting via
+  `/data/sites/web/josagency/tmp/yoo-2026-09-10/` (removed after): pages 11,
+  12, 13, 17, 18, 64, 146; templates Hhoi7Wz0, WXXvROde, RMMlzZVy; library
+  239efdaf; builderwidget-3; config `mobile.dialog.layout`,
+  `mobile.header.transparent`, `menu.positions.dialog-mobile.menu`,
+  `less.@internal-fonts`, `footer.content`, and `navbar.sticky: 2` (set
+  locally after the 09-05 import and never carried over — a config DIFF
+  local↔staging found it; do that diff at every staging sitting). Recompiled
+  on staging with a throwaway admin (deleted after; no python3 on the box, so
+  prepare JSON locally). The three E2E specs pass with
+  `WP_BASE_URL=https://staging.jos.agency`.
 - `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900 and the
   mobile menu at 390×844.
 
