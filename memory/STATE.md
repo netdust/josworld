@@ -26,6 +26,16 @@
   only a sibling row below the last card holds the stack. Tried
   (`height: viewport`, `height_viewport: 25` + `padding_bottom: xlarge`) and
   reverted — Stefan prefers the plain three rows.
+- **Deployed to staging 2026-09-10** (the staging deploy verb @ 7cb99d1; the
+  only deletions were ntdst-core's own tests/ + phpunit.xml on the server).
+  The page JSON (12, 14, 17, 18, 64) and the C11 library entry were applied on
+  the server the same sitting: scp `yoo-content.php` + `yoo-lint*.php` + the
+  exported layouts to `/data/sites/web/josagency/tmp/yoo-<date>/` (outside the
+  webroot; the tool drops its backups in cwd), then
+  `wp --path=/data/sites/web/josagency/subsites/staging.jos.agency/wp --user=1
+  eval-file yoo-content.php page set <id> page<id>.json no-lint`. WP core is at
+  `wp/` on the server, not `app/wp`; IDs, prefix (`ntdst_`) and admin user 1
+  match local. Spec run with `WP_BASE_URL=https://staging.jos.agency` passes.
 - **The layout lives in the DB**: `tests/E2E/diensten-stack.spec.ts` is the
   proof; a deploy carries only the spec — re-apply the page JSON on staging
   (`yoo-content.php page set 17|18|64`, `no-lint` for the known A5 parallax
