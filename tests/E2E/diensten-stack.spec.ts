@@ -11,9 +11,11 @@ const STACK_PAGES: Record<string, number> = {
   '/waarom-jos/': 4, '/samenwerken/': 4, // C11 · Kaartenstapel
 };
 
-for (const [path, count] of Object.entries(STACK_PAGES)) {
-  test(`cards stack while scrolling on ${path}`, async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+const VIEWPORTS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844 } };
+
+for (const [path, count] of Object.entries(STACK_PAGES)) for (const [device, viewport] of Object.entries(VIEWPORTS)) {
+  test(`cards stack while scrolling on ${path} (${device})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
     await page.goto(path);
 
     const cards = page.locator('[uk-sticky*="end: !.uk-section"]');
@@ -29,14 +31,14 @@ for (const [path, count] of Object.entries(STACK_PAGES)) {
     await page.waitForTimeout(300);
 
     const last = (await cards.nth(count - 1).boundingBox())!;
-    expect(Math.round(last.y + last.height / 2)).toBe(450);
+    expect(Math.round(last.y + last.height / 2)).toBe(viewport.height / 2);
 
-    // Earlier cards are covered by the last one; a taller card may peek out
-    // by its extra height once the section end pushes it up.
+    // Earlier cards sit under the last one, centred on the same spot; the
+    // taller of the two may peek out by its extra height.
     for (let i = 0; i < count - 1; i++) {
       const box = (await cards.nth(i).boundingBox())!;
       const overlap = Math.min(box.y + box.height, last.y + last.height) - Math.max(box.y, last.y);
-      expect(overlap).toBeGreaterThanOrEqual(last.height);
+      expect(overlap).toBeGreaterThanOrEqual(Math.min(box.height, last.height) - 1);
     }
   });
 }

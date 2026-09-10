@@ -19,6 +19,11 @@
   (12), Samenwerken (14) and the test page (64), all converted 2026-09-10.
   C3 is not in the library — it is C11 plus the intro row, on 17/18/64.
   `library set` updates the entry in place when the name matches.
+- **Sticky breakpoint is Always (`''`), not `m`** — Stefan wants the stack on
+  phones too (2026-09-10). The spec runs every page at 1440×900 AND 390×844.
+- **`library set` without a root `version` migrated the props** (`section` →
+  `column`, `2-3` → `1-1`) on the first C11 write: build library JSON from a
+  page's section and copy the page's `version` onto it, then read it back.
 - **A taller card peeks by its extra height** under the card on top (page
   18's first card runs one line longer). Content, not timing; accepted.
 - **Do not add a spacer for dwell.** UIkit's sticky `end` subtracts the
