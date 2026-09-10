@@ -594,6 +594,18 @@ h4, .uk-h4 {
 @navbar-nav-gap-m:                  @jw-s-12;   // 48px between nav items
 @navbar-gap-m:                      @jw-s-12;   // 48px between navbar sections
 
+// The sticky navbar (`navbar.sticky: 2`, back on scroll-up) re-enters as a bare
+// transparent bar on the page. UIkit adds `uk-navbar-sticky` to the container in
+// that state and `.hook-navbar-sticky()` is its extension point: a white bar
+// with a little room around the 80px item row. The `:not()` matches the theme's
+// own container rule in specificity (the master box-shadow hook does the same),
+// or the transparent @navbar-background wins.
+.hook-navbar-sticky() {
+    padding-top: @jw-s-3;
+    padding-bottom: @jw-s-3;
+    &:not(.uk-navbar-transparent) { background-color: @jw-white; }
+}
+
 // ---------- Toolbar (the utility row above the navbar) ----------
 // The toolbar menu renders as `uk-subnav`, NOT as a navbar nav, so it takes an
 // entirely separate variable set from the block above.

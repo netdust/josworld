@@ -31,12 +31,17 @@
   rides the rim like the SMIL export. `dist/` is gitignored — rebuild on deploy.
 - **Fonts**: `less.@internal-fonts` in the config now lists `Fraunces:300,400,400i`
   (the footer headings are `<em>` in Fraunces; the italic was synthesised).
-- **Photo credit demo** on case 146 (`W3 · Case — beeld breed`, first photo):
-  a `text` element `text_style: meta`, `position: absolute` right/bottom 16,
-  `text_align: right`, `class: uk-light`. Awaiting Stefan's OK on the look
-  before it becomes a library entry.
+- **Photo credit** (Stefan approved 2026-09-10): a `text` element `text_style:
+  meta`, `position: absolute` right/bottom 16, `text_align: right`, `class:
+  uk-light` beside the image in its column. Live on case 146's first wide photo
+  and saved as library section `W3 · Case — beeld breed + fotocredit`
+  (`239efdaf`) — the library holds layouts and sections only, never a lone
+  element, so the credit travels with its section.
+- **Sticky navbar** (`navbar.sticky: 2`) gets a white bar + 12px padding via
+  `.hook-navbar-sticky()`; the background needs `&:not(.uk-navbar-transparent)`
+  or the theme's transparent `@navbar-background` container rule outranks it.
 - **Deploy note**: the DB content (pages 11, 12, 13, 17, 18, 64, 146; templates
-  Hhoi7Wz0, WXXvROde, RMMlzZVy; config `less.@internal-fonts`) and the
+  Hhoi7Wz0, WXXvROde, RMMlzZVy; library 239efdaf; config `less.@internal-fonts`) and the
   recompiled `css/theme.*.css` + theme `dist/` are outside the payload —
   re-apply on staging in the same sitting as the deploy.
 - `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900.

@@ -112,4 +112,14 @@ test.describe('design fixes (desktop)', () => {
     });
     expect(reach).toBeGreaterThanOrEqual(0);
   });
+
+  test('the navbar that comes back on scroll-up has a white bar with padding', async ({ page }) => {
+    await page.goto('/');
+    await page.mouse.wheel(0, 1600); await page.waitForTimeout(400);
+    await page.mouse.wheel(0, -300); await page.waitForTimeout(800);
+    const bar = page.locator('.uk-navbar-container.uk-navbar-sticky').first();
+    await bar.waitFor();
+    const st = await bar.evaluate((el) => { const c = getComputedStyle(el); return [c.backgroundColor, c.paddingTop, c.paddingBottom]; });
+    expect(st).toEqual(['rgb(255, 255, 255)', '12px', '12px']);
+  });
 });
