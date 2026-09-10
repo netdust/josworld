@@ -1045,6 +1045,13 @@ h4, .uk-h4 {
     .jw-review .uk-slidenav-container { z-index: 2; }
 }
 
+// Below phone-landscape the slider shows one full card, so the row's right-hand
+// bleed (Section/Row padding removed on the expanding side — no breakpoint in the
+// builder) only glues that card to the screen edge. Give the gutter back there.
+@media (max-width: @breakpoint-xsmall-max) {
+    .jw-review.uk-container-item-padding-remove-right { width: auto; margin-right: 0; }
+}
+
 // UIkit's slidenav is a bare chevron — the design's white pill needs a
 // background, a radius and an equal width/height. The first two ARE variables
 // (@slidenav-background / @slidenav-border-radius) but they are global, and the

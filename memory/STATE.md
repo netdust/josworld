@@ -2,6 +2,27 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Phone layout fixes: A3 photo, A5 sun card, C5 slider (2026-09-10)
+
+- **Per-breakpoint variants are DUPLICATE ELEMENTS with `visibility`**, the
+  pattern A5 already used (`tool-mobile` = `hidden-m`): A3's contact photo is
+  now a 178px image `visibility: m` plus a 120px `photo-mobile` (`hidden-m`),
+  with the column's `text_align: right` given `text_align_breakpoint: m` +
+  `text_align_fallback: center`. A5 has a `sun-mobile` (`hidden-m`, absolute,
+  top 0, left -5%, z 0) behind the static `tool-mobile` (`margin_top: xlarge`,
+  relative, z 2) — column height comes from the card, the sun peeks out behind.
+- **The review slider's right bleed has no breakpoint in the builder**
+  (`container_padding_remove` → `uk-container-item-padding-remove-right`), so
+  `theme.josworld.less` cancels it below `@breakpoint-xsmall-max` on
+  `.jw-review`. A LESS change needs `.yoo-tools/yoo-recompile.mjs` (throwaway
+  admin) locally AND on every environment — the compiled css is in the parent
+  theme, outside the payload.
+- Rolled out to every tree carrying A3/A5: pages 12, 13, 17, 18, 44, 48, 64,
+  146–157 (cases), 160–165 (tools), library A3 `igx2J5HU` + A5 `R4ttbdg-`,
+  template archive-tool `oK_cwk04`. `mobile_fix.py`-style transforms must be
+  idempotent (the roll-out re-reads pages already fixed).
+- `tests/E2E/mobile-layout.spec.ts` asserts all three at 390×844.
+
 ## C3 · Diensten cards stack centred on screen (2026-09-10, final)
 
 - **No custom JS.** The three-card grid in `C3` on pages 17, 18 and 64 is
