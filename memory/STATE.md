@@ -2,21 +2,28 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
-## C3 · Diensten stays a single grid; the card-stack was tried and reverted (2026-09-10)
+## C3 · Diensten cards stack centred on screen (2026-09-10, final)
 
-- **A stacking animation needs one sticky column per card.** YOOtheme has no
-  sticky on grid items or panels; the only settings are the column's
-  `position_sticky: section` (UIkit `uk-sticky` ending at `.uk-section`) and
-  the section-level Sticky Effect. Built as three rows with offset
-  `50vh - 50%`, it worked, but Stefan wants C3 to remain ONE grid with three
-  items in the builder — so it was restored from the pre-change backups on
-  pages 17, 18 and 64. Do not re-split the grid.
-- **UIkit's sticky `end` subtracts the section's own padding-bottom**, and a
-  margin on a child grows the sticky column itself; only a sibling row below
-  the last card holds a stack (tried: `height: viewport`, `height_viewport: 25`).
-- `yoo-content.php page set` refuses a path outside the container: copy the
-  file into the project (`.yoo-tools/`) first. Pages 17/18 need `no-lint`
-  for the known A5 parallax props.
+- **No custom JS.** The three-card grid in `C3` on pages 17, 18 and 64 is
+  three centred rows; each column carries `position_sticky: section`,
+  `position_sticky_offset` `50vh - 50%` and breakpoint `m`, so every card
+  rests in the middle of the viewport and the next slides over it (YOOtheme
+  renders `uk-sticky` with `end: !.uk-section`; DOM order stacks them).
+  A stack NEEDS one sticky column per card — there is no sticky on grid
+  items or panels — so this is the builder structure; Stefan accepted it
+  (2026-09-10, after a round-trip through revert).
+- **A taller card peeks by its extra height** under the card on top (page
+  18's first card runs one line longer). Content, not timing; accepted.
+- **Do not add a spacer for dwell.** UIkit's sticky `end` subtracts the
+  section's own padding-bottom and a child margin grows the sticky column;
+  only a sibling row below the last card holds the stack. Tried
+  (`height: viewport`, `height_viewport: 25` + `padding_bottom: xlarge`) and
+  reverted — Stefan prefers the plain three rows.
+- **The layout lives in the DB**: `tests/E2E/diensten-stack.spec.ts` is the
+  proof; a deploy carries only the spec — re-apply the page JSON on staging
+  (`yoo-content.php page set 17|18|64`, `no-lint` for the known A5 parallax
+  props). The tool refuses a path outside the container: copy the file into
+  `.yoo-tools/` first.
 
 ## Case tiles show a second image on hover (2026-09-03, branch feature/case-hover-image)
 
