@@ -8,3 +8,4 @@
 - [ ] Upstream to the marketplace `netdust-wp/templates`: `set -f` on the deploy.exclude loops, `structure.webroot` in setup, project-named pull dump, and the flow-floor-aware promote test in deploy-test.sh
 - [x] Build the remaining singles (11 cases, 6 tools, 7 team, 1 vacature) in the builder from the library starters — 2026-09-03, all 30 posts carry a layout; editors replace the placeholder prose
 - [ ] Raise the attachment/`inherit` resolver gap in ntdst-baseline (FieldTypeBridge::$relatedPosts) — see STATE 2026-09-03
+- [ ] Design fixes 2026-09-10: Stefan to confirm the photo-credit look on case 146, then save it as a library element; on the staging deploy re-apply pages 11/12/13/17/18/64/146, the three templates, `less.@internal-fonts`, recompile and rebuild `dist/`

@@ -278,7 +278,7 @@ Type: Flat
 @global-large-gutter:               @jw-s-16;     // 64px
 
 @global-control-height:             44px;   // Figma "Button" and form field: 44px
-@global-control-small-height:       36px;
+@global-control-small-height:       40px;   // Figma "Button Secondary": 40px
 @global-control-large-height:       56px;
 
 // ---------- Base elements: body + headings ----------
@@ -405,6 +405,12 @@ h4, .uk-h4 {
 // overridden here, since Fraunces at 18px sentence-case is the design.
 @button-font-size:                  @jw-t-button;
 @button-large-font-size:            @jw-t-button;
+// Figma draws ONE button text: 18px on the 40px navbar / case-grid pill as on the
+// 44px form button. UIkit's small variant drops to @global-small-font-size (14px)
+// and every builder button on the site is `button_size: small`, so the small
+// variant takes the same text, Figma's 40px height and its 20px inset.
+@button-small-font-size:            @jw-t-button;
+@button-small-padding-horizontal:   20px;
 @button-line-height:                @global-control-height;
 @button-large-line-height:          @global-control-large-height;
 @button-small-line-height:          @global-control-small-height;
@@ -466,7 +472,7 @@ h4, .uk-h4 {
 @label-padding-horizontal:          @jw-s-3;
 
 // A pill subnav (the diensten on a case single) wears the label look — same tokens.
-@subnav-pill-item-padding-vertical:   0;
+@subnav-pill-item-padding-vertical:   @jw-s-1;   // 26px tall, the Figma pill
 @subnav-pill-item-padding-horizontal: @label-padding-horizontal;
 @subnav-pill-item-background:         @label-background;
 @subnav-pill-item-color:              @label-color;
@@ -612,6 +618,17 @@ h4, .uk-h4 {
 // transition survive and only the decoration is added.
 .hook-subnav-item() {
     text-decoration: none;
+}
+
+// The toolbar menu is a `uk-dropnav`, so the language switcher opens a plain
+// `uk-dropdown` — the `@navbar-dropdown-*` values above never reach it. Same
+// radius as the form fields, same 12px as the "NL" trigger.
+@dropdown-border-radius:            @jw-r-md;
+@dropdown-min-width:                120px;      // three two-letter items, not UIkit's 200
+@dropdown-nav-item-color:           @jw-text;   // muted grey read as disabled next to the trigger
+@dropdown-nav-item-hover-color:     @jw-accent;
+.hook-dropdown-nav() {
+    font-size: @jw-t-nav-2;
 }
 
 // ---------- Offcanvas (the mobile dialog panel) ----------
@@ -1160,7 +1177,7 @@ h4, .uk-h4 {
 .jw-tags a[rel="tag"] {
     display: inline-block;
     margin-right: @jw-s-2;
-    padding: 0 @label-padding-horizontal;
+    padding: @jw-s-1 @label-padding-horizontal;   // 26px tall, the Figma pill
     background: @label-background;
     border-radius: @label-border-radius;
     font-size: @label-font-size;
@@ -1254,6 +1271,23 @@ h4, .uk-h4 {
         width: auto;
         filter: grayscale(1);
     }
+
+    // A steady flow, not a scroll-driven slider (Stefan, 2026-09-10). The wall is
+    // a grid on `auto` widths whose track runs one linear keyframe; the items are
+    // two identical halves, so -50% loops without a seam. Keep it two halves.
+    > .uk-grid {
+        flex-wrap: nowrap;
+        width: max-content;
+        animation: jw-marquee 40s linear infinite;
+    }
+}
+
+@keyframes jw-marquee {
+    to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .jw-logo-wall > .uk-grid { animation: none; }
 }
 
 
@@ -1368,6 +1402,41 @@ h4, .uk-h4 {
     }
 }
 
+// ---------- Plain pages (no builder layout — the privacy policy) ----------
+// The fallback page template titles with `uk-article-title`; Figma sets those
+// page titles in the intro role, like Blog & nieuws.
+@article-title-font-size-m:         @jw-t-intro;
+@article-title-font-size:           @jw-t-intro;
+@article-title-line-height:         @jw-lh-intro;
+.hook-article-title() {
+    font-family: @jw-font-body;
+    font-weight: @jw-fw-regular;
+    letter-spacing: @jw-ls-intro;
+}
+
+// ---------- Footer reveal ----------
+// Figma's footer note: "revealed on parallax". The page slides up over a footer
+// pinned to the viewport bottom — sticky, no script. Everything above it needs
+// a background and a stacking level, or the footer shows through the header and
+// the unstyled sections; the header sits above main so its dropdowns survive.
+// Desktop only: below `l` the footer is taller than the viewport and a pinned
+// footer would never show its top.
+@media (min-width: @breakpoint-large) {
+    .tm-page > .tm-toolbar,
+    .tm-page > .tm-header,
+    .tm-page > main {
+        position: relative;
+        background-color: @global-background;
+    }
+    .tm-page > .tm-toolbar,
+    .tm-page > .tm-header { z-index: 2; }
+    .tm-page > main { z-index: 1; }
+    .tm-page > footer {
+        position: sticky;
+        bottom: 0;
+    }
+}
+
 // ---------- Breadcrumbs (post header) ----------
 @breadcrumb-item-font-size:         @jw-t-nav;
 @breadcrumb-item-color:             @jw-brown;
@@ -1398,6 +1467,7 @@ h4, .uk-h4 {
         font-style: normal;
         line-height: @jw-lh-t2;
         text-align: center;
+        p { line-height: inherit; }   // the 30/18 body rule above would win
     }
     img { border-radius: 0; }
 }

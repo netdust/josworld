@@ -2,6 +2,45 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Design fixes against Figma (2026-09-10, branch feature/design-fixes)
+
+- **Figma file** `bwFc8dsfRNScrQgOwUcXKW` (Jos-website), page `625:2790`
+  "Copywriting + Dev"; frames: Homepage 625:10088, Voor overheden 625:10567,
+  Ons werk 625:11747, Team 625:12235, Jobs 625:12258, Waarom Jos 625:12616,
+  Diensten 625:12692, Blog 625:12769, Blog item 625:12791, Privacy 625:12821,
+  Footer instance 625:10554, Nav bar 625:12828. `get_metadata` on the page
+  node is 363 KB — call it on a frame.
+- **Every builder button is `button_size: small`**, and UIkit's small variant
+  drops to 14px: `@button-small-font-size` now carries the 18px Figma text,
+  40px height, 20px inset. The tertiary `uk-button-text` links share it.
+- **Page titles on Ons werk / Jobs / Diensten / Privacy are the 32px Inter
+  intro role in Figma** (like Blog & nieuws), not T1: `title_style:
+  text-large` on the archive templates (Hhoi7Wz0, WXXvROde) and page 13;
+  Privacy has no builder layout, so the fallback `uk-article-title` takes the
+  role through `@article-title-*` + `.hook-article-title()`.
+- **The language switcher is a toolbar `uk-dropnav`** → plain `uk-dropdown`;
+  the `@navbar-dropdown-*` values never reached it. Radius, 12px, 120px wide.
+- **Footer reveal is CSS sticky** (`.tm-page > footer`, `l` and up); main,
+  header and toolbar get a background + z-index (header above main so its
+  dropdowns survive). Short pages hide the footer's first ~200px until scrolled.
+- **Logo wall is a grid on `auto` widths** with a linear keyframe on
+  `> .uk-grid`, two identical halves (`.yoo-tools/logo-marquee.py` converts a
+  slider and pads/mirrors the halves; `scan-logo.php` lists the trees). Pages
+  11, 17, 18, 64.
+- **Logo eye**: `TRAVEL_FRACTION` 0.72 → 1.15 in `src/logo-eye.js`; the pupil
+  rides the rim like the SMIL export. `dist/` is gitignored — rebuild on deploy.
+- **Fonts**: `less.@internal-fonts` in the config now lists `Fraunces:300,400,400i`
+  (the footer headings are `<em>` in Fraunces; the italic was synthesised).
+- **Photo credit demo** on case 146 (`W3 · Case — beeld breed`, first photo):
+  a `text` element `text_style: meta`, `position: absolute` right/bottom 16,
+  `text_align: right`, `class: uk-light`. Awaiting Stefan's OK on the look
+  before it becomes a library entry.
+- **Deploy note**: the DB content (pages 11, 12, 13, 17, 18, 64, 146; templates
+  Hhoi7Wz0, WXXvROde, RMMlzZVy; config `less.@internal-fonts`) and the
+  recompiled `css/theme.*.css` + theme `dist/` are outside the payload —
+  re-apply on staging in the same sitting as the deploy.
+- `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900.
+
 ## Phone layout fixes: A3 photo, A5 sun card, C5 slider (2026-09-10)
 
 - **Per-breakpoint variants are DUPLICATE ELEMENTS with `visibility`**, the

@@ -22,9 +22,11 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 
 /**
  * How far the pupil travels, as a fraction of the geometric slack between the
- * eye's radius and the pupil's. Below 1 so the pupil never kisses the rim.
+ * eye's radius and the pupil's. Above 1 on purpose: the exported animation
+ * keeps the pupil against the rim (the mask clips what crosses it), and at
+ * 1.0 antialiasing still leaves a hairline of white at logo size.
  */
-const TRAVEL_FRACTION = 0.72;
+const TRAVEL_FRACTION = 1.15;
 
 /**
  * Cursor distance (px) at which deflection saturates — beyond this it's full.
