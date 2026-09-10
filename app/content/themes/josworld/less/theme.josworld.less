@@ -1324,7 +1324,8 @@ h4, .uk-h4 {
 // The one part of the logo strip YOOtheme cannot express as a setting: it has no
 // image filter (checked — `blend` is a boolean, not a mode) and no max-height, so
 // desaturating and shrinking the marks needs CSS. Applied by putting the
-// `jw-logo-wall` class on the grid element.
+// `jw-logo-wall` class on the panel slider — an autoplaying, infinite slider is
+// YOOtheme's own endless loop (Stefan chose it over a CSS marquee, 2026-09-10).
 //
 // Centring both ways matters more than it looks: `uk-grid-match` stretches every
 // item to the tallest, and the supplied logos have wildly different aspect
@@ -1341,23 +1342,6 @@ h4, .uk-h4 {
         width: auto;
         filter: grayscale(1);
     }
-
-    // A steady flow, not a scroll-driven slider (Stefan, 2026-09-10). The wall is
-    // a grid on `auto` widths whose track runs one linear keyframe; the items are
-    // two identical halves, so -50% loops without a seam. Keep it two halves.
-    > .uk-grid {
-        flex-wrap: nowrap;
-        width: max-content;
-        animation: jw-marquee 40s linear infinite;
-    }
-}
-
-@keyframes jw-marquee {
-    to { transform: translateX(-50%); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .jw-logo-wall > .uk-grid { animation: none; }
 }
 
 
