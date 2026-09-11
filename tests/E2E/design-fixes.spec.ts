@@ -151,3 +151,51 @@ test.describe('mobile menu (phone)', () => {
     expect(await page.locator('#tm-dialog-mobile .uk-nav-default').count()).toBe(0);
   });
 });
+
+test.describe('mobile design fixes (phone)', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  test('doelgroep header: H1 on two lines above a smaller intro, over a tall hero photo', async ({ page }) => {
+    await page.goto('/voor-overheden/');
+    const h1 = page.locator('h1').first();
+    expect(await h1.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(52);
+    expect(await h1.locator('br').count()).toBe(0);
+    expect(await page.locator('.uk-text-large').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe('24px');
+    const hero = page.locator('main img[src*="jos-team-hero"]:visible').first();
+    expect((await hero.boundingBox())!.height).toBeGreaterThan(400);
+  });
+
+  test('H2 is a step under the phone H1', async ({ page }) => {
+    await page.goto('/');
+    expect(await page.locator('.uk-h2').first().evaluate((el) => getComputedStyle(el).fontSize)).toBe('36px');
+  });
+
+  test('stacked tiles keep a 64px row gap', async ({ page }) => {
+    await page.goto('/gratis-aanbod/');
+    const gap = await page.locator('main .el-item').first().evaluate((first) => { const next = first.closest('.uk-grid > div')!.nextElementSibling!; return Math.round(next.getBoundingClientRect().top - first.closest('.uk-grid > div')!.getBoundingClientRect().bottom); });
+    expect(gap).toBe(64);
+  });
+
+  test('review slider shows its dots on a phone', async ({ page }) => {
+    await page.goto('/voor-overheden/');
+    const dots = page.locator('.jw-review .uk-dotnav');
+    await dots.scrollIntoViewIfNeeded();
+    await expect(dots).toBeVisible();
+  });
+
+  test('contact CTA card: photo first, then the details, both centred', async ({ page }) => {
+    await page.goto('/');
+    const card = page.locator('.jw-band-round-bottom .uk-grid-stack').last();
+    await card.scrollIntoViewIfNeeded();
+    const [img, txt] = await card.evaluate((row) => { const i = [...row.querySelectorAll('img')].find((e) => e.offsetParent)!; const t = row.querySelector('.uk-panel:not(:has(img))')!; const ir = i.getBoundingClientRect(); const tr = t.getBoundingClientRect(); return [[ir.top, ir.left + ir.width / 2 - (tr.left + tr.width / 2)], [tr.top, getComputedStyle(t).textAlign]]; });
+    expect(img[0]).toBeLessThan(txt[0]);
+    expect(Math.abs(img[1])).toBeLessThan(4);
+    expect(txt[1]).toBe('center');
+  });
+
+  test('newsletter field and button stack with a small gap', async ({ page }) => {
+    await page.goto('/');
+    const gap = await page.locator('footer .uk-grid-small').first().locator('> div').nth(1).evaluate((el) => parseFloat(getComputedStyle(el).marginTop));
+    expect(gap).toBeLessThanOrEqual(16);
+  });
+});
