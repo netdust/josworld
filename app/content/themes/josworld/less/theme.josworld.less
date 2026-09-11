@@ -276,6 +276,9 @@ Type: Flat
 @global-small-gutter:               @jw-s-4;      // 16px
 @global-medium-gutter:              @jw-s-8;      // 32px
 @global-large-gutter:               @jw-s-16;     // 64px
+// Row gap of every `large`-gap grid (case tiles, tool tiles, team) below `l`:
+// UIkit halves it to 32px there, and stacked tiles on a phone need the full 64.
+@grid-large-gutter-vertical:        @jw-s-16;     // 64px
 
 @global-control-height:             44px;   // Figma "Button" and form field: 44px
 @global-control-small-height:       38px;   // + the 1px border = Figma's 40px pill
@@ -298,11 +301,11 @@ Type: Flat
 @base-heading-text-transform:       none;
 
 @base-h1-font-size-m:               @jw-t1;              // 76px
-@base-h1-font-size:                 @jw-t1 * 0.6;        // ~46px on small
+@base-h1-font-size:                 @jw-t1 * 0.7;        // ~53px on small (raised 2026-09-11: read too small against the intro)
 @base-h1-line-height:               @jw-lh-t1;
 
 @base-h2-font-size-m:               @jw-t2;              // 56px
-@base-h2-font-size:                 @jw-t2 * 0.65;       // ~36px on small
+@base-h2-font-size:                 @jw-t2 * 0.6;        // 36px on small — a step under the phone H1, not level with it
 @base-h2-line-height:               @jw-lh-t2;
 
 @base-h3-font-size:                 @jw-t3;              // 40px
@@ -381,6 +384,15 @@ h4, .uk-h4 {
 
 @text-large-font-size:              @jw-t-intro;      // 32px — was `.jw-intro`
 @text-large-line-height:            @jw-lh-intro;     // 1.25
+// The text roles carry no `-m` variable the way headings do, so the intro's
+// phone size is the one media rule here: below `m` it drops to the 24/32
+// "body bigger" role, or it outweighs the 53px phone H1.
+@media (max-width: @breakpoint-small-max) {
+    .uk-text-large {
+        font-size: @jw-t-body-lg;
+        line-height: @jw-lh-body-lg;
+    }
+}
 @text-meta-font-size:               @jw-t-nav-2;      // 12px — the meta line under a post title
 @text-meta-line-height:             1.17;             // 14/12
 

@@ -2,6 +2,36 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Phone design fixes (2026-09-11, branch feature/mobile-design)
+
+- **Type on phones (variables)**: `@base-h1-font-size` 0.6 → 0.7 (53px),
+  `@base-h2-font-size` 0.65 → 0.6 (36px); the intro role has no `-m`
+  variable, so the one media rule drops `.uk-text-large` to 24/32 below `m`.
+  `@grid-large-gutter-vertical: 64px` — UIkit halved every `large` row gap to
+  32 below `l`; case tiles, tool tiles and team now stack at 64.
+- **Doelgroep header (H3)**: the H1 lost its hard `<br>` (it forced "dicht
+  bij / de mensen" onto three uneven lines); the wide hero (1280×442,
+  `visibility: m`) has a phone twin `hero-mobile` (`jos-team-hero.jpg`
+  780×1040, `hidden-m`) — the duplicate-element pattern.
+- **Contact CTA card (A3/A4, ~40 trees)**: the inner 1-2,1-2 row now holds the
+  photo column FIRST (phone order) and the text column carries `order_first:
+  m` (desktop order) plus `text_align: left` / breakpoint `m` / fallback
+  `center`; the photo column right/m/center. `.yoo-tools/mobile-fix2.py` is
+  the idempotent transform (also C5 dots, H3 hero, A1 sun), run over pages
+  11 12 13 17 18 44 48 64 146–157 160–165 197 198, templates oK_cwk04
+  goYeARw1 RMMlzZVy WXXvROde gDbuyeYA TNp2BdnU Kw9hhk4t, library igx2J5HU
+  4ed3edaa e86c5b25 chav_wOn 4ca7191c (three need `no-lint`, pre-existing).
+- **C5 review slider**: `nav_breakpoint: ''` — dots were hidden below `s`.
+- **A1 · Tools CTA (home, 64)** mirrors A5: sun `visibility: m` + `sun-mobile`
+  absolute behind, `tool-mobile` relative z 2 with `margin_top: xlarge`.
+- **Footer newsletter**: `gap: small` (field/button stack at 16px).
+- **Contact page booking column**: `padding: large` → `default` (the calendar
+  had 40px inset on a 358px screen). The "cut intro text" could not be
+  reproduced locally — the FluentBooking slot picker measures 636px wide
+  (its own CSS); revisit with a screenshot from Stefan's phone.
+- **Playwright full-page screenshots do not trigger lazy images**: scroll the
+  page in steps before shooting, or every card below the fold looks empty.
+
 ## Design fixes against Figma (2026-09-10, branch feature/design-fixes)
 
 - **Figma file** `bwFc8dsfRNScrQgOwUcXKW` (Jos-website), page `625:2790`
