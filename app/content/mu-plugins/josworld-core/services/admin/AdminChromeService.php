@@ -36,6 +36,16 @@ final class AdminChromeService
     {
         add_filter('admin_body_class', [$this, 'flagOwnScreens']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue']);
+
+        // Priority 9999 on `submenu_file`, which WordPress applies at
+        // menu-header.php:53 — after it has already filtered `parent_file`
+        // (:43) and immediately before `_wp_menu_output()` (:302) renders the
+        // menu. Writing the globals HERE is what makes the Josworld menu stay
+        // open on a moved CPT: the `parent_file` filter alone was measured
+        // returning `josworld` and the menu still rendered
+        // `wp-not-current-submenu`, intermittently. This asserts the state at
+        // the last point before it is read instead of asking for it earlier.
+        add_action('admin_menu', [$this, 'holdTheMenuOpen'], 9999);
     }
 
     public function flagOwnScreens(string $classes): string
@@ -45,6 +55,57 @@ final class AdminChromeService
         }
 
         return trim($classes . ' ntdst-admin jw-admin-chrome');
+    }
+
+    /**
+     * Keep the Josworld menu open on the content types it owns.
+     *
+     * The supported route is the `parent_file` filter, and ntdst-baseline
+     * already uses it. On `edit.php` screens it does not stick: the filter was
+     * measured returning `josworld` where `menu-header.php:43` reads it, and
+     * the strict comparison at `:53` was true, yet `_wp_menu_output()` still
+     * rendered `wp-not-current-submenu` — and by `:308` the global held the
+     * unfiltered value again. The taxonomy screens are unaffected, and the
+     * behaviour is intermittent, so something in this site's plugin set is
+     * racing for that global.
+     *
+     * Index 4 of a `$menu` row is its class string, which `_wp_menu_output()`
+     * appends verbatim. Writing the open-state classes there states the
+     * outcome instead of competing for the input. `admin_menu` at 9999 runs
+     * after every menu has registered, including baseline's own relocation.
+     */
+    public function holdTheMenuOpen(): void
+    {
+        // `admin_menu` fires while the menu is being BUILT, before the screen
+        // object exists, so `get_current_screen()` is null here. The post type
+        // is read off the request instead — the same fallback baseline's own
+        // `screenContext()` keeps for this reason. Read-only routing input:
+        // it selects a menu class and writes nothing.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $postType = sanitize_key($_GET['post_type'] ?? '');
+
+        if (! in_array($postType, array_keys(AdminAppService::POST_TYPES), true)) {
+            return;
+        }
+
+        foreach ($GLOBALS['menu'] ?? [] as $index => $item) {
+            if (($item[2] ?? null) !== AdminAppService::MENU_SLUG) {
+                continue;
+            }
+
+            $classes = array_filter(explode(' ', (string) ($item[4] ?? '')));
+
+            // The taxonomy screens already resolve correctly on their own;
+            // only add where core got it wrong.
+            if (! in_array('wp-menu-open', $classes, true)) {
+                $classes[] = 'wp-has-current-submenu';
+                $classes[] = 'wp-menu-open';
+            }
+
+            $GLOBALS['menu'][$index][4] = implode(' ', array_unique($classes));
+
+            return;
+        }
     }
 
     public function enqueue(): void
@@ -71,21 +132,19 @@ final class AdminChromeService
     }
 
     /**
-     * The app's own post types on any of their screens — list, edit, new and
-     * the taxonomy term screens — plus the app's own pages, which need the
-     * same sheet for the tile links and the panel row.
+     * The app's OWN pages only — the dashboard and anything namespaced under
+     * its slug.
+     *
+     * Deliberately NOT the CPT list and edit screens (ruled 2026-09-14). Those
+     * are WordPress' screens and they stay WordPress': restyling them made
+     * them feel neither like WP nor like the app. The menu fix below still
+     * runs there, because that is a correctness bug rather than a skin.
      */
     private function ownsCurrentScreen(): bool
     {
         $screen = function_exists('get_current_screen') ? get_current_screen() : null;
-        if ($screen === null) {
-            return false;
-        }
 
-        if (in_array((string) $screen->post_type, array_keys(AdminAppService::POST_TYPES), true)) {
-            return true;
-        }
-
-        return str_contains((string) $screen->id, 'page_' . AdminAppService::MENU_SLUG);
+        return $screen !== null
+            && str_contains((string) $screen->id, 'page_' . AdminAppService::MENU_SLUG);
     }
 }

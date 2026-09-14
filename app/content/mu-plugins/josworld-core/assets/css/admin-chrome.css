@@ -36,6 +36,8 @@
        a grey line across it. */
     --ntdst-admin-border:        rgba(0, 0, 0, 0.06);
     --ntdst-admin-border-strong: rgba(0, 0, 0, 0.12);
+    /* Row rules inside a card: lighter still, or the card reads as a grid. */
+    --jw-border-subtle: rgba(0, 0, 0, 0.04);
 
     --ntdst-admin-fs:    14px;
     --ntdst-admin-fs-sm: 13px;
@@ -44,6 +46,11 @@
        anything nested inside it. */
     --ntdst-admin-radius:    10px;
     --ntdst-admin-radius-sm: 8px;
+
+    /* No bounded measure: these are working screens with wide tables, and
+       the room is worth more than a centred column. One token, because
+       baseline's page wrapper reads it too. */
+    --ntdst-admin-measure: none;
 
     --jw-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.04);
     --jw-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.06);
@@ -97,152 +104,5 @@ body.jw-admin-chrome.ntdst-admin {
     --ntdst-admin-aside: minmax(0, 1fr);
 }
 
-/* ── WordPress' own screens, wearing the same skin ─────────────────────
-   The page becomes a bounded measure of ground and the table becomes the
-   card on it. Nothing MOVES — surface, spacing and type only — so the
-   screen still reads as WordPress. */
-.jw-admin-chrome.ntdst-admin .wrap {
-    box-sizing: border-box;
-    max-width: var(--ntdst-admin-measure);
-    margin: var(--ntdst-admin-5) auto 0;
-    padding: var(--ntdst-admin-6);
-    background: var(--ntdst-admin-ground);
-    border-radius: var(--ntdst-admin-radius);
-}
-
-.jw-admin-chrome.ntdst-admin .wrap > h1.wp-heading-inline {
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    color: var(--ntdst-admin-text);
-    margin: 0 var(--ntdst-admin-3) 0 0;
-    padding: 0;
-}
-
-.jw-admin-chrome.ntdst-admin .page-title-action {
-    display: inline-flex;
-    align-items: center;
-    height: 32px;
-    padding: 0 14px;
-    border: 1px solid var(--ntdst-admin-primary);
-    border-radius: var(--ntdst-admin-radius-sm);
-    background: var(--ntdst-admin-primary);
-    color: var(--ntdst-admin-surface);
-    font-size: var(--ntdst-admin-fs-sm);
-    font-weight: 500;
-    text-decoration: none;
-    box-shadow: none;
-    transition-property: background-color, transform;
-    transition-duration: 150ms;
-    transition-timing-function: var(--jw-ease);
-}
-
-.jw-admin-chrome.ntdst-admin .page-title-action:active {
-    transform: scale(0.96);
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .jw-admin-chrome.ntdst-admin .page-title-action:hover {
-        background: var(--ntdst-admin-primary-hover);
-        border-color: var(--ntdst-admin-primary-hover);
-        color: var(--ntdst-admin-surface);
-    }
-}
-
-.jw-admin-chrome.ntdst-admin .subsubsub {
-    margin: var(--ntdst-admin-5) 0 var(--ntdst-admin-2);
-    color: var(--ntdst-admin-text-3);
-    font-size: var(--ntdst-admin-fs-sm);
-}
-
-.jw-admin-chrome.ntdst-admin .subsubsub .current {
-    color: var(--ntdst-admin-text);
-    font-weight: 600;
-}
-
-.jw-admin-chrome.ntdst-admin .tablenav {
-    margin: var(--ntdst-admin-2) 0 var(--ntdst-admin-3);
-}
-
-.jw-admin-chrome.ntdst-admin .wp-list-table {
-    background: var(--ntdst-admin-surface);
-    border: 1px solid var(--ntdst-admin-border);
-    border-radius: var(--ntdst-admin-radius);
-    box-shadow: var(--jw-shadow);
-    border-collapse: separate;
-    border-spacing: 0;
-    overflow: hidden;
-}
-
-.jw-admin-chrome.ntdst-admin .wp-list-table thead th,
-.jw-admin-chrome.ntdst-admin .wp-list-table tfoot th {
-    background: transparent;
-    color: var(--ntdst-admin-text-3);
-    font-size: var(--ntdst-admin-fs-sm);
-    font-weight: 500;
-    border-bottom: 1px solid var(--ntdst-admin-border);
-}
-
-.jw-admin-chrome.ntdst-admin .wp-list-table tbody td,
-.jw-admin-chrome.ntdst-admin .wp-list-table tbody th {
-    border-top: 1px solid var(--ntdst-admin-border);
-    padding-top: var(--ntdst-admin-3);
-    padding-bottom: var(--ntdst-admin-3);
-}
-
-.jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:first-child td,
-.jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:first-child th {
-    border-top: 0;
-}
-
-.jw-admin-chrome.ntdst-admin .wp-list-table .row-title {
-    color: var(--ntdst-admin-text);
-    font-weight: 600;
-}
-
-@media (hover: hover) and (pointer: fine) {
-    .jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:hover > td,
-    .jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:hover > th {
-        background: var(--ntdst-admin-ground);
-    }
-}
-
-/* ── The edit screen ───────────────────────────────────────────────────
-   These CPTs open in the BLOCK editor: no `.wrap`, no `#poststuff`.
-   Gutenberg owns that shell, and fighting it would be the overhaul this is
-   explicitly not. What IS ours is the field UI ntdst-core renders — the
-   metabox drawer and the sidebar panels — so those take the same card and
-   nothing else is touched. */
-.jw-admin-chrome .edit-post-meta-boxes-area .postbox,
-.jw-admin-chrome .metabox-location-normal .postbox {
-    background: var(--ntdst-admin-surface);
-    border: 1px solid var(--ntdst-admin-border);
-    border-radius: var(--ntdst-admin-radius-sm);
-    box-shadow: none;
-}
-
-.jw-admin-chrome .edit-post-meta-boxes-area .postbox-header,
-.jw-admin-chrome .metabox-location-normal .postbox-header {
-    border-bottom: 1px solid var(--ntdst-admin-border);
-}
-
-.jw-admin-chrome .edit-post-meta-boxes-area .postbox-header h2,
-.jw-admin-chrome .metabox-location-normal .postbox-header h2 {
-    font-size: var(--ntdst-admin-fs-sm);
-    font-weight: 600;
-    color: var(--ntdst-admin-text);
-}
-
-/* Reduced motion means gentler, not none: the colour cues stay, the
-   movement goes. */
-@media (prefers-reduced-motion: reduce) {
-    .jw-admin-chrome .ntdst-admin__tile,
-    .jw-admin-chrome.ntdst-admin .page-title-action {
-        transition-duration: 0ms;
-    }
-
-    .jw-admin-chrome .ntdst-admin__tile:active,
-    .jw-admin-chrome.ntdst-admin .page-title-action:active {
-        transform: none;
-    }
-}
+/* Nothing below the dashboard's own components is styled. The CPT list and
+   edit screens are WordPress' and stay WordPress' — see AdminChromeService. */

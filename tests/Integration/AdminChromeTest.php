@@ -56,31 +56,75 @@ final class AdminChromeTest extends WP_UnitTestCase
         return (string) apply_filters('admin_body_class', '');
     }
 
-    public function test_the_cpt_screens_carry_the_admin_chrome(): void
+    /**
+     * Ruled 2026-09-14: the CPT list and edit screens stay WordPress'. A
+     * skinned list table felt neither like WordPress nor like the app, so the
+     * chrome is scoped to the app's own pages and these screens must come
+     * back untouched.
+     */
+    public function test_the_cpt_screens_are_left_to_wordpress(): void
     {
         foreach (array_keys(AdminAppService::POST_TYPES) as $postType) {
             $classes = $this->bodyClassOn($postType);
 
-            $this->assertStringContainsString(
-                'ntdst-admin',
+            $this->assertStringNotContainsString(
+                'jw-admin-chrome',
                 $classes,
-                "the `{$postType}` screens must inherit baseline's tokens via the body class",
+                "the `{$postType}` list screen must not be restyled",
             );
+            $this->assertStringNotContainsString('ntdst-admin', $classes);
         }
     }
 
-    public function test_the_post_edit_screen_carries_it_too(): void
+    public function test_the_post_edit_screen_is_left_alone_too(): void
     {
-        $this->assertStringContainsString('ntdst-admin', $this->bodyClassOn('edit-case'));
+        $this->assertStringNotContainsString('jw-admin-chrome', $this->bodyClassOn('edit-case'));
     }
 
-    public function test_the_apps_own_pages_carry_it_too(): void
+    public function test_the_apps_own_pages_carry_the_chrome(): void
     {
-        // The dashboard needs the same sheet: the tile links and the equal
-        // split live there, not on the CPT screens.
         set_current_screen('toplevel_page_josworld');
 
         $this->assertStringContainsString('jw-admin-chrome', (string) apply_filters('admin_body_class', ''));
+    }
+
+    /**
+     * The menu-open fix is a correctness bug, not a skin, so it still runs on
+     * the CPT screens the chrome no longer touches.
+     *
+     * It writes index 4 of the `$menu` row — the class string
+     * `_wp_menu_output()` appends verbatim — because the supported
+     * `parent_file` route does not stick on `edit.php` here.
+     */
+    public function test_the_menu_is_held_open_on_a_cpt_screen(): void
+    {
+        $_GET['post_type'] = 'case';
+        $GLOBALS['menu'] = [[
+            'Josworld', 'edit_posts', AdminAppService::MENU_SLUG, '',
+            'menu-top', 'toplevel_page_josworld', 'dashicons-screenoptions',
+        ]];
+
+        (new AdminChromeService())->holdTheMenuOpen();
+
+        $this->assertStringContainsString('wp-menu-open', (string) $GLOBALS['menu'][0][4]);
+        $this->assertStringContainsString('wp-has-current-submenu', (string) $GLOBALS['menu'][0][4]);
+
+        unset($_GET['post_type'], $GLOBALS['menu']);
+    }
+
+    public function test_an_unrelated_screen_does_not_hold_the_menu_open(): void
+    {
+        $_GET['post_type'] = 'page';
+        $GLOBALS['menu'] = [[
+            'Josworld', 'edit_posts', AdminAppService::MENU_SLUG, '',
+            'menu-top', 'toplevel_page_josworld', 'dashicons-screenoptions',
+        ]];
+
+        (new AdminChromeService())->holdTheMenuOpen();
+
+        $this->assertSame('menu-top', (string) $GLOBALS['menu'][0][4]);
+
+        unset($_GET['post_type'], $GLOBALS['menu']);
     }
 
     public function test_an_unrelated_screen_is_left_alone(): void

@@ -62,26 +62,13 @@ test.describe('Josworld admin app', () => {
   });
 
   /**
-   * KNOWN DEFECT (2026-09-14) — see specs/josworld-admin-app/plan.md.
-   *
-   * On an `edit.php` screen the Josworld menu renders `wp-not-current-submenu`
-   * and collapses, though the right submenu item is still `current`. Measured:
-   * ntdst-baseline's `parent_file` filter DOES return `josworld` at the moment
-   * `menu-header.php:43` reads it, and `$item[2] === $parent_file` is strictly
-   * true at line 53 — but by `_wp_menu_output()` the global is back to
-   * `edit.php?post_type=case`. The taxonomy screen (flow 4) is unaffected.
-   *
-   * The fault is below josworld, in ntdst-baseline's admin_ui module or its
-   * interaction with this site's plugins.
-   *
-   * `test.fixme`, not `test.fail` (changed 2026-09-14): the condition is
-   * INTERMITTENT. Run alone it fails every time, but under the full suite's
-   * parallel load it has been observed passing — so `test.fail` made the gate
-   * flaky in BOTH directions, which is worse than either state. Skipped and
-   * labelled until the race is understood; the body is kept so it can be
-   * un-skipped the moment it is.
+   * Fixed 2026-09-14. The supported `parent_file` route never stuck on an
+   * `edit.php` screen here — measured returning `josworld` where core reads
+   * it, yet rendering `wp-not-current-submenu`, intermittently. The fix
+   * writes the menu row's own class string instead of competing for that
+   * global; see AdminChromeService::holdTheMenuOpen().
    */
-  test.fixme('flow 3: opening a CPT list keeps the Josworld menu open', async ({ page }) => {
+  test('flow 3: opening a CPT list keeps the Josworld menu open', async ({ page }) => {
     await logIn(page, 'e2e-admin');
     await page.goto('/wp/wp-admin/edit.php?post_type=case');
 
@@ -175,17 +162,21 @@ test.describe('Josworld admin app', () => {
     await expect(page.locator('.ntdst-admin__row-title')).toHaveCount(0);
   });
 
-  test('flow p2-8: the CPT list screen carries the dashboard chrome', async ({ page }) => {
+  /**
+   * The CPT screens stay WordPress' (ruled 2026-09-14). This is the guard
+   * against the skin creeping back onto them: the body carries neither class
+   * and the list table keeps its own square corners.
+   */
+  test('flow p2-8: the CPT list screen is left to WordPress', async ({ page }) => {
     await logIn(page, 'e2e-admin');
     await page.goto('/wp/wp-admin/edit.php?post_type=case');
 
-    await expect(page.locator('body.jw-admin-chrome')).toHaveCount(1);
-    await expect(page.locator('body.ntdst-admin')).toHaveCount(1);
+    await expect(page.locator('body.jw-admin-chrome')).toHaveCount(0);
+    await expect(page.locator('body.ntdst-admin')).toHaveCount(0);
 
-    // The tokens must actually resolve on core markup, not merely be declared.
     const radius = await page.locator('.wp-list-table').evaluate(
       (el) => getComputedStyle(el).borderTopLeftRadius,
     );
-    expect(radius).not.toBe('0px');
+    expect(radius).toBe('0px');
   });
 });
