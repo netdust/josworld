@@ -61,8 +61,12 @@ add_action('plugins_loaded', function (): void {
     require_once $dir . '/content/VacatureService.php';
     require_once $dir . '/content/ToolService.php';
 
-    // Admin-only services:
+    // Admin-only services. ActivitySource first: both repositories implement
+    // it, and AdminAppService type-hints it in its constructor.
     require_once $dir . '/admin/AdminUIService.php';
+    require_once $dir . '/admin/ActivitySource.php';
+    require_once $dir . '/admin/BookingRepository.php';
+    require_once $dir . '/admin/SubmissionRepository.php';
     require_once $dir . '/admin/AdminAppService.php';
 
     // Form service:

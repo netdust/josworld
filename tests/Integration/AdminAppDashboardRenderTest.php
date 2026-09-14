@@ -23,7 +23,11 @@ final class AdminAppDashboardRenderTest extends WP_UnitTestCase
     {
         parent::setUp();
 
-        require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/admin/AdminAppService.php';
+        $admin = __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/admin/';
+        require_once $admin . 'ActivitySource.php';
+        require_once $admin . 'BookingRepository.php';
+        require_once $admin . 'SubmissionRepository.php';
+        require_once $admin . 'AdminAppService.php';
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
         if (! defined('JOSWORLD_CORE_TEXTDOMAIN')) {

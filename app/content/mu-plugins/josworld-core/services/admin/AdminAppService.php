@@ -48,9 +48,29 @@ final class AdminAppService
     /** Taxonomies that must follow their post type into the menu. */
     private const TAXONOMIES = ['case' => ['dienst' => 'Diensten']];
 
+    private ?ActivitySource $bookings = null;
+    private ?ActivitySource $submissions = null;
+
     public function __construct()
     {
         add_filter('ntdst/baseline/admin/apps', [$this, 'declareApp']);
+    }
+
+    /**
+     * Swap the activity feeds.
+     *
+     * NOT constructor injection, deliberately: ntdst-core's container resolves
+     * every non-builtin type hint BEFORE it considers a default value
+     * (`Container::resolveParameters()`), so a `?ActivitySource $x = null`
+     * parameter makes it try to resolve the INTERFACE and throw
+     * "Service … ActivitySource not found" the moment the service is wired.
+     * A setter keeps the sources swappable without asking the container to
+     * resolve something it cannot.
+     */
+    public function useSources(ActivitySource $bookings, ActivitySource $submissions): void
+    {
+        $this->bookings = $bookings;
+        $this->submissions = $submissions;
     }
 
     /**
@@ -199,5 +219,80 @@ final class AdminAppService
         }
 
         echo '</div>';
+
+        $this->renderActivity();
+    }
+
+    /**
+     * The two activity panels, side by side.
+     *
+     * Every field printed here is visitor-authored — a booker and a form
+     * submitter both type their own name — so every one of them goes through
+     * `esc_html()`. That is the mitigation for the plan's T1, not a
+     * formality.
+     */
+    private function renderActivity(): void
+    {
+        echo '<div class="ntdst-admin__split">';
+
+        $this->renderPanel(
+            __('Laatste boekingen', JOSWORLD_CORE_TEXTDOMAIN),
+            ($this->bookings ??= new BookingRepository())->latest(),
+            __('Nog geen boekingen.', JOSWORLD_CORE_TEXTDOMAIN),
+            static fn(array $row): array => [
+                (string) ($row['who'] ?? ''),
+                trim((string) ($row['event'] ?? '') . ' · ' . (string) ($row['when'] ?? ''), ' ·'),
+            ],
+        );
+
+        $this->renderPanel(
+            __('Laatste inzendingen', JOSWORLD_CORE_TEXTDOMAIN),
+            ($this->submissions ??= new SubmissionRepository())->latest(),
+            __('Nog geen inzendingen.', JOSWORLD_CORE_TEXTDOMAIN),
+            static fn(array $row): array => [
+                (string) ($row['who'] ?? ''),
+                trim((string) ($row['form'] ?? '') . ' · ' . (string) ($row['when'] ?? ''), ' ·'),
+            ],
+        );
+
+        echo '</div>';
+    }
+
+    /**
+     * One panel. Its empty state is rendered inside its own panel, so an empty
+     * source never blanks the panel beside it — which is the normal case here:
+     * there are no form submissions yet while bookings already exist.
+     *
+     * @param list<array<string, mixed>> $rows
+     * @param callable(array<string, mixed>): array{0: string, 1: string} $line
+     */
+    private function renderPanel(string $title, array $rows, string $emptyText, callable $line): void
+    {
+        echo '<div class="ntdst-admin__panel">';
+        echo '<div class="ntdst-admin__panel-head">';
+        echo '<span class="ntdst-admin__panel-title">' . esc_html($title) . '</span>';
+        echo '</div>';
+
+        if ($rows === []) {
+            echo '<div class="ntdst-admin__empty">';
+            echo '<p class="ntdst-admin__empty-text">' . esc_html($emptyText) . '</p>';
+            echo '</div></div>';
+
+            return;
+        }
+
+        echo '<div class="ntdst-admin__list">';
+
+        foreach ($rows as $row) {
+            [$main, $meta] = $line($row);
+            $url = (string) ($row['url'] ?? '');
+
+            echo '<div class="ntdst-admin__row">';
+            echo '<a class="ntdst-admin__row-title" href="' . esc_url($url) . '">' . esc_html($main) . '</a>';
+            echo '<span class="ntdst-admin__row-meta">' . esc_html($meta) . '</span>';
+            echo '</div>';
+        }
+
+        echo '</div></div>';
     }
 }
