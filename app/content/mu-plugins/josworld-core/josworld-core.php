@@ -61,8 +61,9 @@ add_action('plugins_loaded', function (): void {
     require_once $dir . '/content/VacatureService.php';
     require_once $dir . '/content/ToolService.php';
 
-    // Admin-only service:
+    // Admin-only services:
     require_once $dir . '/admin/AdminUIService.php';
+    require_once $dir . '/admin/AdminAppService.php';
 
     // Form service:
     require_once $dir . '/forms/CrmContactLanguageService.php';
@@ -86,6 +87,9 @@ add_action('plugins_loaded', function (): void {
         // of this branch without also moving its require_once with it.
         if (is_admin()) {
             ntdst_get(\josworld\services\admin\AdminUIService::class);
+            // Declares the Josworld app to ntdst-baseline's admin_ui module.
+            // Must resolve before `admin_menu` (priority 9) reads the filter.
+            ntdst_get(\josworld\services\admin\AdminAppService::class);
         }
 
         // Form service — resolved unconditionally: the FluentCRM/Polylang
