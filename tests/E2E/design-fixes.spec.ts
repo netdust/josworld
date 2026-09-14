@@ -187,10 +187,10 @@ test.describe('mobile design fixes (phone)', () => {
     await page.goto('/');
     const card = page.locator('.jw-band-round-bottom .uk-grid-stack').last();
     await card.scrollIntoViewIfNeeded();
-    const [img, txt] = await card.evaluate((row) => { const i = [...row.querySelectorAll('img')].find((e) => e.offsetParent)!; const t = row.querySelector('.uk-panel:not(:has(img))')!; const ir = i.getBoundingClientRect(); const tr = t.getBoundingClientRect(); return [[ir.top, ir.left + ir.width / 2 - (tr.left + tr.width / 2)], [tr.top, getComputedStyle(t).textAlign]]; });
-    expect(img[0]).toBeLessThan(txt[0]);
-    expect(Math.abs(img[1])).toBeLessThan(4);
-    expect(txt[1]).toBe('center');
+    const m = await card.evaluate((row) => { const i = [...row.querySelectorAll('img')].find((e) => e.offsetParent)!; const t = row.querySelector('.uk-panel:not(:has(img))')!; const ir = i.getBoundingClientRect(); const tr = t.getBoundingClientRect(); return { imgTop: ir.top, centreDelta: ir.left + ir.width / 2 - (tr.left + tr.width / 2), txtTop: tr.top, align: getComputedStyle(t).textAlign }; });
+    expect(m.imgTop).toBeLessThan(m.txtTop);
+    expect(Math.abs(m.centreDelta)).toBeLessThan(4);
+    expect(m.align).toBe('center');
   });
 
   test('newsletter field and button stack with a small gap', async ({ page }) => {
