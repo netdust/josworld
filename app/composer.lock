@@ -216,23 +216,21 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.3.0",
+            "version": "2.5.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:netdust/ntdst-baseline.git",
-                "reference": "44197d05b8bf6280338854c3be22ae191b9724b8"
+                "reference": "02bb2845f7e4a262df96dfed75538367b1a6b6c0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/44197d05b8bf6280338854c3be22ae191b9724b8",
-                "reference": "44197d05b8bf6280338854c3be22ae191b9724b8",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/02bb2845f7e4a262df96dfed75538367b1a6b6c0",
+                "reference": "02bb2845f7e4a262df96dfed75538367b1a6b6c0",
                 "shasum": ""
             },
             "require": {
+                "netdust/ntdst-core": "^5.2",
                 "php": ">=8.1"
-            },
-            "conflict": {
-                "netdust/ntdst-core": "<4.2"
             },
             "require-dev": {
                 "brain/monkey": "^2.6",
@@ -252,7 +250,8 @@
                 "gate": [
                     "@lint",
                     "@test",
-                    "@guard"
+                    "@guard",
+                    "bash bin/check-invariants.sh"
                 ]
             },
             "license": [
@@ -265,7 +264,7 @@
                 }
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
-            "time": "2026-09-01T20:55:54+00:00"
+            "time": "2026-09-06T20:18:31+00:00"
         },
         {
             "name": "netdust/ntdst-core",
