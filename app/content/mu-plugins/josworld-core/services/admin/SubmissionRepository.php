@@ -59,6 +59,11 @@ final class SubmissionRepository implements ActivitySource
         // One JOIN for the whole panel: a per-row title lookup would turn a
         // five-row list into eleven queries on every dashboard load. Table and
         // column names are literals; only the limit is bound.
+        // Suppressed, not ignored: the table names are $wpdb->prefix plus a literal
+        // and the only variable is the bound %d, which the sniff cannot see through the
+        // interpolation. Uncached because the read is capability-gated per user and five
+        // rows deep — a cache would need invalidating on every write to save one query.
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT s.id, s.response, s.created_at, f.title AS form_title
              FROM {$submissions} AS s
@@ -67,13 +72,17 @@ final class SubmissionRepository implements ActivitySource
              LIMIT %d",
             self::LIMIT,
         ));
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
         return array_map([$this, 'toRow'], is_array($rows) ? $rows : []);
     }
 
     private function tableExists(object $wpdb, string $table): bool
     {
+        // An existence probe, fully prepared. The condition it guards IS a missing table.
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         return (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table;
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
     }
 
     /** @return array{form: string, who: string, when: string, url: string} */

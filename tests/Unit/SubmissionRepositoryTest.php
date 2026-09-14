@@ -47,7 +47,7 @@ final class SubmissionRepositoryTest extends TestCase
     {
         $calls = &$this->getResultsCalls;
 
-        $wpdb = new class($rows, $calls, $tableExists) {
+        $wpdb = new class ($rows, $calls, $tableExists) {
             public string $prefix = 'ntdst_';
             public ?string $preparedSql = null;
             /** @var list<mixed> */
@@ -130,8 +130,8 @@ final class SubmissionRepositoryTest extends TestCase
     public function test_it_returns_at_most_the_limit_newest_first(): void
     {
         $rows = [
-            $this->row(3, 'Download tool', '{"names":{"first_name":"Els"},"email":"els@example.be"}', '2026-09-13 10:00:00'),
-            $this->row(2, 'Contact Form Demo', '{"names":{"first_name":"Jan"},"email":"jan@example.be"}', '2026-09-12 10:00:00'),
+            $this->row(3, 'Download tool', '{"email":"els@example.be"}', '2026-09-13 10:00:00'),
+            $this->row(2, 'Contact Form Demo', '{"email":"jan@example.be"}', '2026-09-12 10:00:00'),
         ];
         $this->stubWordPress(tableExists: true, canRead: true, rows: $rows);
 
@@ -171,7 +171,6 @@ final class SubmissionRepositoryTest extends TestCase
         $latest = (new SubmissionRepository())->latest();
 
         $this->assertCount(1, $latest);
-        $this->assertIsString($latest[0]['who']);
-        $this->assertNotSame('', $latest[0]['who']);
+        $this->assertNotSame('', $latest[0]['who'], 'a broken payload must still yield a usable label');
     }
 }

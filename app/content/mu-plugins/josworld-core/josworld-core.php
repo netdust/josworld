@@ -68,6 +68,7 @@ add_action('plugins_loaded', function (): void {
     require_once $dir . '/admin/BookingRepository.php';
     require_once $dir . '/admin/SubmissionRepository.php';
     require_once $dir . '/admin/AdminAppService.php';
+    require_once $dir . '/admin/AdminChromeService.php';
 
     // Form service:
     require_once $dir . '/forms/CrmContactLanguageService.php';
@@ -94,6 +95,8 @@ add_action('plugins_loaded', function (): void {
             // Declares the Josworld app to ntdst-baseline's admin_ui module.
             // Must resolve before `admin_menu` (priority 9) reads the filter.
             ntdst_get(\josworld\services\admin\AdminAppService::class);
+            // The CPT list/edit screens wear the dashboard's chrome.
+            ntdst_get(\josworld\services\admin\AdminChromeService::class);
         }
 
         // Form service — resolved unconditionally: the FluentCRM/Polylang

@@ -125,4 +125,61 @@ test.describe('Josworld admin app', () => {
       expect(href).toContain('post-new.php?post_type=');
     }
   });
+
+  test('flow p2-1: each tile links to its list screen', async ({ page }) => {
+    await logIn(page, 'e2e-admin');
+    await page.goto('/wp/wp-admin/admin.php?page=josworld');
+
+    const links = page.locator('.ntdst-admin__tile-main');
+    await expect(links).toHaveCount(4);
+
+    for (const postType of POST_TYPES) {
+      await expect(page.locator(`.ntdst-admin__tile-main[href$="edit.php?post_type=${postType}"]`)).toHaveCount(1);
+    }
+  });
+
+  test('flow p2-2: clicking a tile lands on that list', async ({ page }) => {
+    await logIn(page, 'e2e-admin');
+    await page.goto('/wp/wp-admin/admin.php?page=josworld');
+
+    await page.locator('.ntdst-admin__tile-main[href$="edit.php?post_type=case"]').click();
+    await page.waitForURL(/edit\.php\?post_type=case/);
+    await expect(page.locator('.wp-list-table')).toBeVisible();
+  });
+
+  test('flow p2-3/4: both activity panels render, each with its own state', async ({ page }) => {
+    await logIn(page, 'e2e-admin');
+    await page.goto('/wp/wp-admin/admin.php?page=josworld');
+
+    await expect(page.locator('.ntdst-admin__panel')).toHaveCount(2);
+    await expect(page.getByText('Laatste boekingen')).toBeVisible();
+    await expect(page.getByText('Laatste inzendingen')).toBeVisible();
+  });
+
+  /**
+   * Threat model T3. An author holds `edit_posts`, which is what opens this
+   * menu — so the dashboard is reachable, and the panels must not be on it.
+   * The tiles stay: post counts are not personal data.
+   */
+  test('flow p2-7: an author sees the tiles but no personal data', async ({ page }) => {
+    await logIn(page, 'e2e-author');
+    await page.goto('/wp/wp-admin/admin.php?page=josworld');
+
+    await expect(page.locator('.ntdst-admin__tile')).toHaveCount(4);
+    await expect(page.locator('.ntdst-admin__row-title')).toHaveCount(0);
+  });
+
+  test('flow p2-8: the CPT list screen carries the dashboard chrome', async ({ page }) => {
+    await logIn(page, 'e2e-admin');
+    await page.goto('/wp/wp-admin/edit.php?post_type=case');
+
+    await expect(page.locator('body.jw-admin-chrome')).toHaveCount(1);
+    await expect(page.locator('body.ntdst-admin')).toHaveCount(1);
+
+    // The tokens must actually resolve on core markup, not merely be declared.
+    const radius = await page.locator('.wp-list-table').evaluate(
+      (el) => getComputedStyle(el).borderTopLeftRadius,
+    );
+    expect(radius).not.toBe('0px');
+  });
 });

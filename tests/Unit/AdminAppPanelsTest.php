@@ -62,7 +62,7 @@ final class AdminAppPanelsTest extends TestCase
      */
     private function render(array $bookings, array $submissions): string
     {
-        $bookingRepo = new class($bookings) implements ActivitySource {
+        $bookingRepo = new class ($bookings) implements ActivitySource {
             /** @param list<array<string,mixed>> $rows */
             public function __construct(private array $rows)
             {
@@ -74,7 +74,7 @@ final class AdminAppPanelsTest extends TestCase
             }
         };
 
-        $submissionRepo = new class($submissions) implements ActivitySource {
+        $submissionRepo = new class ($submissions) implements ActivitySource {
             /** @param list<array<string,mixed>> $rows */
             public function __construct(private array $rows)
             {

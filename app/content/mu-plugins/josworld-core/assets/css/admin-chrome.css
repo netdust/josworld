@@ -1,0 +1,127 @@
+/*
+ * Josworld admin chrome — the CPT list and edit screens, wearing the same
+ * surface as the Josworld dashboard.
+ *
+ * NO COLOUR IS DECLARED HERE. Every value comes from ntdst-baseline's
+ * --ntdst-admin-* tokens, which reach this file because AdminChromeService
+ * puts baseline's own `ntdst-admin` class on <body>. A hex literal in this
+ * file would be a second copy of that palette; AdminChromeTest fails on one.
+ *
+ * Scoped to .jw-admin-chrome throughout, so no screen this app does not own
+ * is touched. A tweak: spacing, surface and rules only — no layout moves.
+ */
+
+/* `.ntdst-admin` carries the tokens AND a 20px right margin meant for a
+   .wrap, not for <body>. Take the tokens, undo the margin. */
+body.jw-admin-chrome.ntdst-admin {
+    margin-right: 0;
+}
+
+/* A tile is one card with two destinations: the count and label are a link
+   to the list, and WordPress' default anchor styling would turn the big
+   number blue and underline it. Take the tile's own colours back. */
+.jw-admin-chrome .ntdst-admin__tile-main,
+.jw-admin-chrome .ntdst-admin__tile-main:hover,
+.jw-admin-chrome .ntdst-admin__tile-main:focus {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    box-shadow: none;
+    outline: 0;
+}
+
+.jw-admin-chrome .ntdst-admin__tile:hover .ntdst-admin__tile-value {
+    color: var(--ntdst-admin-primary);
+}
+
+/* `__split` is baseline's ASIDE layout — a fixed 300px rail beside a fluid
+   column. The two activity panels are peers, so the rail becomes fluid too.
+   The token exists to be overridden: `var(--ntdst-admin-aside, 300px)`. */
+.jw-admin-chrome .ntdst-admin__split {
+    --ntdst-admin-aside: minmax(0, 1fr);
+}
+
+/* The page title, on the card rather than floating above it — the
+   dashboard's `.ntdst-admin__title` treatment. */
+.jw-admin-chrome.ntdst-admin .wrap > h1.wp-heading-inline {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ntdst-admin-text);
+}
+
+.jw-admin-chrome.ntdst-admin .wrap .page-title-action {
+    border-radius: var(--ntdst-admin-radius);
+    border: 1px solid var(--ntdst-admin-border);
+    background: var(--ntdst-admin-surface);
+    color: var(--ntdst-admin-text-2);
+    box-shadow: none;
+}
+
+.jw-admin-chrome.ntdst-admin .wrap .page-title-action:hover {
+    color: var(--ntdst-admin-primary);
+    border-color: var(--ntdst-admin-primary);
+}
+
+/* The status filter row reads as meta, like a tile label. */
+.jw-admin-chrome.ntdst-admin .subsubsub {
+    color: var(--ntdst-admin-text-3);
+    font-size: var(--ntdst-admin-fs-sm);
+}
+
+/* One card around the table, matching the dashboard tile: surface, 1px
+   border, token radius, no shadow. */
+.jw-admin-chrome.ntdst-admin .wp-list-table {
+    background: var(--ntdst-admin-surface);
+    border: 1px solid var(--ntdst-admin-border);
+    border-radius: var(--ntdst-admin-radius);
+    box-shadow: none;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+}
+
+.jw-admin-chrome.ntdst-admin .wp-list-table thead th,
+.jw-admin-chrome.ntdst-admin .wp-list-table tfoot th {
+    background: transparent;
+    color: var(--ntdst-admin-text-3);
+    font-size: var(--ntdst-admin-fs-sm);
+    font-weight: 600;
+    border-bottom: 1px solid var(--ntdst-admin-border);
+}
+
+.jw-admin-chrome.ntdst-admin .wp-list-table tbody td,
+.jw-admin-chrome.ntdst-admin .wp-list-table tbody th {
+    border-top: 1px solid var(--ntdst-admin-border);
+}
+
+.jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:first-child td,
+.jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:first-child th {
+    border-top: 0;
+}
+
+.jw-admin-chrome.ntdst-admin .wp-list-table .row-title {
+    color: var(--ntdst-admin-text);
+    font-weight: 600;
+}
+
+.jw-admin-chrome.ntdst-admin .wp-list-table .row-title:hover {
+    color: var(--ntdst-admin-primary);
+}
+
+/* The edit screen's metaboxes, same card. */
+.jw-admin-chrome.ntdst-admin #poststuff .postbox {
+    background: var(--ntdst-admin-surface);
+    border: 1px solid var(--ntdst-admin-border);
+    border-radius: var(--ntdst-admin-radius);
+    box-shadow: none;
+}
+
+.jw-admin-chrome.ntdst-admin #poststuff .postbox-header {
+    border-bottom: 1px solid var(--ntdst-admin-border);
+}
+
+.jw-admin-chrome.ntdst-admin #poststuff .postbox-header h2 {
+    font-size: var(--ntdst-admin-fs);
+    font-weight: 600;
+    color: var(--ntdst-admin-text);
+}

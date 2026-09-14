@@ -45,7 +45,7 @@ final class BookingRepositoryTest extends TestCase
     {
         $calls = &$this->getResultsCalls;
 
-        $wpdb = new class($rows, $calls, $tableExists) {
+        $wpdb = new class ($rows, $calls, $tableExists) {
             public string $prefix = 'ntdst_';
             public ?string $preparedSql = null;
             /** @var list<mixed> */
