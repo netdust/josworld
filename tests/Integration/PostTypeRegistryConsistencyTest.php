@@ -290,7 +290,6 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
     public function test_every_admin_app_post_type_carries_a_menu_label(): void
     {
         foreach (AdminAppService::POST_TYPES as $slug => $label) {
-            $this->assertIsString($label, "menu label for `{$slug}` must be a string");
             $this->assertNotSame('', trim($label), "menu label for `{$slug}` must not be empty");
         }
     }

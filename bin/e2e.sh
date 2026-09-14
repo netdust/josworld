@@ -37,6 +37,14 @@ if command -v ddev >/dev/null 2>&1; then
     --role=administrator --user_pass="$E2E_PASS" >/dev/null 2>&1 \
     || ddev exec wp user update e2e-admin --user_pass="$E2E_PASS" >/dev/null
 
+  # Test author: the same credential, a role that CANNOT create josworld's
+  # content types. The admin-app dashboard hides its "Nieuw" links on a
+  # capability check, and a suite with only an administrator can never see
+  # that branch taken.
+  ddev exec wp user create e2e-author e2e-author@example.test \
+    --role=author --user_pass="$E2E_PASS" >/dev/null 2>&1 \
+    || ddev exec wp user update e2e-author --user_pass="$E2E_PASS" >/dev/null
+
   # Fixture post (slug pinned so the seeded permalink is deterministic)
   if [ -z "$(ddev exec wp post list --name=e2e-fixture-post --post_type=post --post_status=publish --field=ID)" ]; then
     ddev exec wp post create --post_title='E2E Fixture Post' --post_name=e2e-fixture-post \
