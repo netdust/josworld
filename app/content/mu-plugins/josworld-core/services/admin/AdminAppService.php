@@ -102,7 +102,87 @@ final class AdminAppService
         );
     }
 
+    /**
+     * One tile per content type.
+     *
+     * Public so the unit tier can assert the data without WordPress and
+     * without parsing markup — the counts and the capability decision are
+     * the part worth testing; the `<div>`s around them are not.
+     *
+     * @return list<array{label: string, count: int, drafts: int, new_url: string|null}>
+     */
+    public function tiles(): array
+    {
+        $tiles = [];
+
+        foreach (self::POST_TYPES as $postType => $label) {
+            // wp_count_posts() returns an object whose properties are the
+            // registered statuses, so a status a type never uses is simply
+            // absent rather than zero.
+            $counts = wp_count_posts($postType);
+
+            $tiles[] = [
+                'label' => __($label, JOSWORLD_CORE_TEXTDOMAIN),
+                'count' => (int) ($counts->publish ?? 0),
+                'drafts' => (int) ($counts->draft ?? 0),
+                'new_url' => $this->canCreate($postType)
+                    ? admin_url('post-new.php?post_type=' . $postType)
+                    : null,
+            ];
+        }
+
+        return $tiles;
+    }
+
+    /**
+     * Hiding the link is a courtesy, not a control — WordPress enforces the
+     * capability on post-new.php regardless. It is read off the post type's
+     * OWN `create_posts` cap rather than assumed to be `edit_posts`, because
+     * a type mapping its capabilities gets a different one.
+     */
+    private function canCreate(string $postType): bool
+    {
+        $object = get_post_type_object($postType);
+        $capability = $object->cap->create_posts ?? 'edit_posts';
+
+        return current_user_can($capability);
+    }
+
+    /**
+     * The dashboard BODY only. ntdst-baseline's Shell has already opened
+     * `.ntdst-admin__page`, the header and `.ntdst-admin__body` around this,
+     * and closes them after — see AdminUIService::registerApp().
+     *
+     * Every class here is the shell's own (`assets/css/admin-ui.css`); this
+     * app ships no stylesheet, which is the entire point of the module.
+     */
     public function renderDashboard(): void
     {
+        echo '<div class="ntdst-admin__tiles">';
+
+        foreach ($this->tiles() as $tile) {
+            echo '<div class="ntdst-admin__tile">';
+            echo '<div class="ntdst-admin__tile-value">' . esc_html((string) $tile['count']) . '</div>';
+            echo '<div class="ntdst-admin__tile-label">' . esc_html($tile['label']);
+
+            if ($tile['drafts'] > 0) {
+                echo '<span class="ntdst-admin__hint">' . esc_html(sprintf(
+                    /* translators: %d is a number of draft items. */
+                    _n('%d concept', '%d concepten', $tile['drafts'], JOSWORLD_CORE_TEXTDOMAIN),
+                    $tile['drafts'],
+                )) . '</span>';
+            }
+
+            echo '</div>';
+
+            if ($tile['new_url'] !== null) {
+                echo '<a class="ntdst-admin__tile-link" href="' . esc_url($tile['new_url']) . '">'
+                    . esc_html__('Nieuw', JOSWORLD_CORE_TEXTDOMAIN) . '</a>';
+            }
+
+            echo '</div>';
+        }
+
+        echo '</div>';
     }
 }
