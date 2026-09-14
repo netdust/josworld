@@ -10,3 +10,4 @@
 - [ ] Raise the attachment/`inherit` resolver gap in ntdst-baseline (FieldTypeBridge::$relatedPosts) — see STATE 2026-09-03
 - [x] Design fixes 2026-09-10 on staging @ 519b3b9 — DB content, config and recompile re-applied the same sitting
 - [ ] Replace the placeholder "© Voornaam Naam" credit on case 146 (Onze energie) with the real photographer, or remove it
+- [ ] Three design e2e tests fail against the running site — `case pills are 26px tall`, `team tiles space the text under the photo like the tool tiles`, `stacked tiles keep a 64px row gap` (all `locator.evaluate` → null, so the selectors match nothing). NOT a polylang regression: reproduced on 7cbdbf5 without that change. They went unseen because `bin/e2e.sh`'s tsc preflight had been failing since `0ab3065` (2026-09-11) — the tier never reached the tests. `ade86d3` fixed the preflight, which is what surfaced them.
