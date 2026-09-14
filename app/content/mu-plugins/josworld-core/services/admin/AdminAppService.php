@@ -109,7 +109,7 @@ final class AdminAppService
      * without parsing markup — the counts and the capability decision are
      * the part worth testing; the `<div>`s around them are not.
      *
-     * @return list<array{label: string, count: int, drafts: int, new_url: string|null}>
+     * @return list<array{label: string, count: int, drafts: int, list_url: string, new_url: string|null}>
      */
     public function tiles(): array
     {
@@ -125,6 +125,7 @@ final class AdminAppService
                 'label' => __($label, JOSWORLD_CORE_TEXTDOMAIN),
                 'count' => (int) ($counts->publish ?? 0),
                 'drafts' => (int) ($counts->draft ?? 0),
+                'list_url' => self::listUrl($postType),
                 'new_url' => $this->canCreate($postType)
                     ? admin_url('post-new.php?post_type=' . $postType)
                     : null,
@@ -132,6 +133,17 @@ final class AdminAppService
         }
 
         return $tiles;
+    }
+
+    /**
+     * The list screen for a content type — the ONE place that URL is built.
+     *
+     * Both the tile and the activity panels' "all of them" footers link here,
+     * and a second spelling of the same URL is how the two drift apart.
+     */
+    public static function listUrl(string $postType): string
+    {
+        return admin_url('edit.php?post_type=' . $postType);
     }
 
     /**
@@ -162,6 +174,9 @@ final class AdminAppService
 
         foreach ($this->tiles() as $tile) {
             echo '<div class="ntdst-admin__tile">';
+            // The count and the label are one link to the list; "Nieuw" stays
+            // a separate action, so a tile offers both destinations.
+            echo '<a class="ntdst-admin__tile-main" href="' . esc_url($tile['list_url']) . '">';
             echo '<div class="ntdst-admin__tile-value">' . esc_html((string) $tile['count']) . '</div>';
             echo '<div class="ntdst-admin__tile-label">' . esc_html($tile['label']);
 
@@ -173,7 +188,7 @@ final class AdminAppService
                 )) . '</span>';
             }
 
-            echo '</div>';
+            echo '</div></a>';
 
             if ($tile['new_url'] !== null) {
                 echo '<a class="ntdst-admin__tile-link" href="' . esc_url($tile['new_url']) . '">'

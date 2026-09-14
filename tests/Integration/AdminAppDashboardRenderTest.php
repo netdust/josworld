@@ -83,6 +83,27 @@ final class AdminAppDashboardRenderTest extends WP_UnitTestCase
         }
     }
 
+    public function test_every_tile_links_to_its_list_screen(): void
+    {
+        $html = $this->renderThroughTheModule();
+
+        foreach (array_keys(AdminAppService::POST_TYPES) as $postType) {
+            $this->assertStringContainsString(
+                'edit.php?post_type=' . $postType . '"',
+                $html,
+                "the `{$postType}` tile must link to its list screen, not only to post-new",
+            );
+        }
+
+        // The count and the label live inside that link; "Nieuw" stays a
+        // separate action beside it, so a tile offers two destinations.
+        $this->assertSame(
+            4,
+            substr_count($html, 'ntdst-admin__tile-main'),
+            'each of the four tiles wraps its count and label in one list link',
+        );
+    }
+
     public function test_a_tile_reports_the_real_published_count_and_flags_drafts(): void
     {
         self::factory()->post->create_many(2, ['post_type' => 'case', 'post_status' => 'publish']);
