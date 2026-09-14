@@ -41,35 +41,67 @@ body.jw-admin-chrome.ntdst-admin {
     --ntdst-admin-aside: minmax(0, 1fr);
 }
 
-/* The page title, on the card rather than floating above it — the
-   dashboard's `.ntdst-admin__title` treatment. */
+/* ── The page, as the dashboard builds it ──────────────────────────────
+   This is the part that makes a screen read as "the Josworld dashboard",
+   and details alone do not buy it: baseline's `.ntdst-admin__page` is a
+   bounded measure of tinted GROUND, with white cards sitting on it. WP
+   paints core screens edge-to-edge on its own grey instead, so `.wrap`
+   takes that page treatment and the table becomes the card. */
+.jw-admin-chrome.ntdst-admin .wrap {
+    box-sizing: border-box;
+    max-width: var(--ntdst-admin-measure);
+    margin: var(--ntdst-admin-4) auto 0;
+    padding: var(--ntdst-admin-4);
+    background: var(--ntdst-admin-ground);
+    border-radius: var(--ntdst-admin-radius);
+}
+
+/* The heading sits ON the ground, like a section title, with the add
+   action beside it — the dashboard header's proportions. */
 .jw-admin-chrome.ntdst-admin .wrap > h1.wp-heading-inline {
     font-size: 16px;
     font-weight: 600;
     color: var(--ntdst-admin-text);
+    margin: 0 var(--ntdst-admin-3) 0 0;
+    padding: 0;
 }
 
-.jw-admin-chrome.ntdst-admin .wrap .page-title-action {
-    border-radius: var(--ntdst-admin-radius);
-    border: 1px solid var(--ntdst-admin-border);
-    background: var(--ntdst-admin-surface);
-    color: var(--ntdst-admin-text-2);
+/* `.page-title-action` is this screen's primary action: baseline's
+   `__btn--primary`, matched rule for rule. */
+.jw-admin-chrome.ntdst-admin .page-title-action,
+.jw-admin-chrome.ntdst-admin .page-title-action:hover,
+.jw-admin-chrome.ntdst-admin .page-title-action:focus {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--ntdst-admin-primary);
+    border-radius: var(--ntdst-admin-radius-sm);
+    background: var(--ntdst-admin-primary);
+    color: var(--ntdst-admin-surface);
+    font-size: var(--ntdst-admin-fs);
+    font-weight: 500;
+    text-decoration: none;
     box-shadow: none;
 }
 
-.jw-admin-chrome.ntdst-admin .wrap .page-title-action:hover {
-    color: var(--ntdst-admin-primary);
-    border-color: var(--ntdst-admin-primary);
+.jw-admin-chrome.ntdst-admin .page-title-action:hover {
+    background: var(--ntdst-admin-primary-hover);
+    border-color: var(--ntdst-admin-primary-hover);
 }
 
-/* The status filter row reads as meta, like a tile label. */
+/* The status filters and the bulk-action row are meta on the ground. */
 .jw-admin-chrome.ntdst-admin .subsubsub {
+    margin: var(--ntdst-admin-4) 0 var(--ntdst-admin-2);
     color: var(--ntdst-admin-text-3);
     font-size: var(--ntdst-admin-fs-sm);
 }
 
-/* One card around the table, matching the dashboard tile: surface, 1px
-   border, token radius, no shadow. */
+.jw-admin-chrome.ntdst-admin .tablenav {
+    margin: var(--ntdst-admin-2) 0;
+}
+
+/* The table is the white card on that ground — the tile treatment. */
 .jw-admin-chrome.ntdst-admin .wp-list-table {
     background: var(--ntdst-admin-surface);
     border: 1px solid var(--ntdst-admin-border);
@@ -108,19 +140,27 @@ body.jw-admin-chrome.ntdst-admin {
     color: var(--ntdst-admin-primary);
 }
 
-/* The edit screen's metaboxes, same card. */
-.jw-admin-chrome.ntdst-admin #poststuff .postbox {
+/* ── The edit screen ───────────────────────────────────────────────────
+   These CPTs open in the BLOCK editor, so there is no `.wrap` and no
+   `#poststuff` to restyle — Gutenberg owns the shell, and fighting it
+   would be the overhaul this is explicitly not. What IS ours is the field
+   UI ntdst-core renders: the sidebar panels and the metabox drawer. Those
+   get the card treatment, and nothing else is touched. */
+.jw-admin-chrome .edit-post-meta-boxes-area .postbox,
+.jw-admin-chrome .metabox-location-normal .postbox {
     background: var(--ntdst-admin-surface);
     border: 1px solid var(--ntdst-admin-border);
     border-radius: var(--ntdst-admin-radius);
     box-shadow: none;
 }
 
-.jw-admin-chrome.ntdst-admin #poststuff .postbox-header {
+.jw-admin-chrome .edit-post-meta-boxes-area .postbox-header,
+.jw-admin-chrome .metabox-location-normal .postbox-header {
     border-bottom: 1px solid var(--ntdst-admin-border);
 }
 
-.jw-admin-chrome.ntdst-admin #poststuff .postbox-header h2 {
+.jw-admin-chrome .edit-post-meta-boxes-area .postbox-header h2,
+.jw-admin-chrome .metabox-location-normal .postbox-header h2 {
     font-size: var(--ntdst-admin-fs);
     font-weight: 600;
     color: var(--ntdst-admin-text);

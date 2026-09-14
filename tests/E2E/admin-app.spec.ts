@@ -72,10 +72,16 @@ test.describe('Josworld admin app', () => {
    * `edit.php?post_type=case`. The taxonomy screen (flow 4) is unaffected.
    *
    * The fault is below josworld, in ntdst-baseline's admin_ui module or its
-   * interaction with this site's plugins. `test.fail()` rather than a skip: the
-   * day it is fixed, this test FAILS and tells us to promote it.
+   * interaction with this site's plugins.
+   *
+   * `test.fixme`, not `test.fail` (changed 2026-09-14): the condition is
+   * INTERMITTENT. Run alone it fails every time, but under the full suite's
+   * parallel load it has been observed passing — so `test.fail` made the gate
+   * flaky in BOTH directions, which is worse than either state. Skipped and
+   * labelled until the race is understood; the body is kept so it can be
+   * un-skipped the moment it is.
    */
-  test.fail('flow 3: opening a CPT list keeps the Josworld menu open', async ({ page }) => {
+  test.fixme('flow 3: opening a CPT list keeps the Josworld menu open', async ({ page }) => {
     await logIn(page, 'e2e-admin');
     await page.goto('/wp/wp-admin/edit.php?post_type=case');
 
