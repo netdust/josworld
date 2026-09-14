@@ -1,28 +1,73 @@
 /*
- * Josworld admin chrome — the CPT list and edit screens, wearing the same
- * surface as the Josworld dashboard.
+ * Josworld admin skin.
  *
- * NO COLOUR IS DECLARED HERE. Every value comes from ntdst-baseline's
- * --ntdst-admin-* tokens, which reach this file because AdminChromeService
- * puts baseline's own `ntdst-admin` class on <body>. A hex literal in this
- * file would be a second copy of that palette; AdminChromeTest fails on one.
+ * ONE token block, then a short list of rules. ntdst-baseline's admin UI is
+ * driven entirely by --ntdst-admin-* custom properties, so re-declaring those
+ * at a higher specificity re-skins every component it ships — the dashboard,
+ * its panels, its tiles — without copying a single one of its rules. The
+ * component CSS stays upstream where it belongs; only the values are ours.
  *
- * Scoped to .jw-admin-chrome throughout, so no screen this app does not own
- * is touched. A tweak: spacing, surface and rules only — no layout moves.
+ * The look is ported from daan (web/app/themes/daan/src/admin/admin-ui.css):
+ * a neutral ground rather than blue-slate, hairline translucent borders, a
+ * near-black accent instead of a blue one, and real layered shadows. Borders
+ * carry structure; depth comes from shadow.
+ *
+ * Every colour in this file lives in the block below. AdminChromeTest fails on
+ * a hex literal anywhere else, so the palette cannot scatter.
  */
 
+.jw-admin-chrome.ntdst-admin,
+.jw-admin-chrome .ntdst-admin {
+    /* Near-black accent. The blue is most of what made this read as a
+       bootstrap template rather than as a tool. */
+    --ntdst-admin-primary:        #111111;
+    --ntdst-admin-primary-hover:  #27272a;
+    --ntdst-admin-primary-light:  #f4f4f5;
+    --ntdst-admin-primary-subtle: #fafafa;
+
+    --ntdst-admin-text:   #111111;
+    --ntdst-admin-text-2: #6b7280;
+    --ntdst-admin-text-3: #9ca3af;
+
+    --ntdst-admin-surface: #ffffff;
+    --ntdst-admin-ground:  #fafafa;
+
+    /* Translucent: a border darkens whatever it sits on instead of painting
+       a grey line across it. */
+    --ntdst-admin-border:        rgba(0, 0, 0, 0.06);
+    --ntdst-admin-border-strong: rgba(0, 0, 0, 0.12);
+
+    --ntdst-admin-fs:    14px;
+    --ntdst-admin-fs-sm: 13px;
+
+    /* Concentric: a 10px card whose content is padded 16px wants ~8px on
+       anything nested inside it. */
+    --ntdst-admin-radius:    10px;
+    --ntdst-admin-radius-sm: 8px;
+
+    --jw-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.04);
+    --jw-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.05), 0 6px 16px rgba(0, 0, 0, 0.06);
+    --jw-ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
 /* `.ntdst-admin` carries the tokens AND a 20px right margin meant for a
-   .wrap, not for <body>. Take the tokens, undo the margin. */
+   `.wrap`, not for `<body>`. Take the tokens, undo the margin. */
 body.jw-admin-chrome.ntdst-admin {
     margin-right: 0;
 }
 
-/* A tile is one card with two destinations: the count and label are a link
-   to the list, and WordPress' default anchor styling would turn the big
-   number blue and underline it. Take the tile's own colours back. */
-.jw-admin-chrome .ntdst-admin__tile-main,
-.jw-admin-chrome .ntdst-admin__tile-main:hover,
-.jw-admin-chrome .ntdst-admin__tile-main:focus {
+/* Depth by shadow, structure by border: baseline's cards get lifted rather
+   than outlined, which is most of the difference between flat and made. */
+.jw-admin-chrome .ntdst-admin__tile,
+.jw-admin-chrome .ntdst-admin__panel,
+.jw-admin-chrome .ntdst-admin__header {
+    box-shadow: var(--jw-shadow);
+    border-color: var(--ntdst-admin-border);
+}
+
+/* A tile is a link: keep the card's own colours, and give the press the
+   tactile 0.96. This is the only motion on a screen people open all day. */
+.jw-admin-chrome .ntdst-admin__tile-main {
     display: block;
     color: inherit;
     text-decoration: none;
@@ -30,83 +75,100 @@ body.jw-admin-chrome.ntdst-admin {
     outline: 0;
 }
 
-.jw-admin-chrome .ntdst-admin__tile:hover .ntdst-admin__tile-value {
-    color: var(--ntdst-admin-primary);
+.jw-admin-chrome .ntdst-admin__tile {
+    transition-property: box-shadow, transform;
+    transition-duration: 150ms;
+    transition-timing-function: var(--jw-ease);
 }
 
-/* `__split` is baseline's ASIDE layout — a fixed 300px rail beside a fluid
-   column. The two activity panels are peers, so the rail becomes fluid too.
-   The token exists to be overridden: `var(--ntdst-admin-aside, 300px)`. */
+.jw-admin-chrome .ntdst-admin__tile:active {
+    transform: scale(0.96);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .jw-admin-chrome .ntdst-admin__tile:hover {
+        box-shadow: var(--jw-shadow-hover);
+    }
+}
+
+/* `__split` is baseline's ASIDE layout — a fixed rail beside a fluid column.
+   The two activity panels are peers, so the rail becomes fluid too. */
 .jw-admin-chrome .ntdst-admin__split {
     --ntdst-admin-aside: minmax(0, 1fr);
 }
 
-/* ── The page, as the dashboard builds it ──────────────────────────────
-   This is the part that makes a screen read as "the Josworld dashboard",
-   and details alone do not buy it: baseline's `.ntdst-admin__page` is a
-   bounded measure of tinted GROUND, with white cards sitting on it. WP
-   paints core screens edge-to-edge on its own grey instead, so `.wrap`
-   takes that page treatment and the table becomes the card. */
+/* ── WordPress' own screens, wearing the same skin ─────────────────────
+   The page becomes a bounded measure of ground and the table becomes the
+   card on it. Nothing MOVES — surface, spacing and type only — so the
+   screen still reads as WordPress. */
 .jw-admin-chrome.ntdst-admin .wrap {
     box-sizing: border-box;
     max-width: var(--ntdst-admin-measure);
-    margin: var(--ntdst-admin-4) auto 0;
-    padding: var(--ntdst-admin-4);
+    margin: var(--ntdst-admin-5) auto 0;
+    padding: var(--ntdst-admin-6);
     background: var(--ntdst-admin-ground);
     border-radius: var(--ntdst-admin-radius);
 }
 
-/* The heading sits ON the ground, like a section title, with the add
-   action beside it — the dashboard header's proportions. */
 .jw-admin-chrome.ntdst-admin .wrap > h1.wp-heading-inline {
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 600;
+    letter-spacing: -0.02em;
     color: var(--ntdst-admin-text);
     margin: 0 var(--ntdst-admin-3) 0 0;
     padding: 0;
 }
 
-/* `.page-title-action` is this screen's primary action: baseline's
-   `__btn--primary`, matched rule for rule. */
-.jw-admin-chrome.ntdst-admin .page-title-action,
-.jw-admin-chrome.ntdst-admin .page-title-action:hover,
-.jw-admin-chrome.ntdst-admin .page-title-action:focus {
+.jw-admin-chrome.ntdst-admin .page-title-action {
     display: inline-flex;
     align-items: center;
     height: 32px;
-    padding: 0 12px;
+    padding: 0 14px;
     border: 1px solid var(--ntdst-admin-primary);
     border-radius: var(--ntdst-admin-radius-sm);
     background: var(--ntdst-admin-primary);
     color: var(--ntdst-admin-surface);
-    font-size: var(--ntdst-admin-fs);
+    font-size: var(--ntdst-admin-fs-sm);
     font-weight: 500;
     text-decoration: none;
     box-shadow: none;
+    transition-property: background-color, transform;
+    transition-duration: 150ms;
+    transition-timing-function: var(--jw-ease);
 }
 
-.jw-admin-chrome.ntdst-admin .page-title-action:hover {
-    background: var(--ntdst-admin-primary-hover);
-    border-color: var(--ntdst-admin-primary-hover);
+.jw-admin-chrome.ntdst-admin .page-title-action:active {
+    transform: scale(0.96);
 }
 
-/* The status filters and the bulk-action row are meta on the ground. */
+@media (hover: hover) and (pointer: fine) {
+    .jw-admin-chrome.ntdst-admin .page-title-action:hover {
+        background: var(--ntdst-admin-primary-hover);
+        border-color: var(--ntdst-admin-primary-hover);
+        color: var(--ntdst-admin-surface);
+    }
+}
+
 .jw-admin-chrome.ntdst-admin .subsubsub {
-    margin: var(--ntdst-admin-4) 0 var(--ntdst-admin-2);
+    margin: var(--ntdst-admin-5) 0 var(--ntdst-admin-2);
     color: var(--ntdst-admin-text-3);
     font-size: var(--ntdst-admin-fs-sm);
 }
 
-.jw-admin-chrome.ntdst-admin .tablenav {
-    margin: var(--ntdst-admin-2) 0;
+.jw-admin-chrome.ntdst-admin .subsubsub .current {
+    color: var(--ntdst-admin-text);
+    font-weight: 600;
 }
 
-/* The table is the white card on that ground — the tile treatment. */
+.jw-admin-chrome.ntdst-admin .tablenav {
+    margin: var(--ntdst-admin-2) 0 var(--ntdst-admin-3);
+}
+
 .jw-admin-chrome.ntdst-admin .wp-list-table {
     background: var(--ntdst-admin-surface);
     border: 1px solid var(--ntdst-admin-border);
     border-radius: var(--ntdst-admin-radius);
-    box-shadow: none;
+    box-shadow: var(--jw-shadow);
     border-collapse: separate;
     border-spacing: 0;
     overflow: hidden;
@@ -117,13 +179,15 @@ body.jw-admin-chrome.ntdst-admin {
     background: transparent;
     color: var(--ntdst-admin-text-3);
     font-size: var(--ntdst-admin-fs-sm);
-    font-weight: 600;
+    font-weight: 500;
     border-bottom: 1px solid var(--ntdst-admin-border);
 }
 
 .jw-admin-chrome.ntdst-admin .wp-list-table tbody td,
 .jw-admin-chrome.ntdst-admin .wp-list-table tbody th {
     border-top: 1px solid var(--ntdst-admin-border);
+    padding-top: var(--ntdst-admin-3);
+    padding-bottom: var(--ntdst-admin-3);
 }
 
 .jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:first-child td,
@@ -136,21 +200,24 @@ body.jw-admin-chrome.ntdst-admin {
     font-weight: 600;
 }
 
-.jw-admin-chrome.ntdst-admin .wp-list-table .row-title:hover {
-    color: var(--ntdst-admin-primary);
+@media (hover: hover) and (pointer: fine) {
+    .jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:hover > td,
+    .jw-admin-chrome.ntdst-admin .wp-list-table tbody tr:hover > th {
+        background: var(--ntdst-admin-ground);
+    }
 }
 
 /* ── The edit screen ───────────────────────────────────────────────────
-   These CPTs open in the BLOCK editor, so there is no `.wrap` and no
-   `#poststuff` to restyle — Gutenberg owns the shell, and fighting it
-   would be the overhaul this is explicitly not. What IS ours is the field
-   UI ntdst-core renders: the sidebar panels and the metabox drawer. Those
-   get the card treatment, and nothing else is touched. */
+   These CPTs open in the BLOCK editor: no `.wrap`, no `#poststuff`.
+   Gutenberg owns that shell, and fighting it would be the overhaul this is
+   explicitly not. What IS ours is the field UI ntdst-core renders — the
+   metabox drawer and the sidebar panels — so those take the same card and
+   nothing else is touched. */
 .jw-admin-chrome .edit-post-meta-boxes-area .postbox,
 .jw-admin-chrome .metabox-location-normal .postbox {
     background: var(--ntdst-admin-surface);
     border: 1px solid var(--ntdst-admin-border);
-    border-radius: var(--ntdst-admin-radius);
+    border-radius: var(--ntdst-admin-radius-sm);
     box-shadow: none;
 }
 
@@ -161,7 +228,21 @@ body.jw-admin-chrome.ntdst-admin {
 
 .jw-admin-chrome .edit-post-meta-boxes-area .postbox-header h2,
 .jw-admin-chrome .metabox-location-normal .postbox-header h2 {
-    font-size: var(--ntdst-admin-fs);
+    font-size: var(--ntdst-admin-fs-sm);
     font-weight: 600;
     color: var(--ntdst-admin-text);
+}
+
+/* Reduced motion means gentler, not none: the colour cues stay, the
+   movement goes. */
+@media (prefers-reduced-motion: reduce) {
+    .jw-admin-chrome .ntdst-admin__tile,
+    .jw-admin-chrome.ntdst-admin .page-title-action {
+        transition-duration: 0ms;
+    }
+
+    .jw-admin-chrome .ntdst-admin__tile:active,
+    .jw-admin-chrome.ntdst-admin .page-title-action:active {
+        transform: none;
+    }
 }

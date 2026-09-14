@@ -94,24 +94,54 @@ final class AdminChromeTest extends WP_UnitTestCase
         );
     }
 
-    public function test_the_stylesheet_carries_no_colour_of_its_own(): void
+    /**
+     * josworld owns a palette now (ruled 2026-09-14: "use daans
+     * color/look&feel"), so a colour literal is no longer banned — a
+     * SCATTERED one is. Every colour must be declared once as a custom
+     * property; a hex inside a normal rule means the palette is leaking out
+     * of the token block and will drift.
+     */
+    public function test_every_colour_lives_in_the_token_block(): void
     {
-        $css = (string) file_get_contents(__DIR__ . self::STYLESHEET);
+        $strays = [];
+
+        foreach (explode("\n", (string) file_get_contents(__DIR__ . self::STYLESHEET)) as $line) {
+            $line = trim($line);
+
+            // A custom-property declaration is where colour belongs.
+            if (str_starts_with($line, '--')) {
+                continue;
+            }
+
+            if (preg_match('/#[0-9a-fA-F]{3,8}\b/', $line, $m)) {
+                $strays[] = trim($line);
+            }
+        }
 
         $this->assertSame(
             [],
-            $this->hexLiterals($css),
-            'a hex colour here means baseline palette has been copied into josworld — '
-            . 'the body class exists so the tokens cascade instead',
+            $strays,
+            'a colour outside the token block will drift from the rest of the palette — '
+            . 'declare it as a --ntdst-admin-* or --jw-* custom property and reference it',
         );
-        $this->assertStringContainsString('--ntdst-admin-', $css, 'the tokens must actually be used');
     }
 
-    /** @return list<string> */
-    private function hexLiterals(string $css): array
+    /**
+     * The skin works by re-declaring ntdst-baseline's OWN tokens, which is
+     * what lets it re-style every component baseline ships without copying a
+     * single one of its rules. Lose that and this file becomes a second
+     * stylesheet chasing an upstream one.
+     */
+    public function test_the_skin_redeclares_baseline_tokens_rather_than_restyling_components(): void
     {
-        preg_match_all('/#[0-9a-fA-F]{3,8}\b/', $css, $matches);
+        $css = (string) file_get_contents(__DIR__ . self::STYLESHEET);
 
-        return $matches[0];
+        foreach (['--ntdst-admin-ground', '--ntdst-admin-border', '--ntdst-admin-primary'] as $token) {
+            $this->assertStringContainsString(
+                $token . ':',
+                $css,
+                "{$token} must be re-declared here — that is how the skin reaches baseline's components",
+            );
+        }
     }
 }
