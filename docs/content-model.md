@@ -214,34 +214,44 @@ below is DB state (an option row + taxonomy terms — `include/model.php:907`
 in the Polylang source), not something `git clone` or `composer install`
 restores.
 
-`josworld-core`'s own `MultilingualService` (T09,
-`app/content/mu-plugins/josworld-core/services/multilingual/MultilingualService.php`)
-declares the four content post types + `dienst` translatable via Polylang's
-`pll_get_post_types`/`pll_get_taxonomies` filters, and creates the three
-project languages (`nl` default, `en`, `fr`) via `pll_add_language` — but
-only IF Polylang is active (every call is `function_exists()`-guarded, since
-absence is the DEFAULT state of a fresh environment, not an edge case). Even
-with that service doing its job, seven further pieces of state are required
-before the site actually renders correctly with Polylang active. All seven
-were discovered the hard way this session (`.superpowers/sdd/tasks/
-progress.md`, T09 log) — this is the single most valuable page in this doc.
+**Since 2026-09-14 the multilingual layer is ntdst-baseline's `polylang`
+module**, opted into by `josworld-core.php`'s `ntdst/baseline/modules` filter.
+josworld's own `MultilingualService` is gone with it. The difference that
+matters for this page: the old service declared the translatable types at
+RUNTIME through `pll_get_post_types`/`pll_get_taxonomies`, so a fresh clone
+got them for free; the module converges them into DB STATE instead
+(`Setup::ensureTypes` writes the `polylang` option), which no deploy carries.
+So the list below grew a step rather than shrank — what used to be implicit
+in code is now an explicit command per environment.
 
-**The seven steps, in order:**
+None of this is optional state: eight pieces are required before the site
+renders correctly with Polylang active, and all of them were discovered the
+hard way — this is the single most valuable page in this doc.
+
+**The eight steps, in order:**
 
 1. **Install + activate Polylang.**
    ```
    ddev wp plugin install polylang --activate
    ```
-   Currently pinned in practice at 3.6.5 (3.8.6 available, not yet
-   upgraded/tested here). Ships no `wp pll` CLI namespace (`wp help pll`
-   reports unregistered), so language configuration cannot be scripted via a
-   dedicated CLI subcommand — either `MultilingualService`'s
-   `pll_add_language` calls (once Polylang is active and this plugin's
-   boot runs) or the admin setup wizard / `PLL_Admin_Model::add_language()`
-   directly.
+   Running 3.8.9. Polylang itself ships no `wp pll` CLI namespace (`wp help
+   pll` reports unregistered) — the baseline module's `wp ntdst polylang`
+   commands are what makes the next step scriptable.
 
-2. **Create the three languages**: `nl` (default), `en`, `fr`. Verify with
-   `wp term list language --fields=slug,name`.
+2. **Converge the languages, the default and the translatable types** — one
+   idempotent command, and the step that used to be implicit in code:
+   ```
+   ddev wp ntdst polylang languages --add=nl:nl_BE,en:en_US,fr:fr_BE \
+     --default=nl --post-types=case,team,vacature,tool --taxonomies=dienst
+   ```
+   Add `--dry-run` first to see what it would change. Verify with
+   `wp term list language --fields=slug,name` and by reading `post_types` /
+   `taxonomies` out of `get_option('polylang')` — an empty `post_types` there
+   means every content type silently lost its language switcher.
+
+   The command needs the module ON; `wp ntdst polylang` reporting "not a
+   registered wp command" means the `ntdst/baseline/modules` filter is not
+   enabling `polylang`, not that the command is missing.
 
 3. **Assign a `language` term to EVERY existing post/page.** Polylang's
    default `force_lang: 1` + `hide_default: 1` posture means `/` redirects
@@ -250,9 +260,12 @@ progress.md`, T09 log) — this is the single most valuable page in this doc.
    any site with content that predates Polylang activation.
 
 4. **Assign a `language` term to `tool` CPT posts too** — easy to miss,
-   since `tool` only became translatable once `MultilingualService` (T09)
-   declared it via the `pll_get_post_types` filter. Any content post type
-   added later needs the same backfill.
+   since `tool` only becomes translatable once step 2 names it. **Any content
+   post type added later needs BOTH**: its slug appended to step 2's
+   `--post-types`, on every environment, and this backfill. Nothing in the
+   test suite catches a forgotten one — the old `MultilingualService`
+   constant was pinned to `AdminUIService::POST_TYPES` by
+   `PostTypeRegistryConsistencyTest`, and that guard went with the service.
 
 5. **`nav_menu_item` posts need `pll_set_post_language()`, NOT
    `wp post term add`.** The obvious CLI approach —

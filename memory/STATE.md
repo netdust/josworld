@@ -585,12 +585,16 @@ not mechanically enforced); vacature's `employment_type` closed list needs its
 **Polylang is untracked and WP-CLI-installed, not a code dependency**
 (`.gitignore:128` excludes `app/content/plugins/*`; `composer.json` has no
 wpackagist wiring). **A fresh clone will NOT reproduce a working
-multilingual site from code alone** — seven pieces of DB state are needed
-beyond what `MultilingualService` declares in code. Full runbook + the
-load-bearing `wp eval` snippet: `docs/content-model.md` § "The multilingual
-DB-state runbook". Short version, in order: install+activate → create
-nl/en/fr → language term on every existing post/page (or `/` 404s) → same
-for `tool` posts → `pll_set_post_language()` on nav_menu_items (`wp post
+multilingual site from code alone** — EIGHT pieces of DB state are needed,
+and since 2026-09-14 that includes the translatable types themselves:
+`MultilingualService` is gone, ntdst-baseline's `polylang` module owns this
+layer, and the module converges types into the `polylang` option instead of
+declaring them through a runtime filter. Full runbook + the load-bearing
+`wp eval` snippet: `docs/content-model.md` § "The multilingual DB-state
+runbook". Short version, in order: install+activate → `wp ntdst polylang
+languages --add=nl:nl_BE,en:en_US,fr:fr_BE --default=nl
+--post-types=case,team,vacature,tool --taxonomies=dienst` → language term on
+every existing post/page (or `/` 404s) → same for `tool` posts → `pll_set_post_language()` on nav_menu_items (`wp post
 term add` fails there) → `pll_set_term_language()` on the nav_menu TERMS →
 **the `polylang` option's `nav_menus` mapping**, which is what actually
 determines whether YOOtheme renders a header at all (missing it silently
