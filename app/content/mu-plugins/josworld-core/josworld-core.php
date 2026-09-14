@@ -23,9 +23,12 @@ defined('JOSWORLD_CORE_META_PREFIX') || define('JOSWORLD_CORE_META_PREFIX', '_jw
 defined('JOSWORLD_CORE_TEXTDOMAIN') || define('JOSWORLD_CORE_TEXTDOMAIN', 'josworld-core');
 
 // The ntdst-baseline yootheme module publishes every model to the builder's
-// Dynamic Content picker. Assignment, not union: the key already exists (off).
+// Dynamic Content picker; polylang owns the multilingual layer (shared slugs,
+// layout copy on a "+" translation, the `wp ntdst polylang` commands).
+// Assignment, not union: both keys already exist (off).
 add_filter('ntdst/baseline/modules', static function (array $modules): array {
     $modules['yootheme'] = true;
+    $modules['polylang'] = true;
 
     return $modules;
 });
@@ -50,8 +53,7 @@ add_action('plugins_loaded', function (): void {
      * unit test guards this.
      *
      * Boot order: content services first, then admin-only (inside the
-     * is_admin() branch only — never booted on a front-end request), then
-     * multilingual.
+     * is_admin() branch only — never booted on a front-end request).
      */
     $dir = __DIR__ . '/services';
 
@@ -72,9 +74,6 @@ add_action('plugins_loaded', function (): void {
 
     // Form service:
     require_once $dir . '/forms/CrmContactLanguageService.php';
-
-    // Multilingual service:
-    require_once $dir . '/multilingual/MultilingualService.php';
 
     // Forms: the tool download confirmation.
     require_once $dir . '/forms/DownloadFormService.php';
@@ -102,10 +101,6 @@ add_action('plugins_loaded', function (): void {
         // Form service — resolved unconditionally: the FluentCRM/Polylang
         // absence guards live INSIDE the service, as below.
         ntdst_get(\josworld\services\forms\CrmContactLanguageService::class);
-
-        // Multilingual service — resolved unconditionally: the Polylang
-        // absence guards live INSIDE the service, never at this call site.
-        ntdst_get(\josworld\services\multilingual\MultilingualService::class);
 
         // The download form's confirmation runs on a front-end submission.
         ntdst_get(\josworld\services\forms\DownloadFormService::class);

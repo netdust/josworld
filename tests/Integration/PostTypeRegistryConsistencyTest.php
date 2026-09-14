@@ -7,7 +7,6 @@ namespace NtdstTests\Integration;
 use josworld\services\admin\AdminAppService;
 use josworld\services\admin\AdminUIService;
 use josworld\services\content\CaseService;
-use josworld\services\multilingual\MultilingualService;
 use josworld\services\content\TeamService;
 use josworld\services\content\ToolService;
 use josworld\services\content\VacatureService;
@@ -18,8 +17,12 @@ use WP_UnitTestCase;
  * forces it to match what the content services actually register, and a
  * typo'd slug silently stops the metabox field JS enqueueing on that
  * screen with no test failure anywhere. This file pins the list to the
- * real registry in BOTH directions, and pins the third copy
- * (MultilingualService::TRANSLATABLE_POST_TYPES) to it transitively.
+ * real registry in BOTH directions.
+ *
+ * It no longer pins a translatable-post-type list: which types Polylang
+ * translates is DB state now (the `polylang` option, converged by
+ * `wp ntdst polylang languages`), not a constant this suite can read — see
+ * docs/content-model.md § "The multilingual DB-state runbook".
  */
 final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
 {
@@ -232,32 +235,6 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
     }
 
     /**
-     * MultilingualService::TRANSLATABLE_POST_TYPES is a third copy of the
-     * same slugs, and its failure mode is safe-direction: isRegistered()
-     * filtering silently EXCLUDES a drifted entry — no fatal, the post type
-     * just quietly stops being translatable. Equality with POST_TYPES
-     * (already pinned to the registry both ways) pins it transitively.
-     */
-    public function test_the_translatable_post_type_list_matches_the_admin_ui_list(): void
-    {
-        $translatable = MultilingualService::TRANSLATABLE_POST_TYPES;
-        $adminUi = AdminUIService::POST_TYPES;
-
-        sort($translatable);
-        sort($adminUi);
-
-        $this->assertSame(
-            $adminUi,
-            $translatable,
-            'MultilingualService::TRANSLATABLE_POST_TYPES has drifted from '
-            . 'AdminUIService::POST_TYPES. Because MultilingualService filters through '
-            . 'isRegistered(), a drifted entry does NOT fatal — it silently stops that '
-            . 'post type being declared translatable to Polylang, with no other test '
-            . 'failing. Keep the two lists identical, or collapse them into one.',
-        );
-    }
-
-    /**
      * AdminAppService::POST_TYPES is a FOURTH copy of the same slugs — a
      * map this time, because the admin menu needs a label per entry. Its
      * failure mode is the quietest yet: a drifted key produces a submenu
@@ -265,8 +242,9 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
      * "Invalid post type" screen, while the real content type keeps a
      * top-level menu ntdst-baseline never removed. Nothing else fails.
      *
-     * Pinned to POST_TYPES by equality, exactly as the translatable list
-     * above is — one pinned list, three transitively pinned copies.
+     * Pinned to POST_TYPES by equality — one pinned list, one transitively
+     * pinned copy. The translatable-post-type list used to be a third; it is
+     * Polylang DB state now, and nothing here can reach it.
      */
     public function test_the_admin_app_menu_list_matches_the_admin_ui_list(): void
     {
