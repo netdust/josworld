@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NtdstTests\Integration;
 
+use josworld\services\admin\AdminAppService;
 use josworld\services\admin\AdminUIService;
 use josworld\services\content\CaseService;
 use josworld\services\multilingual\MultilingualService;
@@ -26,6 +27,7 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
     {
         parent::setUp();
 
+        require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/admin/AdminAppService.php';
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/CaseService.php';
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/TeamService.php';
         require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/VacatureService.php';
@@ -253,5 +255,42 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
             . 'post type being declared translatable to Polylang, with no other test '
             . 'failing. Keep the two lists identical, or collapse them into one.',
         );
+    }
+
+    /**
+     * AdminAppService::POST_TYPES is a FOURTH copy of the same slugs — a
+     * map this time, because the admin menu needs a label per entry. Its
+     * failure mode is the quietest yet: a drifted key produces a submenu
+     * entry pointing at `edit.php?post_type=<typo>`, which renders an
+     * "Invalid post type" screen, while the real content type keeps a
+     * top-level menu ntdst-baseline never removed. Nothing else fails.
+     *
+     * Pinned to POST_TYPES by equality, exactly as the translatable list
+     * above is — one pinned list, three transitively pinned copies.
+     */
+    public function test_the_admin_app_menu_list_matches_the_admin_ui_list(): void
+    {
+        $appTypes = array_keys(AdminAppService::POST_TYPES);
+        $adminUi = AdminUIService::POST_TYPES;
+
+        sort($appTypes);
+        sort($adminUi);
+
+        $this->assertSame(
+            $adminUi,
+            $appTypes,
+            'AdminAppService::POST_TYPES has drifted from AdminUIService::POST_TYPES. '
+            . 'A drifted key does NOT fatal — it adds a Josworld submenu entry that '
+            . 'renders "Invalid post type", and leaves the real content type holding the '
+            . 'top-level menu ntdst-baseline was supposed to remove. Keep the slugs identical.',
+        );
+    }
+
+    /** Every label the menu shows must be a non-empty string. */
+    public function test_every_admin_app_post_type_carries_a_menu_label(): void
+    {
+        foreach (AdminAppService::POST_TYPES as $slug => $label) {
+            $this->assertNotSame('', trim($label), "menu label for `{$slug}` must not be empty");
+        }
     }
 }

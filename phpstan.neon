@@ -47,6 +47,21 @@ parameters:
         # The data manager: ntdst_data() and the model API are read at new call
         # sites (DownloadFormService) — scanned, so no new discovery-gap entry.
         - app/content/mu-plugins/ntdst-core/api/Data.php
+        # WP_UnitTest_Factory: `self::factory()->user->create()` is how the
+        # integration tier seeds fixtures, and abstract-testcase.php above
+        # declares the METHOD but not the factory CLASS it returns. Named
+        # individually for the same reason as the three testcase files: the
+        # whole includes/ dir must not be scanned.
+        - vendor/wp-phpunit/wp-phpunit/includes/factory/class-wp-unittest-factory.php
+        - vendor/wp-phpunit/wp-phpunit/includes/factory/class-wp-unittest-factory-for-post.php
+        - vendor/wp-phpunit/wp-phpunit/includes/factory/class-wp-unittest-factory-for-user.php
+        - vendor/wp-phpunit/wp-phpunit/includes/factory/class-wp-unittest-factory-for-thing.php
+        # ntdst-baseline is excluded from analysis below, so its admin_ui
+        # module reads as not-found where josworld's own tests instantiate it
+        # to prove the menu really goes through the MODULE. Scanned for the
+        # symbol only — the package is analysed in its own repo. Exactly the
+        # posture Pages.php / Container.php / Data.php take above.
+        - app/content/mu-plugins/ntdst-baseline/services/admin/AdminUIService.php
         # The outgoing-mail block is a standalone mu-plugin TEMPLATE deployed to
         # servers, never autoloaded here; MailBlockGuardTest substitutes its
         # __PRODUCTION_HOST__ placeholder and eval()s it, so
