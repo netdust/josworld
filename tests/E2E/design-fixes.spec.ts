@@ -128,11 +128,35 @@ test.describe('design fixes (desktop)', () => {
     expect(slider).not.toContain('finite: true');
   });
 
-  test('language dropdown has rounded corners and the toolbar text size', async ({ page }) => {
+  /**
+   * Measured OPEN, because that is the only state anyone sees: the dropnav
+   * has `container: body`, so UIkit moves the dropdown out of the toolbar the
+   * moment it opens. The previous version of this test measured it closed.
+   * The items must match the NL trigger, and the panel needs a surface —
+   * the radius existed before but was invisible against the page.
+   */
+  test('language dropdown: a visible rounded panel, items the size of NL', async ({ page }) => {
     await page.goto('/');
-    const drop = page.locator('.tm-toolbar .uk-dropdown').first();
-    expect(await drop.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('8px');
-    expect(await drop.locator('.uk-dropdown-nav a').first().evaluate(fontSize)).toBe('12px');
+    const trigger = page.locator('.tm-toolbar a[href="#pll_switcher"]');
+    const triggerSize = await trigger.evaluate(fontSize);
+
+    // Opened through UIkit's own component rather than a hover: the hover
+    // depends on when UIkit finishes wiring the dropnav after load, which made
+    // this flaky, and what is under test is the open panel's styling. It is
+    // still the real open state — UIkit moves the panel into <body> either way.
+    await page.waitForFunction(() => (window as any).UIkit?.drop);
+    await page.evaluate(() => (window as any).UIkit.drop(document.querySelector('.tm-toolbar .uk-dropdown')).show());
+    const drop = page.locator('.uk-dropdown.uk-open').first();
+    await drop.waitFor();
+
+    const s = await drop.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { radius: cs.borderRadius, bg: cs.backgroundColor, shadow: cs.boxShadow };
+    });
+    expect(s.radius).toBe('8px');
+    expect(s.bg).toBe('rgb(255, 255, 255)');
+    expect(s.shadow).not.toBe('none');
+    expect(await drop.locator('.uk-dropdown-nav a').first().evaluate(fontSize)).toBe(triggerSize);
   });
 
   test('the logo pupil touches the eye contour when the cursor is off to the side', async ({ page }) => {

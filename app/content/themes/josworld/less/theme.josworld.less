@@ -645,14 +645,24 @@ h4, .uk-h4 {
 }
 
 // The toolbar menu is a `uk-dropnav`, so the language switcher opens a plain
-// `uk-dropdown` — the `@navbar-dropdown-*` values above never reach it. Same
-// radius as the form fields, same 12px as the "NL" trigger.
+// `uk-dropdown` — the `@navbar-dropdown-*` values above never reach it. It is
+// the only plain dropdown on the site, so these apply to nothing else.
 @dropdown-border-radius:            @jw-r-md;
 @dropdown-min-width:                120px;      // three two-letter items, not UIkit's 200
 @dropdown-nav-item-color:           @jw-text;   // muted grey read as disabled next to the trigger
 @dropdown-nav-item-hover-color:     @jw-accent;
+// The radius was always there but could not be SEEN: UIkit's default surface
+// is the muted background, which on this palette is nearly the page itself,
+// so the panel read as loose text floating over the header CTA. A white
+// surface and the standard lift give the rounded shape an edge.
+@dropdown-background:               @jw-white;
+@dropdown-box-shadow:               @jw-shadow-md;
 .hook-dropdown-nav() {
-    font-size: @jw-t-nav-2;
+    // The toolbar's own size, so the items match the "NL" they open from by
+    // construction. The previous value (the 12px 2nd-level nav role) was
+    // chosen on the belief that NL was 12px; YOOtheme sets the toolbar to
+    // `@theme-toolbar-font-size`, which is 14px.
+    font-size: @theme-toolbar-font-size;
 }
 
 // ---------- Offcanvas (the mobile dialog panel) ----------
