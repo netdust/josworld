@@ -33,3 +33,21 @@ compiled artifact and must be re-applied on staging in the SAME sitting.
       `themes/josworld/images/jos-404.c1fd4329.svg` is tracked and rides the deploy.
 - [ ] Recompile the style on staging (theme.1.css is in the PARENT theme,
       outside deploy.payload — rsync never carries it).
+
+## Site motion 2026-09-18 — staging re-apply ledger
+
+The deploy carries the reduced-motion LESS rule and `tests/E2E/site-motion.spec.ts`
+only. The motion itself is DB state on 41 layouts and must be re-applied on staging
+in the SAME sitting. Do NOT `page set` local JSON over staging for this — run the
+transform against STAGING's own layouts, so staging content is kept; it only
+touches section `animation` / `animation_delay` and grid/gallery `item_animation`.
+
+- [ ] Per layout: `get` → `.yoo-tools/motion.py <src> <dst>` → `set` (always `--user=1`).
+      Idempotent; skips the hero, card stacks and the logo wall by rule. Local run:
+      313 of 313 eligible sections across 30 pages + 10 templates (error-404 has none).
+- [ ] Nearly every layout needs `no-lint`: they carry pre-existing `unknown-prop` /
+      `select-value` lint errors. Only bypass when the error count equals the live copy's.
+- [ ] Templates: all 11 ids; `-98_Pkh4` (archive-post) starts with a dash — pass it after `--`.
+- [ ] Recompile the style on staging (the reduced-motion rule; theme.1.css is outside the payload).
+- [ ] Check after: a page scrolled (cascade), reduced motion on (nothing hidden), a card-stack
+      page and the logo wall unchanged.

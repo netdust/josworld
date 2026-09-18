@@ -42,6 +42,21 @@ test.describe('site motion (desktop)', () => {
   });
 });
 
+test.describe('site motion, the rest of the site', () => {
+  test('every eligible section across the site carries the one rhythm', async ({ page }) => {
+    for (const path of ['/waarom-jos/', '/ons-werk/onze-energie/', '/jobs-stages/']) {
+      await page.goto(path);
+      const without = await page.locator('main .uk-section').evaluateAll((sections) =>
+        sections
+          .slice(1)
+          .filter((s) => !s.querySelector('.jw-logo-wall') && !s.querySelector('[uk-sticky]'))
+          .filter((s) => !/slide-bottom-medium.*delay: 150/.test(s.closest('[uk-scrollspy]')?.getAttribute('uk-scrollspy') ?? ''))
+          .length);
+      expect(without, path).toBe(0);
+    }
+  });
+});
+
 const hiddenOrMoved = (els: Element[]) =>
   els.filter((el) => {
     const cs = getComputedStyle(el);
