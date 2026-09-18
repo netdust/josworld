@@ -60,6 +60,28 @@ test.describe('design fixes (desktop)', () => {
     expect(gap).toBeGreaterThanOrEqual(24);
   });
 
+  /**
+   * The whole vacancy row is a link, AND it keeps the one-line design. Both
+   * halves are asserted because they fight: YOOtheme's "Link the panel"
+   * wraps title, meta and link in an `<a>`, which is exactly what collapsed
+   * this row into a stack before `.jw-vacature-row` put its grid on
+   * whichever element holds the three parts.
+   */
+  test('Jobs: a vacancy row is one link and stays on one line', async ({ page }) => {
+    await page.goto('/jobs-stages/');
+    const row = page.locator('.jw-vacature-row .el-item').first();
+
+    const link = row.locator(':scope > a.uk-link-toggle');
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveAttribute('href', /\/jobs-stages\/[^/]+\//);
+    await expect(link.locator('.el-title')).toHaveCount(1);
+
+    const y = async (s: string) => (await row.locator(s).first().boundingBox())!.y;
+    const titleY = await y('.el-title');
+    expect(Math.abs(titleY - (await y('.el-meta')))).toBeLessThan(30);
+    expect((await row.boundingBox())!.height).toBeLessThan(120);
+  });
+
   test('blog quote keeps the T2 60/60 leading', async ({ page }) => {
     await page.goto('/stageverhalen-een-frisse-wind-bij-josworld/');
     expect(await page.locator('.jw-blog-body blockquote p').first().evaluate((el) => getComputedStyle(el).lineHeight)).toBe('60px');
