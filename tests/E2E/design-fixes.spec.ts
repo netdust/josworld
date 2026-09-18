@@ -291,3 +291,36 @@ test.describe('mobile design fixes (phone)', () => {
     expect(gap).toBeLessThanOrEqual(16);
   });
 });
+
+/**
+ * The 404 from Figma (frame 625:12810), as YOOtheme's `error-404` template.
+ *
+ * The footer check is the reason this page was "broken": the footer is a
+ * sticky-reveal section pinned BEHIND the page, so on any page shorter than
+ * the screen it showed through below the content, sliced mid-way. The
+ * section is now viewport-tall minus the header, so at the top of the page
+ * the bottom edge of the screen is still the page, never the footer.
+ */
+for (const [device, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
+  test(`404: the Figma page, with no sliced footer showing (${device})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const res = await page.goto('/deze-pagina-bestaat-niet/');
+    expect(res?.status()).toBe(404);
+
+    await expect(page.locator('img[src*="jos-404"]')).toBeVisible();
+    const home = page.getByRole('link', { name: /Naar homepagina/ });
+    await expect(home).toHaveAttribute('href', '/');
+
+    const footerAtBottomEdge = await page.evaluate(() =>
+      !!document.elementFromPoint(innerWidth / 2, innerHeight - 6)?.closest('footer'));
+    expect(footerAtBottomEdge, 'the reveal footer must not show through at the top').toBe(false);
+
+    if (device === 'desktop') {
+      // The artwork is cropped to its ink, so bottom-aligned columns put the
+      // link on the baseline of the 4s — as the design has it.
+      const art = (await page.locator('img[src*="jos-404"]').boundingBox())!;
+      const link = (await home.boundingBox())!;
+      expect(Math.abs(art.y + art.height - (link.y + link.height))).toBeLessThanOrEqual(2);
+    }
+  });
+}

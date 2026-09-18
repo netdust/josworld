@@ -28,5 +28,8 @@ compiled artifact and must be re-applied on staging in the SAME sitting.
       `margin_top: default`). Transform is `.yoo-tools/stack-fix.py`.
       11, 17, 18, 64 also carry #4 (logo wall: `slider_parallax: true`,
       autoplay off, still infinite) — `.yoo-tools/logo-scroll.py`.
+- [ ] template `MnIgjiB4` (error-404) is NEW — create it on staging with
+      `template set new .yoo-tools/tpl-404.json` (#6). Its artwork
+      `themes/josworld/images/jos-404.c1fd4329.svg` is tracked and rides the deploy.
 - [ ] Recompile the style on staging (theme.1.css is in the PARENT theme,
       outside deploy.payload — rsync never carries it).
