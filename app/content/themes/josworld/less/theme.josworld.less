@@ -1522,7 +1522,10 @@ h4, .uk-h4 {
         font-size: @jw-t2;
         font-weight: 300;
         font-style: normal;
-        line-height: @jw-lh-t2;
+        // Tighter than the T2 role's 60/60 (review 2026-09-18): at this size a
+        // display serif reads as one block only below 1.0. Scoped to the blog
+        // quote, so every other T2 keeps the token's leading.
+        line-height: (54 / 60);
         text-align: center;
         p { line-height: inherit; }   // the 30/18 body rule above would win
     }

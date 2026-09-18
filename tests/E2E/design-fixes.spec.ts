@@ -94,9 +94,13 @@ test.describe('design fixes (desktop)', () => {
     expect(gap).toBeGreaterThanOrEqual(24);
   });
 
-  test('blog quote keeps the T2 60/60 leading', async ({ page }) => {
+  // Was the T2 role's 60/60; the 2026-09-18 review asked for tighter lines.
+  // Scoped to the blog quote — every other T2 keeps the token's leading.
+  test('blog quote sets its 60px lines at 54px — tighter than T2', async ({ page }) => {
     await page.goto('/stageverhalen-een-frisse-wind-bij-josworld/');
-    expect(await page.locator('.jw-blog-body blockquote p').first().evaluate((el) => getComputedStyle(el).lineHeight)).toBe('60px');
+    const q = page.locator('.jw-blog-body blockquote p').first();
+    expect(await q.evaluate((el) => getComputedStyle(el).fontSize)).toBe('60px');
+    expect(await q.evaluate((el) => getComputedStyle(el).lineHeight)).toBe('54px');
   });
 
   test('footer column headings render a real Fraunces italic', async ({ page }) => {
