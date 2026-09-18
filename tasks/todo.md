@@ -11,6 +11,7 @@
 - [x] Design fixes 2026-09-10 on staging @ 519b3b9 — DB content, config and recompile re-applied the same sitting
 - [ ] Replace the placeholder "© Voornaam Naam" credit on case 146 (Onze energie) with the real photographer, or remove it
 - [ ] Three design e2e tests fail against the running site — `case pills are 26px tall`, `team tiles space the text under the photo like the tool tiles`, `stacked tiles keep a 64px row gap` (all `locator.evaluate` → null, so the selectors match nothing). NOT a polylang regression: reproduced on 7cbdbf5 without that change. They went unseen because `bin/e2e.sh`'s tsc preflight had been failing since `0ab3065` (2026-09-11) — the tier never reached the tests. `ade86d3` fixed the preflight, which is what surfaced them.
+- [ ] `admin-app.spec.ts` flakes about 1 login in 11: `logIn()`'s `waitForURL(/wp-admin/)` waits for the browser `load` event and times out at 30s, a different test each run, also with the spec run alone. The server is not slow — 14 scripted logins through to the dashboard all answered in < 0.6s — so a dashboard subresource never finishes loading. Surfaced 2026-09-18 during site-motion; wp-admin renders no builder layout, so it was parked, not fixed there. It makes `composer gate` red at `test:e2e` on most runs. First look: `waitForURL(..., { waitUntil: 'domcontentloaded' })`, or find the hanging request in a Playwright trace.
 
 ## Design fixes 2026-09-18 — staging re-apply ledger
 
@@ -33,3 +34,21 @@ compiled artifact and must be re-applied on staging in the SAME sitting.
       `themes/josworld/images/jos-404.c1fd4329.svg` is tracked and rides the deploy.
 - [ ] Recompile the style on staging (theme.1.css is in the PARENT theme,
       outside deploy.payload — rsync never carries it).
+
+## Site motion 2026-09-18 — staging re-apply ledger
+
+The deploy carries the reduced-motion LESS rule and `tests/E2E/site-motion.spec.ts`
+only. The motion itself is DB state on 41 layouts and must be re-applied on staging
+in the SAME sitting. Do NOT `page set` local JSON over staging for this — run the
+transform against STAGING's own layouts, so staging content is kept; it only
+touches section `animation` / `animation_delay` and grid/gallery `item_animation`.
+
+- [ ] Per layout: `get` → `.yoo-tools/motion.py <src> <dst>` → `set` (always `--user=1`).
+      Idempotent; skips the hero, card stacks and the logo wall by rule. Local run:
+      313 of 313 eligible sections across 30 pages + 10 templates (error-404 has none).
+- [ ] Nearly every layout needs `no-lint`: they carry pre-existing `unknown-prop` /
+      `select-value` lint errors. Only bypass when the error count equals the live copy's.
+- [ ] Templates: all 11 ids; `-98_Pkh4` (archive-post) starts with a dash — pass it after `--`.
+- [ ] Recompile the style on staging (the reduced-motion rule; theme.1.css is outside the payload).
+- [ ] Check after: a page scrolled (cascade), reduced motion on (nothing hidden), a card-stack
+      page and the logo wall unchanged.
