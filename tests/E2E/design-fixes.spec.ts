@@ -82,6 +82,18 @@ test.describe('design fixes (desktop)', () => {
     expect((await row.boundingBox())!.height).toBeLessThan(120);
   });
 
+  // A separate block from the hero above, which that test never covered: its
+  // button carried `margin_top: small` (8px) where the hero's use `default`.
+  test('Waarom Jos: the impactmarketing button sits a full margin under its text', async ({ page }) => {
+    await page.goto('/waarom-jos/');
+    const gap = await page.getByText('Echte impactmarketing.').first().evaluate((h) => {
+      const btn = h.parentElement!.parentElement!.querySelector('.uk-button') as HTMLElement;
+      const prev = btn.parentElement!.previousElementSibling as HTMLElement;
+      return btn.getBoundingClientRect().top - prev.getBoundingClientRect().bottom;
+    });
+    expect(gap).toBeGreaterThanOrEqual(24);
+  });
+
   test('blog quote keeps the T2 60/60 leading', async ({ page }) => {
     await page.goto('/stageverhalen-een-frisse-wind-bij-josworld/');
     expect(await page.locator('.jw-blog-body blockquote p').first().evaluate((el) => getComputedStyle(el).lineHeight)).toBe('60px');
