@@ -645,14 +645,24 @@ h4, .uk-h4 {
 }
 
 // The toolbar menu is a `uk-dropnav`, so the language switcher opens a plain
-// `uk-dropdown` — the `@navbar-dropdown-*` values above never reach it. Same
-// radius as the form fields, same 12px as the "NL" trigger.
+// `uk-dropdown` — the `@navbar-dropdown-*` values above never reach it. It is
+// the only plain dropdown on the site, so these apply to nothing else.
 @dropdown-border-radius:            @jw-r-md;
 @dropdown-min-width:                120px;      // three two-letter items, not UIkit's 200
 @dropdown-nav-item-color:           @jw-text;   // muted grey read as disabled next to the trigger
 @dropdown-nav-item-hover-color:     @jw-accent;
+// The radius was always there but could not be SEEN: UIkit's default surface
+// is the muted background, which on this palette is nearly the page itself,
+// so the panel read as loose text floating over the header CTA. A white
+// surface and the standard lift give the rounded shape an edge.
+@dropdown-background:               @jw-white;
+@dropdown-box-shadow:               @jw-shadow-md;
 .hook-dropdown-nav() {
-    font-size: @jw-t-nav-2;
+    // The toolbar's own size, so the items match the "NL" they open from by
+    // construction. The previous value (the 12px 2nd-level nav role) was
+    // chosen on the belief that NL was 12px; YOOtheme sets the toolbar to
+    // `@theme-toolbar-font-size`, which is 14px.
+    font-size: @theme-toolbar-font-size;
 }
 
 // ---------- Offcanvas (the mobile dialog panel) ----------
@@ -885,6 +895,22 @@ h4, .uk-h4 {
 // ========================================================================
 @import "components/animations.less";
 
+// ---------- Footer: the newsletter lingers through the reveal (phone) ----------
+// The footer is the builder's `sticky: reveal` section — it waits behind the
+// page and the content above scrolls away to uncover it. On a phone it is
+// ~1,560px tall against an ~840px screen, so the newsletter at its top was
+// past almost as soon as it appeared. Three times the large-section padding
+// above it (review 2026-09-18) keeps it on screen for longer.
+//
+// A rule rather than the builder's `padding_top`, because that setting is one
+// value for every screen size and only phones asked for more. The footer
+// holds exactly one primary section, so no class needs adding to the layout.
+@media (max-width: @breakpoint-small-max) {
+    footer .uk-section-primary.uk-section-large-top {
+        padding-top: (@section-large-padding-vertical * 3);
+    }
+}
+
 // ---------- Tile card ----------
 // A rounded inset card built from two collapsed tile-muted columns. UIkit exposes
 // no radius for tiles (the master border-radius set covers cards/sections, not
@@ -1006,15 +1032,18 @@ h4, .uk-h4 {
 // DOM order is meta, title, link; the design's reading order is title, type,
 // link. Explicit grid-column on each part reorders them without touching the
 // markup.
+//
+// The whole row is a link ("Link the panel" on the grid element), and that
+// setting RESHAPES the DOM: YOOtheme wraps meta, title and link in an
+// `<a class="uk-link-toggle">` inside `.el-item`, so they stop being its
+// children. A grid left on `.el-item` then has a single cell and the row
+// collapses into a stack. So the grid sits on whichever element DIRECTLY
+// holds the three parts — `.el-item` when the row is not linked, the `<a>`
+// when it is — and the row survives the setting being flipped either way.
 .jw-vacature-row {
 
+    // The row frame: the rules and the vertical rhythm, in both states.
     .el-item {
-        display: grid;
-        // 45/55, not an even split: the design puts the type column at x623 of
-        // a 1280 container, which an even split overshoots by ~50px.
-        grid-template-columns: 45fr 55fr auto;
-        align-items: center;
-        column-gap: @jw-s-6;
         border-top: 1px solid @jw-primary;
         padding: @jw-s-6 0;
     }
@@ -1022,13 +1051,24 @@ h4, .uk-h4 {
     // The last row closes the table — the design draws a rule under it too.
     .el-item:last-child { border-bottom: 1px solid @jw-primary; }
 
+    .el-item:not(:has(> .uk-link-toggle)),
+    .el-item > .uk-link-toggle {
+        display: grid;
+        // 45/55, not an even split: the design puts the type column at x623 of
+        // a 1280 container, which an even split overshoots by ~50px.
+        grid-template-columns: 45fr 55fr auto;
+        align-items: center;
+        column-gap: @jw-s-6;
+    }
+
     .el-title { grid-column: 1; grid-row: 1; margin: 0 !important; }
     .el-meta  { grid-column: 2; grid-row: 1; margin: 0 !important; }
 
-    // The link has no class of its own — YOOtheme wraps it in a bare div and
-    // only the <a> inside carries `.el-link`. `:last-child` is safe here
-    // because show_content is off, so the link wrapper is always last.
-    .el-item > div:last-child {
+    // The link has no class of its own — YOOtheme wraps it in a bare div (and
+    // turns it into a div outright once the panel is linked). `:last-child`
+    // is safe because show_content is off, so that wrapper is always last.
+    .el-item > div:last-child,
+    .el-item > .uk-link-toggle > div:last-child {
         grid-column: 3;
         grid-row: 1;
         margin: 0 !important;
@@ -1508,7 +1548,10 @@ h4, .uk-h4 {
         font-size: @jw-t2;
         font-weight: 300;
         font-style: normal;
-        line-height: @jw-lh-t2;
+        // Tighter than the T2 role's 60/60 (review 2026-09-18): at this size a
+        // display serif reads as one block only below 1.0. Scoped to the blog
+        // quote, so every other T2 keeps the token's leading.
+        line-height: (54 / 60);
         text-align: center;
         p { line-height: inherit; }   // the 30/18 body rule above would win
     }

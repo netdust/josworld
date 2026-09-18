@@ -60,9 +60,47 @@ test.describe('design fixes (desktop)', () => {
     expect(gap).toBeGreaterThanOrEqual(24);
   });
 
-  test('blog quote keeps the T2 60/60 leading', async ({ page }) => {
+  /**
+   * The whole vacancy row is a link, AND it keeps the one-line design. Both
+   * halves are asserted because they fight: YOOtheme's "Link the panel"
+   * wraps title, meta and link in an `<a>`, which is exactly what collapsed
+   * this row into a stack before `.jw-vacature-row` put its grid on
+   * whichever element holds the three parts.
+   */
+  test('Jobs: a vacancy row is one link and stays on one line', async ({ page }) => {
+    await page.goto('/jobs-stages/');
+    const row = page.locator('.jw-vacature-row .el-item').first();
+
+    const link = row.locator(':scope > a.uk-link-toggle');
+    await expect(link).toHaveCount(1);
+    await expect(link).toHaveAttribute('href', /\/jobs-stages\/[^/]+\//);
+    await expect(link.locator('.el-title')).toHaveCount(1);
+
+    const y = async (s: string) => (await row.locator(s).first().boundingBox())!.y;
+    const titleY = await y('.el-title');
+    expect(Math.abs(titleY - (await y('.el-meta')))).toBeLessThan(30);
+    expect((await row.boundingBox())!.height).toBeLessThan(120);
+  });
+
+  // A separate block from the hero above, which that test never covered: its
+  // button carried `margin_top: small` (8px) where the hero's use `default`.
+  test('Waarom Jos: the impactmarketing button sits a full margin under its text', async ({ page }) => {
+    await page.goto('/waarom-jos/');
+    const gap = await page.getByText('Echte impactmarketing.').first().evaluate((h) => {
+      const btn = h.parentElement!.parentElement!.querySelector('.uk-button') as HTMLElement;
+      const prev = btn.parentElement!.previousElementSibling as HTMLElement;
+      return btn.getBoundingClientRect().top - prev.getBoundingClientRect().bottom;
+    });
+    expect(gap).toBeGreaterThanOrEqual(24);
+  });
+
+  // Was the T2 role's 60/60; the 2026-09-18 review asked for tighter lines.
+  // Scoped to the blog quote — every other T2 keeps the token's leading.
+  test('blog quote sets its 60px lines at 54px — tighter than T2', async ({ page }) => {
     await page.goto('/stageverhalen-een-frisse-wind-bij-josworld/');
-    expect(await page.locator('.jw-blog-body blockquote p').first().evaluate((el) => getComputedStyle(el).lineHeight)).toBe('60px');
+    const q = page.locator('.jw-blog-body blockquote p').first();
+    expect(await q.evaluate((el) => getComputedStyle(el).fontSize)).toBe('60px');
+    expect(await q.evaluate((el) => getComputedStyle(el).lineHeight)).toBe('54px');
   });
 
   test('footer column headings render a real Fraunces italic', async ({ page }) => {
@@ -81,20 +119,74 @@ test.describe('design fixes (desktop)', () => {
     expect(await section.evaluate((el) => el.classList.contains('uk-position-z-index-negative'))).toBe(true);
   });
 
-  test('client logos autoplay in an endless loop, not on scroll', async ({ page }) => {
+  /**
+   * Back to scroll-driven (review 2026-09-18), after a CSS marquee and then an
+   * autoplaying slider. The marquee's failure mode was running out of logos,
+   * so "endless" is asserted as BEHAVIOUR, not as a config string: at every
+   * scroll position through the wall, logos overhang both edges.
+   */
+  test('client logos glide with the scroll, endlessly, and rest when it stops', async ({ page }) => {
     await page.goto('/');
     const wall = page.locator('.jw-logo-wall').first();
     const slider = (await wall.getAttribute('uk-slider')) ?? '';
-    expect(slider).toMatch(/autoplay: (1|true)/);
-    expect(slider).not.toContain('parallax: true');
+    expect(slider).toContain('parallax: true');
+    expect(slider).not.toMatch(/autoplay: (1|true)/);
     expect(slider).not.toContain('finite: true');
+
+    const abs = await wall.evaluate((el) => el.getBoundingClientRect().top + scrollY);
+    const coverage = () => wall.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const rs = [...el.querySelectorAll('.uk-slider-items > *')].map((i) => i.getBoundingClientRect())
+        .filter((r) => r.right > box.left && r.left < box.right);
+      return { left: Math.min(...rs.map((r) => r.left)) - box.left, right: box.right - Math.max(...rs.map((r) => r.right)) };
+    });
+    const first = () => wall.evaluate((el) => (el.querySelector('.uk-slider-items > *') as HTMLElement).getBoundingClientRect().left);
+
+    const positions: number[] = [];
+    for (let f = 0.1; f <= 0.9; f += 0.2) {
+      await page.evaluate((y) => window.scrollTo(0, y), abs - 900 + f * 1100);
+      await page.waitForTimeout(200);
+      const c = await coverage();
+      expect(c.left, 'no empty strip on the left').toBeLessThanOrEqual(0);
+      expect(c.right, 'no empty strip on the right').toBeLessThanOrEqual(0);
+      positions.push(await first());
+    }
+    expect(new Set(positions.map(Math.round)).size, 'the logos move as the page scrolls').toBeGreaterThan(1);
+
+    const still = await first();
+    await page.waitForTimeout(2000);
+    expect(await first(), 'no autoplay: nothing moves without scrolling').toBe(still);
   });
 
-  test('language dropdown has rounded corners and the toolbar text size', async ({ page }) => {
+  /**
+   * Measured OPEN, because that is the only state anyone sees: the dropnav
+   * has `container: body`, so UIkit moves the dropdown out of the toolbar the
+   * moment it opens. The previous version of this test measured it closed.
+   * The items must match the NL trigger, and the panel needs a surface —
+   * the radius existed before but was invisible against the page.
+   */
+  test('language dropdown: a visible rounded panel, items the size of NL', async ({ page }) => {
     await page.goto('/');
-    const drop = page.locator('.tm-toolbar .uk-dropdown').first();
-    expect(await drop.evaluate((el) => getComputedStyle(el).borderRadius)).toBe('8px');
-    expect(await drop.locator('.uk-dropdown-nav a').first().evaluate(fontSize)).toBe('12px');
+    const trigger = page.locator('.tm-toolbar a[href="#pll_switcher"]');
+    const triggerSize = await trigger.evaluate(fontSize);
+
+    // Opened through UIkit's own component rather than a hover: the hover
+    // depends on when UIkit finishes wiring the dropnav after load, which made
+    // this flaky, and what is under test is the open panel's styling. It is
+    // still the real open state — UIkit moves the panel into <body> either way.
+    await page.waitForFunction(() => (window as any).UIkit?.drop);
+    await page.evaluate(() => (window as any).UIkit.drop(document.querySelector('.tm-toolbar .uk-dropdown')).show());
+    const drop = page.locator('.uk-dropdown.uk-open').first();
+    await drop.waitFor();
+
+    const s = await drop.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { radius: cs.borderRadius, bg: cs.backgroundColor, shadow: cs.boxShadow };
+    });
+    expect(s.radius).toBe('8px');
+    expect(s.bg).toBe('rgb(255, 255, 255)');
+    expect(s.shadow).not.toBe('none');
+    expect(await drop.locator('.uk-dropdown-nav a').first().evaluate(fontSize)).toBe(triggerSize);
   });
 
   test('the logo pupil touches the eye contour when the cursor is off to the side', async ({ page }) => {
@@ -199,3 +291,36 @@ test.describe('mobile design fixes (phone)', () => {
     expect(gap).toBeLessThanOrEqual(16);
   });
 });
+
+/**
+ * The 404 from Figma (frame 625:12810), as YOOtheme's `error-404` template.
+ *
+ * The footer check is the reason this page was "broken": the footer is a
+ * sticky-reveal section pinned BEHIND the page, so on any page shorter than
+ * the screen it showed through below the content, sliced mid-way. The
+ * section is now viewport-tall minus the header, so at the top of the page
+ * the bottom edge of the screen is still the page, never the footer.
+ */
+for (const [device, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
+  test(`404: the Figma page, with no sliced footer showing (${device})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const res = await page.goto('/deze-pagina-bestaat-niet/');
+    expect(res?.status()).toBe(404);
+
+    await expect(page.locator('img[src*="jos-404"]')).toBeVisible();
+    const home = page.getByRole('link', { name: /Naar homepagina/ });
+    await expect(home).toHaveAttribute('href', '/');
+
+    const footerAtBottomEdge = await page.evaluate(() =>
+      !!document.elementFromPoint(innerWidth / 2, innerHeight - 6)?.closest('footer'));
+    expect(footerAtBottomEdge, 'the reveal footer must not show through at the top').toBe(false);
+
+    if (device === 'desktop') {
+      // The artwork is cropped to its ink, so bottom-aligned columns put the
+      // link on the baseline of the 4s — as the design has it.
+      const art = (await page.locator('img[src*="jos-404"]').boundingBox())!;
+      const link = (await home.boundingBox())!;
+      expect(Math.abs(art.y + art.height - (link.y + link.height))).toBeLessThanOrEqual(2);
+    }
+  });
+}
