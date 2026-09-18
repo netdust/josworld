@@ -22,5 +22,11 @@ compiled artifact and must be re-applied on staging in the SAME sitting.
       local does not — it renders a second, unstyled mobile nav (fix #9).
 - [ ] template `WXXvROde` (archive-vacature): grid at
       `layout/children/1/children/0/children/0/children/1` → `props.panel_link: true` (#1)
+- [ ] pages `11, 12, 14, 17, 18, 64` — full `page set` from the LOCAL JSON (the 09-10
+      procedure). They carry #7 (stack: `position_sticky_offset` `50vh - 50%` → `48`,
+      rows 2+ `margin_top: xlarge`) and, on 12 only, #5 (impactmarketing button
+      `margin_top: default`). Transform is `.yoo-tools/stack-fix.py`.
+      11, 17, 18, 64 also carry #4 (logo wall: `slider_parallax: true`,
+      autoplay off, still infinite) — `.yoo-tools/logo-scroll.py`.
 - [ ] Recompile the style on staging (theme.1.css is in the PARENT theme,
       outside deploy.payload — rsync never carries it).
