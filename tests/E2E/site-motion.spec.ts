@@ -13,7 +13,9 @@ test.describe('site motion (desktop)', () => {
     await page.goto('/');
     // the homepage's second section is the hero photo; take the first one with a heading, text and button
     const section = page.locator(RHYTHM).filter({ has: page.locator('.uk-button') }).first();
-    await expect(section).toHaveAttribute('uk-scrollspy', /delay: 150/);
+    await expect(section).toHaveAttribute('uk-scrollspy', /delay: 150;/);
+    // below the fold at load, or the observer below would connect after the fact
+    await expect(section.locator('.uk-scrollspy-inview')).toHaveCount(0);
 
     await section.evaluate((el) => {
       const seen: Record<string, number> = {};
@@ -50,7 +52,7 @@ test.describe('site motion, the rest of the site', () => {
         sections
           .slice(1)
           .filter((s) => !s.querySelector('.jw-logo-wall') && !s.querySelector('[uk-sticky]'))
-          .filter((s) => !/slide-bottom-medium.*delay: 150/.test(s.closest('[uk-scrollspy]')?.getAttribute('uk-scrollspy') ?? ''))
+          .filter((s) => !/slide-bottom-medium.*delay: 150;/.test(s.closest('[uk-scrollspy]')?.getAttribute('uk-scrollspy') ?? ''))
           .length);
       expect(without, path).toBe(0);
     }
