@@ -21,24 +21,24 @@ for (const [path, count] of Object.entries(STACK_PAGES)) for (const [device, vie
     const cards = page.locator('[uk-sticky*="end: !.uk-section"]');
     await expect(cards).toHaveCount(count);
 
-    // Every card rests with its middle at the viewport middle (offset
-    // "50vh - 50%"): scroll the last card to that spot and the first two
-    // must be pinned underneath it at the very same position.
-    await cards.nth(count - 1).evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      window.scrollTo(0, window.scrollY + r.top - (window.innerHeight - r.height) / 2);
+    // Review 2026-09-18: cards pin near the TOP (offset 48px) rather than
+    // centred, and consecutive cards are an xlarge margin apart. The gap is
+    // what decides how long a card's button stays readable before the next
+    // card slides up over it — at the old 32px it vanished almost at once.
+    const gaps = await cards.evaluateAll((els) => els.slice(1).map((el, i) =>
+      el.getBoundingClientRect().top - els[i].getBoundingClientRect().bottom));
+    for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(64);
+
+    // Read the pin while the FIRST card is genuinely held: scroll a little
+    // past the point where it sticks, with the rest of the stack still below.
+    // (At the last card the section's end is already releasing the whole
+    // stack — `end: !.uk-section` — so every card is being pushed up there.)
+    const pinned = await cards.first().evaluate(async (el) => {
+      const abs = el.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo(0, abs - 48 + 80);
+      await new Promise((r) => setTimeout(r, 300));
+      return Math.round(el.getBoundingClientRect().top);
     });
-    await page.waitForTimeout(300);
-
-    const last = (await cards.nth(count - 1).boundingBox())!;
-    expect(Math.round(last.y + last.height / 2)).toBe(viewport.height / 2);
-
-    // Earlier cards sit under the last one, centred on the same spot; the
-    // taller of the two may peek out by its extra height.
-    for (let i = 0; i < count - 1; i++) {
-      const box = (await cards.nth(i).boundingBox())!;
-      const overlap = Math.min(box.y + box.height, last.y + last.height) - Math.max(box.y, last.y);
-      expect(overlap).toBeGreaterThanOrEqual(Math.min(box.height, last.height) - 1);
-    }
+    expect(pinned).toBe(48);
   });
 }
