@@ -11,6 +11,7 @@
 - [x] Design fixes 2026-09-10 on staging @ 519b3b9 — DB content, config and recompile re-applied the same sitting
 - [ ] Replace the placeholder "© Voornaam Naam" credit on case 146 (Onze energie) with the real photographer, or remove it
 - [ ] Three design e2e tests fail against the running site — `case pills are 26px tall`, `team tiles space the text under the photo like the tool tiles`, `stacked tiles keep a 64px row gap` (all `locator.evaluate` → null, so the selectors match nothing). NOT a polylang regression: reproduced on 7cbdbf5 without that change. They went unseen because `bin/e2e.sh`'s tsc preflight had been failing since `0ab3065` (2026-09-11) — the tier never reached the tests. `ade86d3` fixed the preflight, which is what surfaced them.
+- [ ] `admin-app.spec.ts` flakes about 1 login in 11: `logIn()`'s `waitForURL(/wp-admin/)` waits for the browser `load` event and times out at 30s, a different test each run, also with the spec run alone. The server is not slow — 14 scripted logins through to the dashboard all answered in < 0.6s — so a dashboard subresource never finishes loading. Surfaced 2026-09-18 during site-motion; wp-admin renders no builder layout, so it was parked, not fixed there. It makes `composer gate` red at `test:e2e` on most runs. First look: `waitForURL(..., { waitUntil: 'domcontentloaded' })`, or find the hanging request in a Playwright trace.
 
 ## Design fixes 2026-09-18 — staging re-apply ledger
 
