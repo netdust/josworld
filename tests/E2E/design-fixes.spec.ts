@@ -119,13 +119,43 @@ test.describe('design fixes (desktop)', () => {
     expect(await section.evaluate((el) => el.classList.contains('uk-position-z-index-negative'))).toBe(true);
   });
 
-  test('client logos autoplay in an endless loop, not on scroll', async ({ page }) => {
+  /**
+   * Back to scroll-driven (review 2026-09-18), after a CSS marquee and then an
+   * autoplaying slider. The marquee's failure mode was running out of logos,
+   * so "endless" is asserted as BEHAVIOUR, not as a config string: at every
+   * scroll position through the wall, logos overhang both edges.
+   */
+  test('client logos glide with the scroll, endlessly, and rest when it stops', async ({ page }) => {
     await page.goto('/');
     const wall = page.locator('.jw-logo-wall').first();
     const slider = (await wall.getAttribute('uk-slider')) ?? '';
-    expect(slider).toMatch(/autoplay: (1|true)/);
-    expect(slider).not.toContain('parallax: true');
+    expect(slider).toContain('parallax: true');
+    expect(slider).not.toMatch(/autoplay: (1|true)/);
     expect(slider).not.toContain('finite: true');
+
+    const abs = await wall.evaluate((el) => el.getBoundingClientRect().top + scrollY);
+    const coverage = () => wall.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const rs = [...el.querySelectorAll('.uk-slider-items > *')].map((i) => i.getBoundingClientRect())
+        .filter((r) => r.right > box.left && r.left < box.right);
+      return { left: Math.min(...rs.map((r) => r.left)) - box.left, right: box.right - Math.max(...rs.map((r) => r.right)) };
+    });
+    const first = () => wall.evaluate((el) => (el.querySelector('.uk-slider-items > *') as HTMLElement).getBoundingClientRect().left);
+
+    const positions: number[] = [];
+    for (let f = 0.1; f <= 0.9; f += 0.2) {
+      await page.evaluate((y) => window.scrollTo(0, y), abs - 900 + f * 1100);
+      await page.waitForTimeout(200);
+      const c = await coverage();
+      expect(c.left, 'no empty strip on the left').toBeLessThanOrEqual(0);
+      expect(c.right, 'no empty strip on the right').toBeLessThanOrEqual(0);
+      positions.push(await first());
+    }
+    expect(new Set(positions.map(Math.round)).size, 'the logos move as the page scrolls').toBeGreaterThan(1);
+
+    const still = await first();
+    await page.waitForTimeout(2000);
+    expect(await first(), 'no autoplay: nothing moves without scrolling').toBe(still);
   });
 
   /**
