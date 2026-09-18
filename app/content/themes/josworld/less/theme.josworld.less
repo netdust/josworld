@@ -895,6 +895,22 @@ h4, .uk-h4 {
 // ========================================================================
 @import "components/animations.less";
 
+// ---------- Footer: the newsletter lingers through the reveal (phone) ----------
+// The footer is the builder's `sticky: reveal` section — it waits behind the
+// page and the content above scrolls away to uncover it. On a phone it is
+// ~1,560px tall against an ~840px screen, so the newsletter at its top was
+// past almost as soon as it appeared. Three times the large-section padding
+// above it (review 2026-09-18) keeps it on screen for longer.
+//
+// A rule rather than the builder's `padding_top`, because that setting is one
+// value for every screen size and only phones asked for more. The footer
+// holds exactly one primary section, so no class needs adding to the layout.
+@media (max-width: @breakpoint-small-max) {
+    footer .uk-section-primary.uk-section-large-top {
+        padding-top: (@section-large-padding-vertical * 3);
+    }
+}
+
 // ---------- Tile card ----------
 // A rounded inset card built from two collapsed tile-muted columns. UIkit exposes
 // no radius for tiles (the master border-radius set covers cards/sections, not
