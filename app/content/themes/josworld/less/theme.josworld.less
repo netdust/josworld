@@ -1557,3 +1557,13 @@ h4, .uk-h4 {
     }
     img { border-radius: 0; }
 }
+
+// ---------- Motion ----------
+// UIkit ignores the OS "reduce motion" setting, and scrollspy hides its targets inline
+// until they are scrolled to: under reduced motion they are simply there.
+@media (prefers-reduced-motion: reduce) {
+    [uk-scrollspy-class] {
+        opacity: 1 !important;
+        animation: none !important;
+    }
+}

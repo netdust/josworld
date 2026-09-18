@@ -41,3 +41,31 @@ test.describe('site motion (desktop)', () => {
     await expect(page.locator('h1')).toBeVisible();
   });
 });
+
+const hiddenOrMoved = (els: Element[]) =>
+  els.filter((el) => {
+    const cs = getComputedStyle(el);
+    return cs.opacity !== '1' || cs.transform !== 'none' || cs.animationName !== 'none';
+  }).length;
+
+test.describe('site motion, reduced motion requested', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, contextOptions: { reducedMotion: 'reduce' } });
+
+  test('every animated element is visible, in place, without scrolling', async ({ page }) => {
+    await page.goto('/');
+    const targets = page.locator('[uk-scrollspy-class]');
+    expect(await targets.count()).toBeGreaterThan(10);
+    expect(await targets.evaluateAll(hiddenOrMoved)).toBe(0);
+  });
+});
+
+test.describe('site motion, JavaScript unavailable', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('nothing carrying the animation hook is hidden', async ({ page }) => {
+    await page.goto('/');
+    const targets = page.locator('[uk-scrollspy-class]');
+    expect(await targets.count()).toBeGreaterThan(10);
+    expect(await targets.evaluateAll(hiddenOrMoved)).toBe(0);
+  });
+});
