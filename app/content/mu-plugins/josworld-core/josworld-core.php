@@ -74,6 +74,7 @@ add_action('plugins_loaded', function (): void {
 
     // Form service:
     require_once $dir . '/forms/CrmContactLanguageService.php';
+    require_once $dir . '/forms/CrmDownloadedToolService.php';
 
     // Forms: the tool download confirmation.
     require_once $dir . '/forms/DownloadFormService.php';
@@ -101,6 +102,7 @@ add_action('plugins_loaded', function (): void {
         // Form service — resolved unconditionally: the FluentCRM/Polylang
         // absence guards live INSIDE the service, as below.
         ntdst_get(\josworld\services\forms\CrmContactLanguageService::class);
+        ntdst_get(\josworld\services\forms\CrmDownloadedToolService::class);
 
         // The download form's confirmation runs on a front-end submission.
         ntdst_get(\josworld\services\forms\DownloadFormService::class);
