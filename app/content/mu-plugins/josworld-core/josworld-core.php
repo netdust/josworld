@@ -75,6 +75,7 @@ add_action('plugins_loaded', function (): void {
     // Form service:
     require_once $dir . '/forms/CrmContactLanguageService.php';
     require_once $dir . '/forms/CrmDownloadedToolService.php';
+    require_once $dir . '/site/SiteMetaService.php';
 
     // Forms: the tool download confirmation.
     require_once $dir . '/forms/DownloadFormService.php';
@@ -103,6 +104,10 @@ add_action('plugins_loaded', function (): void {
         // absence guards live INSIDE the service, as below.
         ntdst_get(\josworld\services\forms\CrmContactLanguageService::class);
         ntdst_get(\josworld\services\forms\CrmDownloadedToolService::class);
+
+        // josworld's values for ntdst-baseline and the front-end tidying; must be attached
+        // before baseline boots its modules (both hang on after_setup_theme:5).
+        ntdst_get(\josworld\services\site\SiteMetaService::class);
 
         // The download form's confirmation runs on a front-end submission.
         ntdst_get(\josworld\services\forms\DownloadFormService::class);
