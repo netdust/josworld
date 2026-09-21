@@ -1508,6 +1508,42 @@ h4, .uk-h4 {
     }
 }
 
+// Footer signup (Fluent form 2): the pill field and raspberry button of the YOOtheme
+// Newsletter element it replaced, on one row. FluentForms sets flex-basis inline.
+.jw-footer-newsletter .frm-fluent-form {
+    .ff-t-container { display: flex; gap: @jw-s-4; }
+    .ff-t-cell { padding: 0; }
+    .ff-t-column-1 { flex: 1 1 0 !important; min-width: 0; }
+    .ff-t-column-2 { flex: 0 0 auto !important; width: auto !important; }
+    .ff-el-group { margin: 0; }
+    .ff-el-form-control {
+        padding: 0 @jw-s-4;
+        color: fade(@jw-beige, 80%);
+        background: fade(@jw-beige, 10%);
+        border: 0;
+        border-radius: @jw-r-pill;
+        &::placeholder { color: fade(@jw-beige, 60%); }
+    }
+    .ff-t-cell .ff_submit_btn_wrapper_custom .ff-btn-submit { margin: 0; }   // FluentForms' own rule has 20px here
+    .ff-btn-submit {
+        padding: 0 32px;
+        color: @jw-white;
+        background: @jw-raspberry;
+        border-radius: @jw-r-pill;
+        &:hover { background: @jw-raspberry; opacity: .9; }
+    }
+    .error { margin-top: 8px; color: @jw-raspberry; }
+    .ff-message-success { color: fade(@jw-beige, 80%); }
+}
+// The design stacks them on a phone: full-width field, a small gap, full-width button.
+@media (max-width: @breakpoint-small-max) {
+    .jw-footer-newsletter .frm-fluent-form {
+        .ff-t-container { flex-direction: column; }
+        .ff-t-column-1, .ff-t-column-2 { flex: 0 0 auto !important; width: 100% !important; }
+        .ff-btn-submit { width: 100%; }
+    }
+}
+
 // ---------- Plain pages (no builder layout — the privacy policy) ----------
 // The fallback page template titles with `uk-article-title`; Figma sets those
 // page titles in the intro role, like Blog & nieuws.
