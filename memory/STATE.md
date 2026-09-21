@@ -887,3 +887,9 @@ places.
 - [ ] Set the real production domain + remote path in `site.yml`; fill
       Combell SSH aliases.
 - [ ] Merge `feat/yootheme-child` once page building + the seed script land.
+
+---
+### 2026-09-21 — tagged capture
+
+**Risks**
+- staging heeft nog de defecte boekingsfeed, en het stageformulier is daar onbruikbaar tot Pro of een alternatief er is.
