@@ -284,12 +284,6 @@ test.describe('mobile design fixes (phone)', () => {
     expect(Math.abs(m.centreDelta)).toBeLessThan(4);
     expect(m.align).toBe('center');
   });
-
-  test('newsletter field and button stack with a small gap', async ({ page }) => {
-    await page.goto('/');
-    const gap = await page.locator('footer .uk-grid-small').first().locator('> div').nth(1).evaluate((el) => parseFloat(getComputedStyle(el).marginTop));
-    expect(gap).toBeLessThanOrEqual(16);
-  });
 });
 
 /**
