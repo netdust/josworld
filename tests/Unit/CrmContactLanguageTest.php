@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NtdstTests\Unit;
 
+use Brain\Monkey\Actions;
 use josworld\services\forms\CrmContactLanguageService;
 
 /**
@@ -103,5 +104,25 @@ final class CrmContactLanguageTest extends TestCase
 
         $this->assertSame('lang-fr', $service->tagSlugFor('fr'));
         $this->assertSame('lang-nl', $service->tagSlugFor('nl'));
+    }
+
+    /**
+     * FluentBooking fires its own action when it creates or updates the contact,
+     * and a booking stores the same `source_url` a form entry does. Without this
+     * listener a French visitor who books ends up with an untagged contact.
+     */
+    public function test_every_way_a_contact_is_created_is_listened_to(): void
+    {
+        $actions = [
+            'fluent_crm/contact_added_by_fluentform',
+            'fluent_crm/contact_updated_by_fluentform',
+            'fluent_crm/contact_added_by_fluent_booking',
+        ];
+
+        foreach ($actions as $action) {
+            Actions\expectAdded($action)->once();
+        }
+
+        new CrmContactLanguageService();
     }
 }

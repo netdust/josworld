@@ -2,10 +2,11 @@
 
 /**
  * CrmContactLanguageService — tags every FluentCRM contact created from a
- * FluentForms submission with the language the visitor was browsing in.
+ * FluentForms submission or a FluentBooking booking with the language the
+ * visitor was browsing in.
  *
- * The four forms are single Dutch entities rendered on nl/en/fr pages, so a
- * submission carries no language of its own; without this, three languages
+ * The forms and the booking calendar are single Dutch entities rendered on
+ * nl/en/fr pages, so a submission carries no language of its own; without this, three languages
  * collapse into one undifferentiated contact pool and every campaign has to
  * be hand-segmented. Polylang runs `force_lang: 1` (directory prefix) with
  * `hide_default: true`, so the URL the form was posted from IS the signal:
@@ -48,11 +49,15 @@ final class CrmContactLanguageService
         // language is the case worth catching.
         add_action('fluent_crm/contact_added_by_fluentform', [$this, 'tagSubmissionLanguage'], 10, 2);
         add_action('fluent_crm/contact_updated_by_fluentform', [$this, 'tagSubmissionLanguage'], 10, 2);
+
+        // A booking stores the same `source_url`; FluentBooking fires this one action
+        // for both a new and an existing contact.
+        add_action('fluent_crm/contact_added_by_fluent_booking', [$this, 'tagSubmissionLanguage'], 10, 2);
     }
 
     /**
      * @param mixed $subscriber FluentCrm\App\Models\Subscriber
-     * @param mixed $entry      the FluentForms submission
+     * @param mixed $entry      the FluentForms submission, or the FluentBooking booking
      */
     public function tagSubmissionLanguage($subscriber, $entry): void
     {
