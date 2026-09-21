@@ -391,3 +391,6 @@ had been built as a sticky footer in `theme.josworld.less`. YOOtheme sections ca
 stacking handled in the parent theme. Rule: for any motion/scroll behaviour, grep
 `packages/builder/elements/<element>/element.php` for the field first; write a rule
 only when the grep proves the field absent, and say so in the report.
+
+### 2026-09-21
+- een CRM-koppeling bewijs je met een echte inzending en het teruggelezen contact, niet door de configuratie of de loader te lezen. De boekingsfeed leek gezond en heeft nooit gelopen.
