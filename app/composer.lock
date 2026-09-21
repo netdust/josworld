@@ -216,16 +216,16 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.5.1",
+            "version": "v2.5.2",
             "source": {
                 "type": "git",
                 "url": "git@github.com:netdust/ntdst-baseline.git",
-                "reference": "95672cbd6292da5c68870722b54dad13628cade6"
+                "reference": "b5ba968cb5584771f475c6aac7f808f788f5ec3f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/95672cbd6292da5c68870722b54dad13628cade6",
-                "reference": "95672cbd6292da5c68870722b54dad13628cade6",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/b5ba968cb5584771f475c6aac7f808f788f5ec3f",
+                "reference": "b5ba968cb5584771f475c6aac7f808f788f5ec3f",
                 "shasum": ""
             },
             "require": {
@@ -265,10 +265,10 @@
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
             "support": {
-                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.5.1",
+                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.5.2",
                 "issues": "https://github.com/netdust/ntdst-baseline/issues"
             },
-            "time": "2026-09-14T18:38:15+00:00"
+            "time": "2026-09-21T11:18:19+00:00"
         },
         {
             "name": "netdust/ntdst-core",
