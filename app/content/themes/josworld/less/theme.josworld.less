@@ -1062,6 +1062,9 @@ h4, .uk-h4 {
     }
 
     .el-title { grid-column: 1; grid-row: 1; margin: 0 !important; }
+
+    // The whole row is the link, so the name underlines when the row is hovered.
+    .uk-link-toggle:hover .el-title { text-decoration: underline; }
     .el-meta  { grid-column: 2; grid-row: 1; margin: 0 !important; }
 
     // The link has no class of its own — YOOtheme wraps it in a bare div (and
