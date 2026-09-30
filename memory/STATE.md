@@ -33,6 +33,12 @@
   (mailto/tel). Pages, outbound links and file downloads are Matomo's own. After go-live define
   goals in Matomo on these events (Category Form/Booking/Contact); goals live in the DB.
 
+- **Privacy page (id 23, `privacy-cookie-policy`)** was EMPTY on every env; it now holds only a short
+  Dutch "Statistieken" section (Matomo, own server, no cookies, anonymised IP, no third parties) plus
+  `[matomo_opt_out]`, written into the DB on local + staging (source `.yoo-tools/privacy-matomo.html`).
+  The rest of the privacy text is still Stefan's to write. The opt-out box renders in English until
+  Matomo's language is set; the page's meta description now starts with this section. No NL/EN/FR
+  variants were touched.
 - **Diagnostics left alone**: proxy header (`HTTP_X_REAL_IP`, ignore if locations are right),
   geolocation (default provider is language-based; a GeoIP DB needs to be added), connection
   collation note.
