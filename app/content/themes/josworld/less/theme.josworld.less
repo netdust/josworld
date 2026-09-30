@@ -1296,7 +1296,8 @@ h4, .uk-h4 {
 
 // The card's label row is the case `labels` field: the domain pill, then the
 // diensten as plain text next to it (see CaseService::resolve_case_labels).
-.jw-case-card .el-content {
+.jw-case-card .el-content,
+.jw-case-labels {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -1309,7 +1310,13 @@ h4, .uk-h4 {
     }
 }
 
+// The case header centres its row.
+.jw-case-labels {
+    justify-content: center;
+}
+
 .jw-case-card .el-content a[rel="tag"],
+.jw-case-labels a[rel="tag"],
 .jw-tags a[rel="tag"] {
     display: inline-block;
     margin-right: @jw-s-2;
