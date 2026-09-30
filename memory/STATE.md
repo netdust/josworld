@@ -2,6 +2,31 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Matomo (self-hosted, in WordPress) — go-live checklist (2026-09-30, branch feature/staging-review-edits)
+
+- **Plugin**: "Matomo Analytics" (`matomo` 5.13.1, the in-WordPress one — NOT `wp-piwik`/Connect
+  Matomo, which only injects a snippet for a remote Matomo; we own the server, Stefan ruled it).
+  Installed + set up on staging by hand: plugins are not in git or the deploy payload. Tracking mode
+  is **Disabled** on staging on purpose — tracking is production only. No tracking code will ever be
+  given: Auto mode embeds it.
+- **Staging → production is a COPY of files + database** (Stefan), so Matomo travels with it. After
+  the copy, on production: (1) the site record in `ntdst_matomo_site` still says
+  `https://staging.jos.agency` — a search-replace over all `ntdst_` tables catches it, else set
+  `https://jos.agency`; (2) `content/uploads/matomo/config/config.ini.php` (holds DB credentials —
+  edit, don't paste) still lists the staging host in `trusted_hosts`; (3) Matomo Analytics →
+  Settings → Tracking → **Auto** (the copy carries Disabled); (4) a system cron hitting
+  `wp-cron.php` on the production box (Matomo builds reports + deletes data via WP cron; none set
+  up on staging either).
+- **utf8mb4**: `MATOMO_WP_ROOT_PATH=<env>/wp php content/plugins/matomo/app/console
+  core:convert-to-utf8mb4 --yes` (the custom `content/` dir defeats Matomo's own wp-load
+  detection, hence the env var). Done on staging by Stefan (the agent's ssh write was blocked); it
+  skipped `ntdst_matomo_log_bot_request` (added in 5.13) — `ALTER TABLE ... CONVERT TO CHARACTER
+  SET utf8mb4` by hand. The diagnostics warning still showed afterwards; `wp-config.php` has no
+  `DB_CHARSET`, likely what Matomo reads. Harmless while tracking is off.
+- **Diagnostics left alone**: proxy header (`HTTP_X_REAL_IP`, ignore if locations are right),
+  geolocation (default provider is language-based; a GeoIP DB needs to be added), connection
+  collation note.
+
 ## Phone design fixes (2026-09-11, branch feature/mobile-design)
 
 - **Type on phones (variables)**: `@base-h1-font-size` 0.6 → 0.7 (53px),
