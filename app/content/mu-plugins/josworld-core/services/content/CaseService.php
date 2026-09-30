@@ -12,6 +12,9 @@
  * to show a case (client + the tile's hover image). The narrative (uitdaging, resultaat, testimonial, team…)
  * is built in the YOOtheme builder now, not stored here.
  *
+ * The card's label row is one builder field, `labels`: the `domain` term as a
+ * pill link, then the `dienst` terms as plain text.
+ *
  * The `dienst` taxonomy is declared WITH the model via register()'s
  * `taxonomies` key — no direct register_taxonomy() call anywhere in
  * josworld-core (it converges on NTDST_Data_Manager::registerTaxonomy()).
@@ -38,6 +41,27 @@ final class CaseService
     {
         $this->registerDataModel();
         $this->registerAdminColumns();
+        add_action('after_setup_theme', [$this, 'attachLabelsField'], 20);
+    }
+
+    public function attachLabelsField(): void
+    {
+        if (! function_exists('YOOtheme\\app')) {
+            return;
+        }
+
+        $field = [
+            'type' => 'String',
+            'metadata' => ['label' => __('Labels (domein + diensten)', JOSWORLD_CORE_TEXTDOMAIN)],
+            'extensions' => ['call' => __NAMESPACE__ . '\\resolve_case_labels'],
+        ];
+
+        // The licensed parent theme is not installed in the gate.
+        \YOOtheme\Event::on( // @phpstan-ignore class.notFound
+            'source.init',
+            static fn ($source) => $source->objectType('Case', ['fields' => ['labels' => $field]]),
+            -5
+        );
     }
 
     /**
@@ -95,6 +119,23 @@ final class CaseService
             // `dienst`, case-only, declared with the model — see class
             // docblock (no direct register_taxonomy() call).
             'taxonomies' => [
+                'domain' => [
+                    'hierarchical' => false,
+                    'labels' => [
+                        'name' => __('Domeinen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'singular_name' => __('Domein', JOSWORLD_CORE_TEXTDOMAIN),
+                        'search_items' => __('Domeinen zoeken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'all_items' => __('Alle domeinen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'edit_item' => __('Domein bewerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'update_item' => __('Domein bijwerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'add_new_item' => __('Nieuw domein toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'new_item_name' => __('Nieuwe domeinnaam', JOSWORLD_CORE_TEXTDOMAIN),
+                        'menu_name' => __('Domeinen', JOSWORLD_CORE_TEXTDOMAIN),
+                    ],
+                    'show_admin_column' => true,
+                    'show_in_rest' => true,
+                    'rewrite' => ['slug' => 'domein'],
+                ],
                 'dienst' => [
                     'hierarchical' => false,
                     'labels' => [
@@ -167,4 +208,33 @@ final class CaseService
                 break;
         }
     }
+}
+
+/**
+ * YOOtheme calls this by name for the case `labels` field: the domain as a
+ * pill link, then the diensten as plain text ("A, B & C").
+ */
+function resolve_case_labels(mixed $post): ?string
+{
+    $postId = is_object($post) && isset($post->ID) ? (int) $post->ID : 0;
+    $domain = $postId > 0 ? get_the_terms($postId, 'domain') : false;
+    $diensten = $postId > 0 ? get_the_terms($postId, 'dienst') : false;
+    $html = '';
+
+    if (is_array($domain) && $domain !== []) {
+        $html .= sprintf(
+            '<a rel="tag" href="%s">%s</a>',
+            esc_url((string) get_term_link($domain[0])),
+            esc_html($domain[0]->name)
+        );
+    }
+
+    if (is_array($diensten) && $diensten !== []) {
+        $names = array_map(static fn ($term) => esc_html($term->name), $diensten);
+        $last = array_pop($names);
+        $text = $names === [] ? $last : implode(', ', $names) . ' &amp; ' . $last;
+        $html .= '<span class="jw-diensten">' . $text . '</span>';
+    }
+
+    return $html !== '' ? $html : null;
 }

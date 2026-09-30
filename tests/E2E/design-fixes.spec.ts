@@ -120,73 +120,39 @@ test.describe('design fixes (desktop)', () => {
   });
 
   /**
-   * Back to scroll-driven (review 2026-09-18), after a CSS marquee and then an
-   * autoplaying slider. The marquee's failure mode was running out of logos,
-   * so "endless" is asserted as BEHAVIOUR, not as a config string: at every
-   * scroll position through the wall, logos overhang both edges.
+   * A steady flow, not scroll-driven (Stefan, 2026-09-30). The failure mode of
+   * every earlier marquee was running out of logos, so "endless" is asserted as
+   * BEHAVIOUR: at several moments the logos overhang both edges — and they move
+   * without any scrolling.
    */
-  test('client logos glide with the scroll, endlessly, and rest when it stops', async ({ page }) => {
+  test('client logos flow by themselves, endlessly', async ({ page }) => {
     await page.goto('/');
     const wall = page.locator('.jw-logo-wall').first();
-    const slider = (await wall.getAttribute('uk-slider')) ?? '';
-    expect(slider).toContain('parallax: true');
-    expect(slider).not.toMatch(/autoplay: (1|true)/);
-    expect(slider).not.toContain('finite: true');
-
-    const abs = await wall.evaluate((el) => el.getBoundingClientRect().top + scrollY);
+    await wall.scrollIntoViewIfNeeded();
     const coverage = () => wall.evaluate((el) => {
       const box = el.getBoundingClientRect();
-      const rs = [...el.querySelectorAll('.uk-slider-items > *')].map((i) => i.getBoundingClientRect())
+      const rs = [...el.querySelectorAll('.uk-grid > *')].map((i) => i.getBoundingClientRect())
         .filter((r) => r.right > box.left && r.left < box.right);
       return { left: Math.min(...rs.map((r) => r.left)) - box.left, right: box.right - Math.max(...rs.map((r) => r.right)) };
     });
-    const first = () => wall.evaluate((el) => (el.querySelector('.uk-slider-items > *') as HTMLElement).getBoundingClientRect().left);
+    const first = () => wall.evaluate((el) => (el.querySelector('.uk-grid > *') as HTMLElement).getBoundingClientRect().left);
 
     const positions: number[] = [];
-    for (let f = 0.1; f <= 0.9; f += 0.2) {
-      await page.evaluate((y) => window.scrollTo(0, y), abs - 900 + f * 1100);
-      await page.waitForTimeout(200);
+    for (let i = 0; i < 4; i++) {
       const c = await coverage();
       expect(c.left, 'no empty strip on the left').toBeLessThanOrEqual(0);
       expect(c.right, 'no empty strip on the right').toBeLessThanOrEqual(0);
       positions.push(await first());
+      await page.waitForTimeout(3000);
     }
-    expect(new Set(positions.map(Math.round)).size, 'the logos move as the page scrolls').toBeGreaterThan(1);
-
-    const still = await first();
-    await page.waitForTimeout(2000);
-    expect(await first(), 'no autoplay: nothing moves without scrolling').toBe(still);
+    expect(new Set(positions.map(Math.round)).size, 'the logos move on their own').toBeGreaterThan(1);
+    expect(await wall.locator('.el-image').first().evaluate((el) => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(40);
   });
 
-  /**
-   * Measured OPEN, because that is the only state anyone sees: the dropnav
-   * has `container: body`, so UIkit moves the dropdown out of the toolbar the
-   * moment it opens. The previous version of this test measured it closed.
-   * The items must match the NL trigger, and the panel needs a surface —
-   * the radius existed before but was invisible against the page.
-   */
-  test('language dropdown: a visible rounded panel, items the size of NL', async ({ page }) => {
+  test('the toolbar carries no language switcher for now', async ({ page }) => {
     await page.goto('/');
-    const trigger = page.locator('.tm-toolbar a[href="#pll_switcher"]');
-    const triggerSize = await trigger.evaluate(fontSize);
-
-    // Opened through UIkit's own component rather than a hover: the hover
-    // depends on when UIkit finishes wiring the dropnav after load, which made
-    // this flaky, and what is under test is the open panel's styling. It is
-    // still the real open state — UIkit moves the panel into <body> either way.
-    await page.waitForFunction(() => (window as any).UIkit?.drop);
-    await page.evaluate(() => (window as any).UIkit.drop(document.querySelector('.tm-toolbar .uk-dropdown')).show());
-    const drop = page.locator('.uk-dropdown.uk-open').first();
-    await drop.waitFor();
-
-    const s = await drop.evaluate((el) => {
-      const cs = getComputedStyle(el);
-      return { radius: cs.borderRadius, bg: cs.backgroundColor, shadow: cs.boxShadow };
-    });
-    expect(s.radius).toBe('8px');
-    expect(s.bg).toBe('rgb(255, 255, 255)');
-    expect(s.shadow).not.toBe('none');
-    expect(await drop.locator('.uk-dropdown-nav a').first().evaluate(fontSize)).toBe(triggerSize);
+    await expect(page.locator('.tm-toolbar a[href="#pll_switcher"]')).toHaveCount(0);
+    await expect(page.locator('.tm-toolbar')).toContainText('Jobs');
   });
 
   test('the logo pupil touches the eye contour when the cursor is off to the side', async ({ page }) => {

@@ -1290,9 +1290,23 @@ h4, .uk-h4 {
 // the way the design draws it. Safe ONLY because this content row holds the
 // term list and nothing else — if a case card ever shows prose here, this line
 // would swallow it.
-.jw-case-card .el-content,
 .jw-tags {
     font-size: 0;
+}
+
+// The card's label row is the case `labels` field: the domain pill, then the
+// diensten as plain text next to it (see CaseService::resolve_case_labels).
+.jw-case-card .el-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: @jw-s-2;
+    font-size: @label-font-size;
+    line-height: @global-line-height;
+
+    a[rel="tag"] {
+        margin-right: 0;
+    }
 }
 
 .jw-case-card .el-content a[rel="tag"],
@@ -1376,13 +1390,14 @@ h4, .uk-h4 {
 // The one part of the logo strip YOOtheme cannot express as a setting: it has no
 // image filter (checked — `blend` is a boolean, not a mode) and no max-height, so
 // desaturating and shrinking the marks needs CSS. Applied by putting the
-// `jw-logo-wall` class on the panel slider — an autoplaying, infinite slider is
-// YOOtheme's own endless loop (Stefan chose it over a CSS marquee, 2026-09-10).
+// `jw-logo-wall` class on the grid element.
 //
 // Centring both ways matters more than it looks: `uk-grid-match` stretches every
 // item to the tallest, and the supplied logos have wildly different aspect
 // ratios, so without this they sit on different baselines.
 .jw-logo-wall {
+    overflow: hidden;
+
     .el-item {
         display: flex;
         align-items: center;
@@ -1390,10 +1405,35 @@ h4, .uk-h4 {
     }
 
     .el-image {
-        max-height: 34px;
+        max-height: 56px;
         width: auto;
         filter: grayscale(1);
     }
+
+    // A steady flow, not scroll-driven (Stefan, 2026-09-30): the wall is a grid
+    // on `auto` widths whose track runs one linear keyframe. The items are two
+    // identical halves, so -50% loops without a seam, and EACH HALF must be
+    // wider than the widest screen or the track runs out on the right (the
+    // first marquee's failure, 2026-09-10) — hence the fixed item width and a
+    // dozen-plus items per half. Keep it two halves.
+    > .uk-grid {
+        flex-wrap: nowrap;
+        width: max-content;
+        animation: jw-marquee 60s linear infinite;
+
+        > * {
+            flex: none;
+            width: 240px;
+        }
+    }
+}
+
+@keyframes jw-marquee {
+    to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .jw-logo-wall > .uk-grid { animation: none; }
 }
 
 
