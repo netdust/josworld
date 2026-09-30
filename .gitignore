@@ -137,6 +137,9 @@ Thumbs.db
 !app/content/
 !app/content/**
 
+# Runtime caches (Matomo's lives here) — never tracked
+app/content/cache/
+
 # Ignore uploads directory (user files)
 app/content/uploads/
 
