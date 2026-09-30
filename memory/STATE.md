@@ -23,6 +23,16 @@
   skipped `ntdst_matomo_log_bot_request` (added in 5.13) — `ALTER TABLE ... CONVERT TO CHARACTER
   SET utf8mb4` by hand. The diagnostics warning still showed afterwards; `wp-config.php` has no
   `DB_CHARSET`, likely what Matomo reads. Harmless while tracking is off.
+- **Cookieless + events (Stefan, 2026-09-30)**: Matomo runs cookieless (`disable_cookies=1`, set on
+  staging and local via `\WpMatomo\Settings::apply_tracking_related_changes`; travels with the DB
+  copy) with IP anonymisation on (Matomo default, 2 bytes) — no consent gating on the YOOtheme
+  banner. `themes/josworld/src/analytics.js` pushes to `_paq` what Auto mode cannot see: Form
+  Submit (FluentForm's native `fluentform_submission_success`; ids 1-4 named in `FORM_NAMES`,
+  download form labelled with the page's h1), Booking Booked (FluentBooking has no success event, so
+  it wraps XHR and counts the `fluent_cal_schedule_meeting` POST only on HTTP 200), Contact Click
+  (mailto/tel). Pages, outbound links and file downloads are Matomo's own. After go-live define
+  goals in Matomo on these events (Category Form/Booking/Contact); goals live in the DB.
+
 - **Diagnostics left alone**: proxy header (`HTTP_X_REAL_IP`, ignore if locations are right),
   geolocation (default provider is language-based; a GeoIP DB needs to be added), connection
   collation note.
