@@ -8,7 +8,7 @@ import { test, expect } from '@playwright/test';
  */
 const box = (el: Element) => el.getBoundingClientRect();
 
-test.describe('phone layout', () => {
+test.describe('phone layout @smoke @e2e', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   for (const path of ['/voor-overheden/', '/voor-social-profit/']) {

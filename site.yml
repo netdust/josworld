@@ -128,3 +128,8 @@ commands:
   # The gate's exit code is the single source of truth — see README-testing.md.
   test: ddev composer test:unit
   gate: composer gate                # host-invoked; runs every tier (ddev gate works too)
+  # Read-only checks, run against an environment's URL; production too. Tagged in the specs.
+  smoke: WP_BASE_URL=$SMOKE_URL npx playwright test --grep @smoke
+  # The flows re-run on the deployed composition; `make ship` waits for its stamp.
+  e2e: WP_BASE_URL=$E2E_URL npx playwright test --grep @e2e
+  review: claude -p "/netdust-gates:feature-review"

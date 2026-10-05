@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test';
  */
 const fontSize = (el: Element) => getComputedStyle(el).fontSize;
 
-test.describe('design fixes (desktop)', () => {
+test.describe('design fixes (desktop) @smoke @e2e', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test('every pill button and tertiary link reads at 18px, also the small ones', async ({ page }) => {
@@ -185,7 +185,7 @@ test.describe('design fixes (desktop)', () => {
   });
 });
 
-test.describe('mobile menu (phone)', () => {
+test.describe('mobile menu (phone) @smoke @e2e', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
   test('the burger opens the Figma dropbar: lemon panel, two nav sizes, language row, tall CTA', async ({ page }) => {
@@ -210,7 +210,7 @@ test.describe('mobile menu (phone)', () => {
   });
 });
 
-test.describe('mobile design fixes (phone)', () => {
+test.describe('mobile design fixes (phone) @smoke @e2e', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
   test('doelgroep header: H1 on two lines above a smaller intro, over a tall hero photo', async ({ page }) => {

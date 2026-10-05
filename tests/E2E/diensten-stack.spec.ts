@@ -14,7 +14,7 @@ const STACK_PAGES: Record<string, number> = {
 const VIEWPORTS = { desktop: { width: 1440, height: 900 }, phone: { width: 390, height: 844 } };
 
 for (const [path, count] of Object.entries(STACK_PAGES)) for (const [device, viewport] of Object.entries(VIEWPORTS)) {
-  test(`cards stack while scrolling on ${path} (${device})`, async ({ page }) => {
+  test(`cards stack while scrolling on ${path} (${device}) @smoke @e2e`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto(path);
 

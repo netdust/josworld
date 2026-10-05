@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  */
 const RHYTHM = '[uk-scrollspy*="slide-bottom-medium"]';
 
-test.describe('site motion (desktop)', () => {
+test.describe('site motion (desktop) @smoke @e2e', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test('homepage sections cascade in, in order', async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe('site motion (desktop)', () => {
   });
 });
 
-test.describe('site motion, the rest of the site', () => {
+test.describe('site motion, the rest of the site @smoke @e2e', () => {
   test('every eligible section across the site carries the one rhythm', async ({ page }) => {
     for (const path of ['/waarom-jos/', '/ons-werk/onze-energie/', '/jobs-stages/']) {
       await page.goto(path);
@@ -65,7 +65,7 @@ const hiddenOrMoved = (els: Element[]) =>
     return cs.opacity !== '1' || cs.transform !== 'none' || cs.animationName !== 'none';
   }).length;
 
-test.describe('site motion, reduced motion requested', () => {
+test.describe('site motion, reduced motion requested @smoke @e2e', () => {
   test.use({ viewport: { width: 1440, height: 900 }, contextOptions: { reducedMotion: 'reduce' } });
 
   test('every animated element is visible, in place, without scrolling', async ({ page }) => {
@@ -76,7 +76,7 @@ test.describe('site motion, reduced motion requested', () => {
   });
 });
 
-test.describe('site motion, JavaScript unavailable', () => {
+test.describe('site motion, JavaScript unavailable @smoke @e2e', () => {
   test.use({ javaScriptEnabled: false });
 
   test('nothing carrying the animation hook is hidden', async ({ page }) => {

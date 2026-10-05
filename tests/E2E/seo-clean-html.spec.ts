@@ -12,7 +12,7 @@ const INSTAGRAM = 'https://www.instagram.com/josworld.agency/';
 const meta = (html: string, attr: 'name' | 'property', key: string) =>
   html.match(new RegExp(`<meta ${attr}=["']${key}["'] content=["']([^"']*)["']`))?.[1];
 
-test.describe('served HTML: the homepage', () => {
+test.describe('served HTML: the homepage @e2e', () => {
   let html = '';
   let headers: Record<string, string> = {};
 
@@ -73,7 +73,7 @@ test.describe('served HTML: the homepage', () => {
   });
 });
 
-test.describe('served HTML: other pages', () => {
+test.describe('served HTML: other pages @e2e', () => {
   test('a page describes itself block by block, not glued together', async ({ request }) => {
     const html = await (await request.get('/waarom-jos/')).text();
     const description = meta(html, 'name', 'description') ?? '';

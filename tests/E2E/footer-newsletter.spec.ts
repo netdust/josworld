@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * Newsletter element, whose Mailchimp provider had no API key and answered "Invalid API key."
  * The look is the element's it replaced: a 44px pill field and a raspberry pill button on one row.
  */
-test.describe('footer newsletter (desktop)', () => {
+test.describe('footer newsletter (desktop) @smoke @e2e', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   const footerForm = (page: import('@playwright/test').Page) => page.locator('footer form.frm-fluent-form');
@@ -63,7 +63,7 @@ test.describe('footer newsletter (desktop)', () => {
   });
 });
 
-test.describe('footer newsletter (phone)', () => {
+test.describe('footer newsletter (phone) @smoke @e2e', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('field and button stack with a small gap, as in the design', async ({ page }) => {
