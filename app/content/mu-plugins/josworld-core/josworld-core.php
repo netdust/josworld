@@ -29,8 +29,17 @@ defined('JOSWORLD_CORE_TEXTDOMAIN') || define('JOSWORLD_CORE_TEXTDOMAIN', 'joswo
 add_filter('ntdst/baseline/modules', static function (array $modules): array {
     $modules['yootheme'] = true;
     $modules['polylang'] = true;
+    $modules['duplicate'] = true;
 
     return $modules;
+});
+
+// Duplicate pages, posts and CPTs: the admin is Dutch, baseline's defaults are English.
+add_filter('ntdst/baseline/duplicate/config', static function (array $config): array {
+    $config['suffix'] = '(kopie)';
+    $config['labels'] = ['duplicate' => 'Dupliceren'];
+
+    return $config;
 });
 
 add_action('plugins_loaded', function (): void {
