@@ -15,6 +15,7 @@ import collapse from '@alpinejs/collapse';
 import { initLogoEye } from './logo-eye.js';
 import { typewriter } from './typewriter.js';
 import { initScrollEffects } from './effects/scroll-effects.js';
+import { initAnalytics } from './analytics.js';
 
 Alpine.plugin(collapse);
 window.Alpine = Alpine;
@@ -117,6 +118,7 @@ initLogoEye();
 // Lenis smooth scroll + the scroll-linked image/text effects. Under
 // prefers-reduced-motion this reveals the content without animating it.
 initScrollEffects();
+initAnalytics();
 
 if (window.josworldConfig?.debug) {
   console.log('Josworld frontend initialized');

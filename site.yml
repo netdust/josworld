@@ -6,7 +6,7 @@
 
 site:
   name: josworld
-  domain: josworld.com               # production domain, e.g. example.com
+  domain: jos.agency                 # production domain, e.g. example.com
   description: WordPress site (stackedWP + YOOtheme child) — scaffolded via new-site.sh
   risk: low                          # low | medium | high — "high" means triple-check destructive ops
 
@@ -23,8 +23,8 @@ structure:
 
 hosting:
   provider: combell                  # ploi | combell | other
-  ssh_staging:                       # TODO — no Combell site exists yet
-  ssh_production:                    # TODO — no Combell site exists yet
+  ssh_staging: jos-server            # ~/.ssh/config alias → ssh072.webhosting.be (josagency)
+  ssh_production: jos-server         # same box; staging is a subsites/ folder on it
 
 # The promotion targets. The Makefile reads these for every deploy: which
 # branch may reach which environment, where it lives, and whether it prompts.
@@ -38,15 +38,15 @@ environments:
   #   role: "sandbox — may break"
   #   confirm: false
   staging:
-    url: https://staging.josworld.com
-    path: TODO                       # absolute path on the server
+    url: https://staging.jos.agency
+    path: /data/sites/web/josagency/subsites/staging.jos.agency
     branch: staging
     role: "colleague-facing — keep stable"
     confirm: false
     # ssh_host: overrides deploy.ssh_host for this environment
   production:
-    url: https://josworld.com
-    path: TODO                       # absolute path on the server
+    url: https://jos.agency
+    path: /data/sites/web/josagency/www
     branch: main
     role: "live"
     confirm: true                    # production ALWAYS prompts
@@ -58,12 +58,14 @@ deploy:
   method: rsync
   staging_command: make deploy env=staging
   production_command: make ship
-  ssh_host:                          # TODO — default; an environment may override it
+  ssh_host: jos-server               # default; an environment may override it
   wp_path: wp                        # WP core ON THE SERVER, relative to the env path
                                      # bedrock: web/wp · custom-app: wp · standard: "" (root)
   content_dir: content               # wp-content ON THE SERVER, relative to the env path
                                      # bedrock: web/app · custom-app: content
-  state_dir: TODO                    # the ledger, OUTSIDE every web root (env dirs are served)
+  state_dir: /data/sites/web/josagency/.deploy-state
+                                     # the ledger, OUTSIDE every web root (env dirs are
+                                     # served). Home is not served; www and subsites/ are.
 
   # rsync only. A closed list — nothing outside it ever crosses the wire: not
   # wp/, not vendor/, not uploads/, not a third-party plugin. Every entry must
@@ -84,6 +86,11 @@ deploy:
     # these INSIDE a payload directory, where static files are served.
     - "/memory/"
     - "/tasks/"
+    # The outgoing-mail block lives in content/mu-plugins — a payload directory
+    # rsynced with --delete — but exists ONLY on the server, never locally.
+    # Without this line every deploy silently deletes it and staging starts
+    # sending real mail again. Excluded files are protected from --delete.
+    - "00-block-outgoing-mail.php"
 
   # git-push only. A push alone does NOT deploy: Ploi may have no repository
   # connected, and PHP-FPM often runs opcache.validate_timestamps=0, so the
@@ -121,3 +128,8 @@ commands:
   # The gate's exit code is the single source of truth — see README-testing.md.
   test: ddev composer test:unit
   gate: composer gate                # host-invoked; runs every tier (ddev gate works too)
+  # Read-only checks, run against an environment's URL; production too. Tagged in the specs.
+  smoke: WP_BASE_URL=$SMOKE_URL npx playwright test --grep @smoke
+  # The flows re-run on the deployed composition; `make ship` waits for its stamp.
+  e2e: WP_BASE_URL=$E2E_URL npx playwright test --grep @e2e
+  review: claude -p "/netdust-gates:feature-review"

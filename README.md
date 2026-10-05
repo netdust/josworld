@@ -24,7 +24,7 @@ The daily drivers:
 | `make save` | Stage everything and commit with a prompted message |
 | `make deploy` | Build a Git bundle (incl. theme asset build) and deploy to staging |
 | `make ship` | Same as deploy, to production — confirmed, with a DB backup first |
-| `make feature name=xyz` / `make finish` | Create `feature/xyz` from `staging` / merge it back |
+| `make feature name=xyz` | Create `feature/xyz` from production (`main`); the `promote` verb puts it on staging |
 | `make sync-to-local` | Pull the staging DB + uploads into the local site |
 | `make backup` | Export the local DB and archive uploads to `backups/` |
 
