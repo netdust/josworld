@@ -33,6 +33,9 @@
   (mailto/tel). Pages, outbound links and file downloads are Matomo's own. After go-live define
   goals in Matomo on these events (Category Form/Booking/Contact); goals live in the DB.
 
+- **Smoke/e2e visits vs Matomo**: once production tracks, `make smoke env=production` (headless
+  Chrome) would be counted as visits unless Matomo excludes them — add an exclusion for the
+  HeadlessChrome user agent (Matomo → Settings → Exclusions) at go-live.
 - **Diagnostics left alone**: proxy header (`HTTP_X_REAL_IP`, ignore if locations are right),
   geolocation (default provider is language-based; a GeoIP DB needs to be added), connection
   collation note.

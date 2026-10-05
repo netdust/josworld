@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * Newsletter element, whose Mailchimp provider had no API key and answered "Invalid API key."
  * The look is the element's it replaced: a 44px pill field and a raspberry pill button on one row.
  */
-test.describe('footer newsletter (desktop) @smoke @e2e', () => {
+test.describe('footer newsletter (desktop)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   const footerForm = (page: import('@playwright/test').Page) => page.locator('footer form.frm-fluent-form');
@@ -16,7 +16,7 @@ test.describe('footer newsletter (desktop) @smoke @e2e', () => {
     await page.keyboard.press('End');
   });
 
-  test('the signup is the FluentForms newsletter form, in Dutch', async ({ page }) => {
+  test('the signup is the FluentForms newsletter form, in Dutch @smoke @e2e', async ({ page }) => {
     await expect(page.locator('footer form.js-form-newsletter')).toHaveCount(0);
     const form = footerForm(page);
     await expect(form).toHaveCount(1);
@@ -25,14 +25,14 @@ test.describe('footer newsletter (desktop) @smoke @e2e', () => {
     await expect(form.locator('button[type=submit]')).toHaveText('Inschrijven');
   });
 
-  test('a wrong address is answered in Dutch', async ({ page }) => {
+  test('a wrong address is answered in Dutch @e2e', async ({ page }) => {
     const form = footerForm(page);
     await form.locator('input[type=email]').fill('naam@domein');
     await form.locator('button[type=submit]').click();
     await expect(form.locator('.error')).toContainText('geldig e-mailadres');
   });
 
-  test('field and button keep the look of the element they replaced', async ({ page }) => {
+  test('field and button keep the look of the element they replaced @smoke @e2e', async ({ page }) => {
     const form = footerForm(page);
     const look = await form.evaluate((f) => {
       const i = f.querySelector('input[type=email]')!;
@@ -63,10 +63,10 @@ test.describe('footer newsletter (desktop) @smoke @e2e', () => {
   });
 });
 
-test.describe('footer newsletter (phone) @smoke @e2e', () => {
+test.describe('footer newsletter (phone)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('field and button stack with a small gap, as in the design', async ({ page }) => {
+  test('field and button stack with a small gap, as in the design @smoke @e2e', async ({ page }) => {
     await page.goto('/');
     const form = page.locator('footer form.frm-fluent-form');
     await form.scrollIntoViewIfNeeded();
