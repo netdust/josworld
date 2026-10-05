@@ -81,7 +81,9 @@ final class DuplicateRoundTripTest extends WP_UnitTestCase
     public function test_the_copy_keeps_the_sources_language_and_is_not_a_translation(): void
     {
         if (! function_exists('pll_set_post_language') || ! function_exists('pll_get_post_translations')) {
-            $this->markTestSkipped('Polylang is not loaded in the integration environment.');
+            $this->markTestSkipped(
+                'Polylang loads its API only once a language exists, and the wptests database has none.'
+            );
         }
 
         $id = self::factory()->post->create(['post_type' => 'page', 'post_status' => 'publish']);
