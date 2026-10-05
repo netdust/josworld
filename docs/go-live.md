@@ -6,10 +6,15 @@ in this order. Staging path: `/data/sites/web/josagency/subsites/staging.jos.age
 Tick as you go; items marked **Stefan** need a decision or credentials only he has.
 
 ## A. Before the copy — on staging
-- [ ] **Delete/unpublish test content** (list = what staging holds today; **Stefan: confirm keep/delete**):
-      `/sample-page/`, `/hello-world/`, `/e2e-fixture-post/`, `/test-secties/` (19 h1s), `/tools/testdraft/`,
-      `/fr/homepage-fr/`, `/en/homepage-en/`, `/en/ons-werk/biggest/`; the vacature "Position name"; the seven
-      cases titled "Lorem ipsum title…"; the blog posts that still use `placeholder-landscape.png`.
+- [x] **Test/system content trashed on staging 2026-10-05** (Stefan: "site goes live in nl"; recoverable from the
+      trash for 30 days): `/sample-page/` (#2), `/hello-world/` (#1), `/e2e-fixture-post/` (#7), `/test-secties/` (#64),
+      the EN/FR placeholder homepages (#118, #119), the vacature "Position name" (#198). `testdraft` and the EN case
+      "Biggest" exist only on the local site. NOTE: `make e2e` re-seeds an e2e fixture post on staging — trash it
+      again (and any `e2e-*` user) after the final e2e run.
+- [ ] **Real entries that still look unfinished (Stefan, content):** eight cases titled "Lorem ipsum title about wat
+      JOS voor ons oploste" (`kinderrechtencommissariaat`, `klimaatcoalitie`, `plonge`, `gent-zuid`, `balkan-trafik`,
+      `brupower`, `het-goeie-leven`, `departement-werk-economie`: identical title tag ×8) and five blog posts whose
+      featured image is the grey `placeholder-landscape.png`.
 - [ ] **Users:** decide about `admin` (id 1) and `jw-build-bot` (id 4), both administrators; no `e2e-*` user may exist.
 - [x] `blogname` = `Jos` (done on local + staging 2026-10-05; titles and `og:site_name` follow).
 - [ ] **Privacy page** (id 23): only the Matomo "Statistieken" section exists — **Stefan** writes the rest.
@@ -50,6 +55,8 @@ Tick as you go; items marked **Stefan** need a decision or credentials only he h
       (`deployed/production`) so `make deployed` and `make ship` have a baseline.
 
 ## D. After launch (baseline SEO work — see memory `seo-belongs-in-baseline`)
-Canonicals on archives, og:image 1200×630 crop + width/height/alt + og:locale, icon set + manifest, hreflang
-once EN/FR have real translations. Content: descriptions for the 12 pages without one, h1 on `/blog-nieuws/`
-and the tools, alt text.
+Canonicals on archives (the five listing pages `/jobs-stages/`, `/gratis-aanbod/`, `/blog-nieuws/`, `/team/`,
+`/ons-werk/` have neither canonical nor description), og:image 1200×630 crop + width/height/alt + og:locale, icon
+set + manifest, hreflang once EN/FR have real translations. Content: descriptions for those five pages, h1 on
+`/blog-nieuws/` (none) and a single h1 on `/diensten/`, `/ons-werk/uitx/`, `/team/fatima-diallo/` (two each),
+alt text (647 of 770 images on staging have none).
