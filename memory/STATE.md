@@ -1,6 +1,435 @@
 # josworld — Project State
 
-## Current Phase: content model complete (T01-T12 landed); next is section-by-section page building
+## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
+
+## Matomo (self-hosted, in WordPress) — go-live checklist (2026-09-30, branch feature/staging-review-edits)
+
+- **Plugin**: "Matomo Analytics" (`matomo` 5.13.1, the in-WordPress one — NOT `wp-piwik`/Connect
+  Matomo, which only injects a snippet for a remote Matomo; we own the server, Stefan ruled it).
+  Installed + set up on staging by hand: plugins are not in git or the deploy payload. Tracking mode
+  is **Disabled** on staging on purpose — tracking is production only. No tracking code will ever be
+  given: Auto mode embeds it.
+- **Staging → production is a COPY of files + database** (Stefan), so Matomo travels with it. After
+  the copy, on production: (1) the site record in `ntdst_matomo_site` still says
+  `https://staging.jos.agency` — a search-replace over all `ntdst_` tables catches it, else set
+  `https://jos.agency`; (2) `content/uploads/matomo/config/config.ini.php` (holds DB credentials —
+  edit, don't paste) still lists the staging host in `trusted_hosts`; (3) Matomo Analytics →
+  Settings → Tracking → **Auto** (the copy carries Disabled); (4) a system cron hitting
+  `wp-cron.php` on the production box (Matomo builds reports + deletes data via WP cron; none set
+  up on staging either).
+- **utf8mb4**: `MATOMO_WP_ROOT_PATH=<env>/wp php content/plugins/matomo/app/console
+  core:convert-to-utf8mb4 --yes` (the custom `content/` dir defeats Matomo's own wp-load
+  detection, hence the env var). Done on staging by Stefan (the agent's ssh write was blocked); it
+  skipped `ntdst_matomo_log_bot_request` (added in 5.13) — `ALTER TABLE ... CONVERT TO CHARACTER
+  SET utf8mb4` by hand. The diagnostics warning still showed afterwards; `wp-config.php` has no
+  `DB_CHARSET`, likely what Matomo reads. Harmless while tracking is off.
+- **Cookieless + events (Stefan, 2026-09-30)**: Matomo runs cookieless (`disable_cookies=1`, set on
+  staging and local via `\WpMatomo\Settings::apply_tracking_related_changes`; travels with the DB
+  copy) with IP anonymisation on (Matomo default, 2 bytes) — no consent gating on the YOOtheme
+  banner. `themes/josworld/src/analytics.js` pushes to `_paq` what Auto mode cannot see: Form
+  Submit (FluentForm's native `fluentform_submission_success`; ids 1-4 named in `FORM_NAMES`,
+  download form labelled with the page's h1), Booking Booked (FluentBooking has no success event, so
+  it wraps XHR and counts the `fluent_cal_schedule_meeting` POST only on HTTP 200), Contact Click
+  (mailto/tel). Pages, outbound links and file downloads are Matomo's own. After go-live define
+  goals in Matomo on these events (Category Form/Booking/Contact); goals live in the DB.
+
+- **Smoke/e2e visits vs Matomo**: once production tracks, `make smoke env=production` (headless
+  Chrome) would be counted as visits unless Matomo excludes them — add an exclusion for the
+  HeadlessChrome user agent (Matomo → Settings → Exclusions) at go-live.
+- **Diagnostics left alone**: proxy header (`HTTP_X_REAL_IP`, ignore if locations are right),
+  geolocation (default provider is language-based; a GeoIP DB needs to be added), connection
+  collation note.
+
+## Phone design fixes (2026-09-11, branch feature/mobile-design)
+
+- **Type on phones (variables)**: `@base-h1-font-size` 0.6 → 0.7 (53px),
+  `@base-h2-font-size` 0.65 → 0.6 (36px); the intro role has no `-m`
+  variable, so the one media rule drops `.uk-text-large` to 24/32 below `m`.
+  `@grid-large-gutter-vertical: 64px` — UIkit halved every `large` row gap to
+  32 below `l`; case tiles, tool tiles and team now stack at 64.
+- **Doelgroep header (H3)**: the H1 lost its hard `<br>` (it forced "dicht
+  bij / de mensen" onto three uneven lines); the wide hero (1280×442,
+  `visibility: m`) has a phone twin `hero-mobile` (`jos-team-hero.jpg`
+  780×1040, `hidden-m`) — the duplicate-element pattern.
+- **Contact CTA card (A3/A4, ~40 trees)**: the inner 1-2,1-2 row now holds the
+  photo column FIRST (phone order) and the text column carries `order_first:
+  m` (desktop order) plus `text_align: left` / breakpoint `m` / fallback
+  `center`; the photo column right/m/center. `.yoo-tools/mobile-fix2.py` is
+  the idempotent transform (also C5 dots, H3 hero, A1 sun), run over pages
+  11 12 13 17 18 44 48 64 146–157 160–165 197 198, templates oK_cwk04
+  goYeARw1 RMMlzZVy WXXvROde gDbuyeYA TNp2BdnU Kw9hhk4t, library igx2J5HU
+  4ed3edaa e86c5b25 chav_wOn 4ca7191c (three need `no-lint`, pre-existing).
+- **C5 review slider**: `nav_breakpoint: ''` — dots were hidden below `s`.
+- **A1 · Tools CTA (home, 64)** mirrors A5: sun `visibility: m` + `sun-mobile`
+  absolute behind, `tool-mobile` relative z 2 with `margin_top: xlarge`.
+- **Footer newsletter**: `gap: small` (field/button stack at 16px).
+- **Contact page booking column**: `padding: large` → `default` (the calendar
+  had 40px inset on a 358px screen). The "cut intro text" could not be
+  reproduced locally — the FluentBooking slot picker measures 636px wide
+  (its own CSS); revisit with a screenshot from Stefan's phone.
+- **Playwright full-page screenshots do not trigger lazy images**: scroll the
+  page in steps before shooting, or every card below the fold looks empty.
+
+## Design fixes against Figma (2026-09-10, branch feature/design-fixes)
+
+- **Figma file** `bwFc8dsfRNScrQgOwUcXKW` (Jos-website), page `625:2790`
+  "Copywriting + Dev"; frames: Homepage 625:10088, Voor overheden 625:10567,
+  Ons werk 625:11747, Team 625:12235, Jobs 625:12258, Waarom Jos 625:12616,
+  Diensten 625:12692, Blog 625:12769, Blog item 625:12791, Privacy 625:12821,
+  Footer instance 625:10554, Nav bar 625:12828. `get_metadata` on the page
+  node is 363 KB — call it on a frame.
+- **Every builder button is `button_size: small`**, and UIkit's small variant
+  drops to 14px: `@button-small-font-size` now carries the 18px Figma text,
+  40px height, 20px inset. The tertiary `uk-button-text` links share it.
+- **Page titles on Ons werk / Jobs / Diensten / Privacy are the 32px Inter
+  intro role in Figma** (like Blog & nieuws), not T1: `title_style:
+  text-large` on the archive templates (Hhoi7Wz0, WXXvROde) and page 13;
+  Privacy has no builder layout, so the fallback `uk-article-title` takes the
+  role through `@article-title-*` + `.hook-article-title()`.
+- **The language switcher is a toolbar `uk-dropnav`** → plain `uk-dropdown`;
+  the `@navbar-dropdown-*` values never reached it. Radius, 12px, 120px wide.
+- **Footer reveal is a section SETTING**: `sticky: reveal` ("Sticky Effect →
+  Reveal") on the footer's one section in `config.footer.content`. YOOtheme
+  emits its own `uk-sticky` + negative z-index and the parent theme's LESS
+  carries the main/footer stacking. A first pass did it in CSS (sticky footer +
+  z-index on main/header) and Stefan asked for the setting — the section field
+  also offers `cover`; check `section/element.php` before writing an effect.
+- **Logo wall is YOOtheme's autoplaying panel-slider** (`slider_autoplay`,
+  interval 5 s, velocity 0.2, infinite, no pause on hover): the whole track
+  glides one logo, rests, glides — endless without duplicate halves. The CSS
+  marquee tried first (grid + keyframe, `-50%`) ran out of logos on the right
+  once a half-track was narrower than the screen; Stefan chose the native
+  slider (2026-09-10). `.yoo-tools/logo-autoplay.py` converts; pages 11, 17,
+  18, 64.
+- **Logo eye**: `TRAVEL_FRACTION` 0.72 → 1.15 in `src/logo-eye.js`; the pupil
+  rides the rim like the SMIL export. `dist/` is gitignored — rebuild on deploy.
+- **Fonts**: `less.@internal-fonts` in the config now lists `Fraunces:300,400,400i`
+  (the footer headings are `<em>` in Fraunces; the italic was synthesised).
+- **Photo credit** (Stefan approved 2026-09-10): a `text` element `text_style:
+  meta`, `position: absolute` right/bottom 16, `text_align: right`, `class:
+  uk-light` beside the image in its column. Live on case 146's first wide photo
+  and saved as library section `W3 · Case — beeld breed + fotocredit`
+  (`239efdaf`) — the library holds layouts and sections only, never a lone
+  element, so the credit travels with its section.
+- **Sticky navbar** (`navbar.sticky: 2`) gets a white bar + 12px padding via
+  `.hook-navbar-sticky()`; the background needs `&:not(.uk-navbar-transparent)`
+  or the theme's transparent `@navbar-background` container rule outranks it.
+- **Deployed to staging 2026-09-10 @ 519b3b9** (the finish verb, then the
+  staging deploy verb; the payload carries `dist/` because rsync copies the
+  directory, gitignore or not). Re-applied the same sitting via
+  `/data/sites/web/josagency/tmp/yoo-2026-09-10/` (removed after): pages 11,
+  12, 13, 17, 18, 64, 146; templates Hhoi7Wz0, WXXvROde, RMMlzZVy; library
+  239efdaf; builderwidget-3; config `mobile.dialog.layout`,
+  `mobile.header.transparent`, `menu.positions.dialog-mobile.menu`,
+  `less.@internal-fonts`, `footer.content`, and `navbar.sticky: 2` (set
+  locally after the 09-05 import and never carried over — a config DIFF
+  local↔staging found it; do that diff at every staging sitting). Recompiled
+  on staging with a throwaway admin (deleted after; no python3 on the box, so
+  prepare JSON locally). The three E2E specs pass with
+  `WP_BASE_URL=https://staging.jos.agency`.
+- `tests/E2E/design-fixes.spec.ts` asserts all of it at 1440×900 and the
+  mobile menu at 390×844.
+
+## Phone layout fixes: A3 photo, A5 sun card, C5 slider (2026-09-10)
+
+- **Per-breakpoint variants are DUPLICATE ELEMENTS with `visibility`**, the
+  pattern A5 already used (`tool-mobile` = `hidden-m`): A3's contact photo is
+  now a 178px image `visibility: m` plus a 120px `photo-mobile` (`hidden-m`),
+  with the column's `text_align: right` given `text_align_breakpoint: m` +
+  `text_align_fallback: center`. A5 has a `sun-mobile` (`hidden-m`, absolute,
+  top 0, left -5%, z 0) behind the static `tool-mobile` (`margin_top: xlarge`,
+  relative, z 2) — column height comes from the card, the sun peeks out behind.
+- **The review slider's right bleed has no breakpoint in the builder**
+  (`container_padding_remove` → `uk-container-item-padding-remove-right`), so
+  `theme.josworld.less` cancels it below `@breakpoint-xsmall-max` on
+  `.jw-review`. A LESS change needs `.yoo-tools/yoo-recompile.mjs` (throwaway
+  admin) locally AND on every environment — the compiled css is in the parent
+  theme, outside the payload.
+- Rolled out to every tree carrying A3/A5: pages 12, 13, 17, 18, 44, 48, 64,
+  146–157 (cases), 160–165 (tools), library A3 `igx2J5HU` + A5 `R4ttbdg-`,
+  template archive-tool `oK_cwk04`. `mobile_fix.py`-style transforms must be
+  idempotent (the roll-out re-reads pages already fixed).
+- `tests/E2E/mobile-layout.spec.ts` asserts all three at 390×844.
+
+## C3 · Diensten cards stack centred on screen (2026-09-10, final)
+
+- **No custom JS.** The three-card grid in `C3` on pages 17, 18 and 64 is
+  three centred rows, each holding ONE `panel` element (Stefan: a single
+  card is a panel, never a one-item grid; the panel takes the grid's card
+  props plus the item's content 1:1); each column carries `position_sticky: section`,
+  `position_sticky_offset` `50vh - 50%` and breakpoint `m`, so every card
+  rests in the middle of the viewport and the next slides over it (YOOtheme
+  renders `uk-sticky` with `end: !.uk-section`; DOM order stacks them).
+  A stack NEEDS one sticky column per card — there is no sticky on grid
+  items or panels — so this is the builder structure; Stefan accepted it
+  (2026-09-10, after a round-trip through revert).
+- **`C11 · Kaartenstapel` is the LIBRARY version of the stack** (2HYuL8CI):
+  the same build without the intro row, four panels; placed on Waarom Jos
+  (12), Samenwerken (14) and the test page (64), all converted 2026-09-10.
+  C3 is not in the library — it is C11 plus the intro row, on 17/18/64.
+  `library set` updates the entry in place when the name matches.
+- **Sticky breakpoint is Always (`''`), not `m`** — Stefan wants the stack on
+  phones too (2026-09-10). The spec runs every page at 1440×900 AND 390×844.
+- **`library set` without a root `version` migrated the props** (`section` →
+  `column`, `2-3` → `1-1`) on the first C11 write: build library JSON from a
+  page's section and copy the page's `version` onto it, then read it back.
+- **A taller card peeks by its extra height** under the card on top (page
+  18's first card runs one line longer). Content, not timing; accepted.
+- **Do not add a spacer for dwell.** UIkit's sticky `end` subtracts the
+  section's own padding-bottom and a child margin grows the sticky column;
+  only a sibling row below the last card holds the stack. Tried
+  (`height: viewport`, `height_viewport: 25` + `padding_bottom: xlarge`) and
+  reverted — Stefan prefers the plain three rows.
+- **Deployed to staging 2026-09-10** (the staging deploy verb @ 7cb99d1; the
+  only deletions were ntdst-core's own tests/ + phpunit.xml on the server).
+  The page JSON (12, 14, 17, 18, 64) and the C11 library entry were applied on
+  the server the same sitting: scp `yoo-content.php` + `yoo-lint*.php` + the
+  exported layouts to `/data/sites/web/josagency/tmp/yoo-<date>/` (outside the
+  webroot; the tool drops its backups in cwd), then
+  `wp --path=/data/sites/web/josagency/subsites/staging.jos.agency/wp --user=1
+  eval-file yoo-content.php page set <id> page<id>.json no-lint`. WP core is at
+  `wp/` on the server, not `app/wp`; IDs, prefix (`ntdst_`) and admin user 1
+  match local. Spec run with `WP_BASE_URL=https://staging.jos.agency` passes.
+- **The layout lives in the DB**: `tests/E2E/diensten-stack.spec.ts` is the
+  proof; a deploy carries only the spec — re-apply the page JSON on staging
+  (`yoo-content.php page set 17|18|64`, `no-lint` for the known A5 parallax
+  props). The tool refuses a path outside the container: copy the file into
+  `.yoo-tools/` first.
+
+## Case tiles show a second image on hover (2026-09-03, branch feature/case-hover-image)
+
+- **Nothing new was built** — YOOtheme's `grid_item` and `panel` carry a native
+  `hover_image` prop (rendered as `.el-hover-image.uk-transition-fade`, opacity
+  0 → 1 under `.uk-transition-toggle:hover`); every case grid already had
+  `show_hover_image: true`.
+- **`W1 · Cases` is a BOUND grid now, on every copy** (pages 11, 17, 18 and the
+  source on 64) and in the library (`b9e84ffe`): one `grid_item` with
+  `cases.customCases` (offset 0, limit 3, date DESC) and the archive's binding set
+  (`title` · `client` · `featuredImage.url/alt` · `hover_image.url` · `link` ·
+  `dienstString`), plus `class: jw-case-card`, `image_link`, `title_link`,
+  `link_text: ""` from the archive grid. The 3-col / 820×945 grid props are the
+  homepage's own. Page 64 is the source: adapt there, `library set`, re-place.
+- **`yoo-content.php patch` silently dropped every write whose path ended
+  inside a `children` list** — PHP copied the array; only `props` paths (an
+  object) ever persisted. `yc_patch` now walks by reference. Fixed in
+  `.yoo-tools/` AND in the marketplace source
+  (`~/Projects/netdust-plugins/plugins/netdust-wp/skills/ntdst-yootheme/scripts/`,
+  uncommitted there).
+- **The case card grew one field**: `hover_image` (type `image`, `_jw_hover_image`),
+  bound in `archive-case` (`Hhoi7Wz0`) as `{"name":"hover_image.url"}` on both
+  grids and both featured panels — an `image` field bridges to a YOOtheme
+  `Attachment`, so it binds exactly like `featuredImage.url`. The 12 cases carry
+  a seeded placeholder hover image (a different case photo).
+- **`yoo-content.php page patch` refuses pages 11/17/18** — the sun image in
+  `A1 · Tools CTA` / `A5 · Gratis aanbod` carries `parallax_easing`,
+  `parallax_rotate`, `parallax_target`, which the linter says are not `image`
+  props (stored, emit nothing). Patched with the positional `no-lint` word;
+  the three props are an open question, not fixed here.
+## staging.jos.agency is LIVE and matches local (2026-09-05)
+
+- **The site renders in all three languages.** Route-for-route identical to
+  local, within ~100 bytes: `/` 200, `/fr/` → `/fr/homepage-fr/` 200, `/en/`
+  200, `/team/katrien-darras/` 200. `/cases/`, `/tools/` and `/vacatures/` 404
+  on staging AND locally — pre-existing site behaviour, not migration damage.
+  Always diff a route against local before calling it broken.
+- **The licensed assets were in josworld's OWN working tree all along** —
+  `app/content/themes/yootheme` (5.0.43) and
+  `app/content/plugins/fluent-booking-pro` (2.3.0). They are gitignored, which
+  is why they are absent from `deploy.payload`, NOT absent from disk. Do not go
+  hunting other projects for them: todai-client carries an older YOOtheme
+  (5.0.35). Both were archived and extracted into the staging webroot; they must
+  be re-applied by hand on any future environment, since no verb carries them.
+- **A child theme whose parent is missing makes `wp theme list` print NOTHING**
+  — not the child, not an error. That empty table was the only symptom of the
+  blank front page; `template` said `yootheme` while `content/themes/` held only
+  `josworld`. Worth recognising instantly next time.
+- **`wp rewrite flush --hard` is required after the import** — the search-replace
+  leaves `rewrite_rules` empty.
+- **Combell's placeholder `index.html` was removed** from the staging webroot so
+  index.php is unambiguous.
+- **Only TLS remains**: staging.jos.agency still serves a self-signed
+  certificate, so browsers refuse it. Combell must issue one; nothing on the
+  server side can fix it.
+
+## Staging is provisioned and WordPress runs; only licensed assets missing (2026-09-05)
+
+- **Everything below jos-server `~/subsites/staging.jos.agency`.** `.env` (0600),
+  WP core 7.1, `wp-config.php` / `index.php` / `.htaccess`, `composer.json` +
+  lock, `vendor/`, the payload (mu-plugins + josworld theme), the five free
+  plugins pinned to local versions, 274 upload files, and the imported database
+  (52 tables, 173 URL replacements `josworld.ddev.site` → `staging.jos.agency`).
+  `wp-login.php` serves 200/6615 bytes — WordPress boots.
+- **DB: `ID247703_josstage` on `ID247703_josstage.db.webhosting.be`** (MySQL
+  8.0.36). Combell uses a PER-DATABASE hostname; `localhost` has no MySQL and
+  the shared `mysql072.webhosting.be` frontend rejects the user.
+- **Composer needs `--prefer-source` on the server.** `netdust/ntdst-baseline`
+  is PRIVATE and composer's dist path fetches a GitHub API zipball over HTTPS,
+  which an SSH deploy key cannot authenticate — it 404s. `--prefer-source`
+  clones over SSH and works. (`netdust/ntdst-core` is PUBLIC; site.yml's note
+  about "the private netdust repos", plural, is wrong.)
+- **Deploy key #162376841 on `netdust/ntdst-baseline`**, read-only, titled
+  "josworld staging (jos-server) — read-only"; private half at
+  `~/.ssh/id_ed25519_ntdst` on jos-server with a matching `~/.ssh/config`
+  github.com entry. Revoke in the repo's Deploy keys settings to undo.
+- **The front page is BLANK because `template` is `yootheme`** and the licensed
+  parent theme is not on the server (gitignored, not in the payload), so
+  `wp theme list` reports nothing at all. This is the only thing between staging
+  and a rendering site.
+- **The CRM config travelled intact**: sender `Jos <jos@jos.agency>`,
+  `pref_list_type` `filtered_only` with only `nieuwsbrief` public, both lists,
+  all seven tags, five form feeds, zero contacts.
+- **TLS is a self-signed placeholder** — Combell has issued no certificate for
+  staging.jos.agency yet, so browsers and curl refuse without `-k`.
+- **Still needed**: the YOOtheme Pro parent theme and FluentBooking Pro (both
+  licensed, both gitignored), and the certificate.
+
+## Combell targets configured; staging is provisioned but EMPTY (2026-09-05)
+
+- **`jos-server` = ssh072.webhosting.be, user `josagency`** (host key ED25519
+  `SHA256:prtRV28/nXOuuhi4cyjIer449vr7v7Uc/bVSeu+s/ro`, accepted 2026-09-05).
+  Both rungs live on that one box: production `~/www`, staging
+  `~/subsites/staging.jos.agency`. Ledger at `~/.deploy-state` — home is not
+  served, `www` and `subsites/` are. Domains are **jos.agency**, not
+  josworld.com (that placeholder is gone from site.yml).
+- **Server toolchain is good**: PHP 8.4.25, composer, wp-cli, rsync, git.
+- **The doctor is green and the staging dry run gate-passed** at 15352ff.
+  **No real deploy has been run** — deliberately, see below.
+- **Shipping the payload alone does not yield a running site.** `deploy.payload`
+  is `content/mu-plugins` + `content/themes/josworld` only, and BOTH webroots are
+  freshly provisioned and empty (a placeholder `index.html`). `app/wp/`,
+  `app/vendor/` and `app/.env` are all gitignored AND outside the payload, so
+  WP core, the autoloader and the config never cross the wire. Going ahead now
+  would stamp the ledger and move `deployed/staging` while nothing runs there.
+- **What a first staging bring-up still needs** (in order): a Combell database
+  + credentials to write `app/.env` on the server (**only obtainable from the
+  Combell panel — this is the blocker**); `wp core download`; a composer install
+  in `app/`; the six gitignored third-party plugins, two of them licensed
+  (YOOtheme Pro, FluentBooking Pro); a DB export rewritten from
+  `josworld.ddev.site` to `staging.jos.agency`; `uploads/`; and **the
+  outgoing-mail block installed BEFORE any database import** — FluentCRM now has
+  a real sender (`jos@jos.agency`) and staging must not mail real contacts.
+- **site.yml's framework OPEN QUESTION resolves to "payload" by default** — the
+  dry run shows `ntdst-core` and `ntdst-baseline` riding along from the working
+  tree. Recommended to keep it that way rather than put a deploy key for the
+  private netdust repos on a client shared host; the guard is to verify the
+  installed versions match `app/composer.lock` beforehand.
+
+## FluentCRM is live and wired to the forms (2026-09-05, branch feature/crm-integration)
+
+- **Free FluentCRM 3.1.13 covers josworld's flows; Pro was not bought.** Verified
+  against the installed build, not the marketing page: the FluentForms feed
+  (`app/Services/ExternalIntegrations/FluentForm/Bootstrap.php`) has no Pro gate,
+  free funnels carry the FluentForm-submission trigger with apply/detach
+  tag+list+company, send-email and wait actions, the Companies (B2B) module is
+  free, and FluentBooking's CRM integration gates only on `defined('FLUENTCRM')`.
+  Pro holds benchmarks, funnel branching, dynamic segments, the visual email
+  builder, recurring campaigns, webhooks, SMS and advanced reports — all scale
+  features. Revisit when one of those actually bites, or via the FluentBooking
+  Pro bundle. **Pro does NOT fix the multilingual gap** (below): FluentCRM has no
+  per-contact language in either edition.
+- **Consent model, decided with Stefan.** Both lead forms carry the same pair:
+  `privacy` (required) → the contact may exist; `nieuwsbrief` (optional, value
+  `ja`) → marketing consent. So every form gets TWO feeds — an unconditional one
+  onto the operational **Leads** list, and a conditional one onto **Nieuwsbrief**.
+  **Never send a campaign to Leads.** Single opt-in (`double_opt_in: false`), and
+  `force_subscribe: false` so an unsubscribed contact is never resurrected.
+- **Feeds are ONE ROW PER FEED**, not a JSON array in one row —
+  `GlobalNotificationManager` json_decodes each `fluentcrm_feeds` row into a
+  single feed, so an array is silently ignored and nothing runs.
+  `Helper::setFormMeta` cannot write them (`FormMeta::persist` is
+  update-or-create per meta_key and collapses the set); the seed deletes and
+  re-inserts. Booking feeds are the same shape in `fcal_meta`
+  (`object_type` = `calendar_event`).
+- **A checkbox condition uses `=`, not `contains`** — ConditionAssesor's `=`
+  branch does `in_array($value, flatten($input))` for array inputs, while
+  `contains` calls `Str::contains` on the array.
+- **`source_url` is `site_url($referer)`** — on this `custom-app` structure that
+  means every submission arrives as `/wp/fr/…`. CrmContactLanguageService strips
+  the site base path before reading the language segment; without that every
+  French and English contact is silently tagged Dutch. Caught only by driving a
+  real submission — the unit test that pins it is the regression guard.
+- **Verified by real submissions**, not by reading config: three POSTs to
+  `admin-ajax.php?action=fluentform_submit` (fr + opt-in, en without opt-in, nl +
+  opt-in) produced `lang-fr`/`lang-en`/`lang-nl` with the en contact on **leads
+  only**. Test contacts and the 5 test submissions were deleted afterwards.
+  The booking feed is verified at the loader (`getNotificationFeeds` finds it) —
+  **no real booking was made**, so that path is configured but not exercised.
+- **CRM setup completed (2026-09-05).** Sender is `Jos <jos@jos.agency>` — the
+  address they publish on their own contact page, chosen over josworld.com and
+  the `jos@josworld.org` the stage form notifies (three domains are in play;
+  josworld.org looks like a typo worth confirming). Business name/address come
+  from page 22: `Jos, Lakensestraat 99, 1000 Brussel` (VAT BE 0686.792.761).
+  `email_settings` is the authoritative sender pair — a campaign's own
+  `mailer_settings` default to `is_custom => no` and fall back to it; the
+  vestigial `campaign.from` node in the same option has no reader in 3.1.13.
+- **`pref_list_type` is `filtered_only`, never `all`** — `all` publishes EVERY
+  list on the public preference page, which would put the operational Leads list
+  up for anyone to join. Only Nieuwsbrief is public; verified via
+  `Helper::getPublicLists()`.
+- **The footer is Dutch and singular** — one footer serves all three languages
+  because FluentCRM has no per-contact language in either edition. Verified
+  rendering to `Jos, Lakensestraat 99, 1000 Brussel …`; the `##crm.unsubscribe_url##`
+  pair stays literal until send time, same as FluentCRM's own default footer.
+- **`fluentcrm_setup_wizard_ran` is set to `yes`** — until it is,
+  `AdminMenu::mayBeRedirect` sends every admin visit to the setup wizard, which
+  would then overwrite `business_settings` on completion.
+- **Unsubscribe / manage-preferences / confirmation pages are virtual**
+  (ExternalPages router) — no WP pages to create.
+- **No welcome automation exists yet.** The free funnel blocks (FluentForm
+  trigger → tag → wait → send email) can build a per-language drip; that needs
+  Dutch/FR/EN copy from the client, so it was deliberately not invented.
+- **FluentSMTP has NO connection configured** (only `_fluentsmtp_connection_health`
+  exists). Nothing sends properly from production until an SPF/DKIM-authorised
+  connection for `jos.agency` is set up — the sender address alone is not enough.
+- **The seed is `specs/crm-integration/seed-crm.php`** (idempotent, `DRY=1`
+  supported), following the cpt-builder-singles precedent — and `specs/` is
+  gitignored, so like every other DB-only artifact here it does NOT travel. It
+  joins the existing "turn DB-only site structure into a seed script before first
+  deploy" task, now with a second reason: `app/content/plugins/*` is gitignored
+  too, so FluentCRM itself must be installed per host before the seed can run.
+- **Two STATE facts were stale and are corrected:** origin DOES exist
+  (`git@github.com:netdust/josworld.git`), and FluentForms 6.2.13 IS installed and
+  active — the older "no form plugin is installed" note is wrong.
+- **`DownloadFormService` exists only on `feature/case-hover-image`**, not on
+  staging or main, so on this branch the tool-download confirmation still renders
+  `{tool_file_url}` literally. The CRM feeds are independent of it; the two
+  branches need merging before the download flow is whole.
+
+## CPT singles built in YOOtheme (2026-09-03, branch feature/cpt-builder-singles)
+
+CPT singles are builder pages; the models keep only their card fields.
+
+- **Render rule** — `RenderBuilderPage`: a post with a layout in `post_content`
+  bypasses its single template. The trimmed `single-*` templates (tool `goYeARw1`,
+  vacature `gDbuyeYA`, case, team) are the fallback for posts without a layout.
+- **Library starters** — `Single · Case | Tool | Team | Vacature` (type `layout`),
+  seeded by `specs/cpt-builder-singles/seed-library.php` (`ddev wp --user=1
+  eval-file …`, idempotent by name). `specs/` is gitignored: the DB is the
+  artifact — re-seed after a DB refresh. Built samples: `specs/…/pages/*.json`.
+- **Never bind YOOtheme's `content` field on a builder page** — the layout IS
+  `post_content`, so the binding echoes itself. The vacature starter learned it.
+- **Relations live in the builder** — a grid whose items each bind ONE manually
+  selected post via the singular `custom<Type>` query (`id`, "Select Manually").
+  Placeholder id `-1` renders empty; id `0` shows the FIRST post, not nothing.
+- **Team single is public again** — `closeSingleView()` removed, `editor`
+  support added; `/team/<slug>/` answers 200 (was 301).
+- **Tool `file` is the native `file` type** — the baseline module's relation
+  resolver drops non-`publish` posts and attachments are `inherit`. Framework gap
+  to raise upstream: core's picker widens to `inherit`, baseline's
+  `FieldTypeBridge::$relatedPosts` resolver does not.
+- **Card fields kept (8)** — case `client`; tool `subtitle`, `file`; team `role`,
+  `bio`, `email`, `phone`; vacature `employment_type`.
+- **18 keys removed and purged** (T09, 35 rows → 0): `_jw_tagline`,
+  `_jw_what_we_did`, `_jw_target_audience`, `_jw_impact`, `_jw_challenge_title`,
+  `_jw_challenge_body`, `_jw_result_title`, `_jw_result_body`, `_jw_has_takeaways`,
+  `_jw_takeaways`, `_jw_testimonial_quote`, `_jw_testimonial_name`,
+  `_jw_testimonial_role`, `_jw_has_interview`, `_jw_interview`, `_jw_team`,
+  `_jw_benefits`, `_jw_related_tools`. Script: `specs/…/purge-removed-meta.php`
+  (dry run: `ddev exec 'DRY=1 wp …'` — `ddev wp` drops a host-side env var).
+- **Parked** — phpstan-baseline discovery-gap entries (`ntdst_data not found`,
+  16 test files): scan `ntdst-core/core/Data.php` and prune; no Repository layer
+  (ruled: Service owns its reads); throwaway admin `claude-gate` (id 5) to delete
+  at branch close. Acceptance: `specs/…/acceptance-manifest.md` (SC-1..5 pass).
 
 ## Project synced to the fleet baseline (2026-09-03)
 
@@ -177,62 +606,33 @@ Full history: `memory/ARCHIVE.md` (theme-foundation phase) and
 `.superpowers/sdd/tasks/progress.md` (the T01-T12 build ledger, including
 every mutation-test proof and controller re-verification).
 
-## The content model (T01-T12, `josworld-core` mu-plugin)
+## The content model (T01-T12) — historical; current shape above
 
-Full reference: **`docs/content-model.md`** — the four post types + their
-meta keys + relations + the two registration conventions, and (most
-valuably) the seven-step Polylang DB-state runbook below. That doc's
-meta-key table is machine-checked against the live registry by
-`tests/Integration/DocumentedMetaKeysConsistencyTest.php` — it cannot
-silently drift the way a hand-copied table would.
+Full reference: `docs/content-model.md`. Current shape: 8 card fields, one
+un-tabbed metabox per model, team single public — see "CPT singles built
+in YOOtheme (2026-09-03)" above.
 
-**What's registered** (`app/content/mu-plugins/josworld-core/services/`):
-- `content/CaseService.php` — `case` (T05): client/tagline/impact/
-  uitdaging/resultaat/takeaways/testimonial/interview + a `team` relation.
-  The site's primary sales asset.
-- `content/TeamService.php` — `team` (T06): role/bio/email/phone. Public
-  and publicly queryable since d3ff09e (the archive + YOOtheme enumeration
-  need the flags); the single view is closed by closeSingleView()'s 301
-  redirect, not registration flags. REST-readable regardless (WP core
-  behaviour, not a bug — see the doc's REST caveat).
-- `content/VacatureService.php` / `ToolService.php` — `vacature` + `tool`
-  (T07). Vacature's `employment_type` is a closed list enforced by a
-  `validate` callback (the `<select>` render does NOT enforce it).
-- `dienst` taxonomy (T08), registered on `case` only, via `CaseService`.
-- `admin/AdminUIService.php` — metabox field JS enqueue + T11's admin
-  columns and `condition` (conditional-field) layer for `case`.
-- `multilingual/MultilingualService.php` — T09, declares all four post
-  types + `dienst` translatable to Polylang via its filters, guarded by
-  `function_exists()` throughout (Polylang absence is the DEFAULT state of
-  a fresh clone, not an edge case — see below).
-
-**Two conventions, enforced mechanically project-wide** (not per-model) by
-`tests/Integration/ModelConventionsTest.php`:
-1. Every model registers via `ntdst_data()->register()` — never a direct
-   `register_post_type()`.
-2. `dienst` registers via `register()`'s `taxonomies` config key (the
-   fa51984 core sync retired `NTDST_Theme::taxonomy()`) — never a direct
-   `register_taxonomy()`.
-Both are proven by a token-based static scan of the whole plugin directory
-(immune to commented-out calls / string-literal mentions), not a hand audit.
-
-**One human-decided rule no test enforces** — meta keys are ALWAYS English;
-editor-facing labels are ALWAYS Dutch. `CaseService` originally violated
-this (`wat_we_hebben_gedaan` etc. as field keys), fixed to English in
-`f16ad36`. Every new field on every model must follow this; it will not be
-caught mechanically if it regresses.
+Traps still true: `ModelConventionsTest.php` enforces `ntdst_data()->register()`
+for every model and `register()`'s `taxonomies` key for `dienst` (never the raw
+WP function); meta keys are always English, labels always Dutch (human rule,
+not mechanically enforced); vacature's `employment_type` closed list needs its
+`validate` callback, not just the `<select>` render.
 
 ## THE MULTILINGUAL DB-STATE TRAP — read before touching Polylang
 
 **Polylang is untracked and WP-CLI-installed, not a code dependency**
 (`.gitignore:128` excludes `app/content/plugins/*`; `composer.json` has no
 wpackagist wiring). **A fresh clone will NOT reproduce a working
-multilingual site from code alone** — seven pieces of DB state are needed
-beyond what `MultilingualService` declares in code. Full runbook + the
-load-bearing `wp eval` snippet: `docs/content-model.md` § "The multilingual
-DB-state runbook". Short version, in order: install+activate → create
-nl/en/fr → language term on every existing post/page (or `/` 404s) → same
-for `tool` posts → `pll_set_post_language()` on nav_menu_items (`wp post
+multilingual site from code alone** — EIGHT pieces of DB state are needed,
+and since 2026-09-14 that includes the translatable types themselves:
+`MultilingualService` is gone, ntdst-baseline's `polylang` module owns this
+layer, and the module converges types into the `polylang` option instead of
+declaring them through a runtime filter. Full runbook + the load-bearing
+`wp eval` snippet: `docs/content-model.md` § "The multilingual DB-state
+runbook". Short version, in order: install+activate → `wp ntdst polylang
+languages --add=nl:nl_BE,en:en_US,fr:fr_BE --default=nl
+--post-types=case,team,vacature,tool --taxonomies=dienst` → language term on
+every existing post/page (or `/` 404s) → same for `tool` posts → `pll_set_post_language()` on nav_menu_items (`wp post
 term add` fails there) → `pll_set_term_language()` on the nav_menu TERMS →
 **the `polylang` option's `nav_menus` mapping**, which is what actually
 determines whether YOOtheme renders a header at all (missing it silently
@@ -265,304 +665,6 @@ Beige palette, Fraunces + Inter type. Full findings (LESS compile mechanics,
 Customizer exposure, font-face gotchas, the DB-only site structure of 13
 pages + 2 menus) archived in `memory/ARCHIVE.md` — still true, just moved
 out to keep this file a snapshot.
-
-## Front-end build (2026-08-04/05) — header, footer, and 9 sections on a test page
-
-Everything below is **DB state** (YOOtheme config + page 64 layout) plus the LESS
-style. Nothing is committed yet.
-
-**Test page:** `/test-secties/` (page id 64, nl), **organised into labelled
-groups** — each group opens with a muted `▸ LABEL` band (a section, not CSS), and
-every section carries a group-prefixed builder name so the builder tree reads in
-the same order as the page:
-
-| Group | Sections |
-|---|---|
-| ▸ HEADERS | `H1 · Hero — tekst` · `H2 · Hero — beeld` · `H3 · Header — pagina` |
-| ▸ LOGO'S | `L1 · Logo scroll` |
-| ▸ CONTENT | `C1 · Voor wie` · `C2 · Wie is Jos` · `C3 · Diensten — kaarten` · `C4 · USP's — kolommen` · `C5 · Reviews — slider` · `C6 · Waarom Jos — beeld + cijfers` · `C7 · Ons team — beeld + label` · `C8 · FAQ` |
-| ▸ CASES | `W1 · Cases` |
-| ▸ CTA'S | `A1 · Tools CTA` · `A2 · CTA — tekst` · `A3 · Contact CTA` |
-
-`A3 · Contact CTA` must stay LAST — it is designed to sit over the footer.
-New sections go at the end of their group; add a `▸ LABEL` band for a new group.
-
-The reproducible layout JSON is `.yoo-tools/hero.json` (gitignored working dir;
-also holds `footer.json` + copies of the skill's `yoo-config.php` /
-`yoo-content.php`). Keep it in sync after every `page set` — it is the only copy
-of the layout that is not DB-only.
-
-**`A3 · Contact CTA` was REBUILT (2026-08-06) around a booking tool.** It was
-headline-left / contact-card-right in one row; it is now three stacked rows:
-centred T1 headline + body subline → the booking card → `Liever bellen?` (T2)
-beside the existing contact card. Still last on the page, still
-`.jw-band-round-bottom`.
-
-- **The booking tool is FluentBooking** (Stefan's pick; he installs it). The card
-  is a `2-3` column centred — the same 850-wide shape as C3 — holding ONE `text`
-  element whose content is a placeholder string. **That element is the entire
-  swap surface**: YOOtheme runs `do_shortcode` over builder text content
-  (`Builder\Wordpress\Listener\ApplyContentFilter`), so when the plugin lands the
-  placeholder becomes the shortcode and nothing else changes. No html element,
-  no PHP.
-- `.jw-booking-embed > .uk-tile { min-height: 560px }` is the section's one rule
-  and is NOT scaffolding — a booking calendar sizes itself after its iframe
-  loads, and this band sits directly on the footer, so without a floor the page
-  jumps ~560px late. Note the selector: the `class` prop lands on the column
-  WRAPPER, the visible white box is the inner panel div that carries `uk-tile`.
-- `block_align: right` on the card portrait was replaced by `text_align: right`
-  on its COLUMN — the old prop was inert (no `maxwidth`), i.e. the trap already
-  written up under C7 was live in this section.
-- **This design could NOT be measured** — it was pasted from the clipboard, so no
-  file reached `/mnt/c/Users/stefa/Pictures/Screenshots/`. Built from the
-  established patterns instead and corrected off the render. Ask for the file if
-  a section needs real numbers.
-
-**The contact band's "laid over the footer" look is one class.** Section takes
-`background_color` + `class: jw-band-round-bottom`; the class rounds only the
-bottom corners and paints a `::before` at `z-index: -1` behind the section's own
-background, so the notch that opens in each corner shows the FOOTER colour
-(`@global-primary-background`, tracked — not `@jw-brown` hardcoded) instead of
-the beige page. No wrapper section, no second element in the builder.
-
-**`H3 · Header — pagina`** is the subpage header: eyebrow (body 18px, NOT the
-`small` eyebrow the other sections use) + `h1` at T1/76px on the left, a
-`text_style: large` lead (32/40) on the right, both columns `vertical_align: bottom` so
-the lead's last line sits on the headline's last baseline — that bottom-align is
-the whole trick, and it is a column setting, not CSS. Below it a second row with
-a container-width image cropped 1280×442 (~2.9:1).
-
-**`C3 · Diensten — kaarten`** is the muted full-width band whose white blocks are a
-real `grid` (1 column at every breakpoint, `grid_row_gap: medium`) so the client
-adds a block by adding a `grid_item` — image, title, content, link and link text
-are all per-item. Three settings carry the look and are easy to miss:
-`panel_style: card-default` (the white panel), `panel_padding: large`, and
-`content_align: true` — "Force left alignment", which is what keeps the BODY copy
-left while the column's `text_align: center` centres the image, title and link.
-The 850px content width is a single `2-3` column plus row `alignment: center`;
-`uk-container-small` (900) is the near-miss you will otherwise reach for.
-
-**`C4 · USP's — kolommen`** is the same grid idea with no panel at all — title +
-content only, `grid_default/small/medium/large = 1/2/2/4`, so the column count is
-one dropdown (`grid_large`) and everything else follows. Needed ZERO LESS: the
-default `uk-grid` gutter at ≥1200 (40px) already reproduces the design's 326px
-column pitch, and the titles are `title_style: h4` = the T4 Inter-600 token.
-
-**`C7 · Ons team — beeld + label`** — container-width image, then a `3-4,1-4` row
-with the copy left and the Actiris label right. No LESS.
-
-- **`block_align` on an image is a NO-OP unless `maxwidth` is also set** — its
-  `enable` is literally `position != 'absolute' && maxwidth`, and it aligns the
-  element only "in case the container exceeds the element max-width". It writes
-  into the layout JSON regardless and silently does nothing, which reads as
-  "right-align is broken". Use the COLUMN's `text_align` instead; the image is
-  inline so it follows.
-- The label is one asset — mark AND the two caption lines are baked into
-  `actiris diversiteitslabel.png` (560×480, uploaded full-res as attachment 136;
-  the 350px `logo-actiris.png` used by the logo wall is the same art, smaller).
-
-**`C6 · Waarom Jos — beeld + cijfers`** — muted band, image + text row, then a
-3-up stat grid whose items each open with a rule. Two traps:
-
-- **`@jw-line` is invisible on a muted section.** `@jw-line` IS `@jw-brown-10`,
-  which is also `@global-muted-background` — so the obvious border colour is
-  exactly the band it sits on. Un-blending the design's antialiased 1px rule
-  gives ~`#35070c`, i.e. full `@jw-primary`. Check the two before reaching for
-  `@jw-line` on any muted band.
-- **`grid_divider` is not this.** It reads like the setting for a rule per stat
-  and draws VERTICAL lines BETWEEN columns instead. A `border-top` on `.el-item`
-  is the whole of it (`.jw-stat`).
-- The design draws the stat rules FLUSH with the photo's bottom edge (measured
-  675 vs 674) and it was built that way — **Stefan overrode it on 2026-08-06**:
-  the rules touching the photo read as a mistake on screen even though it is
-  what the design shows. The stat row is now `margin_top: "default"` (24px).
-  Don't "restore" the flush version from the measurement.
-  Number = `meta` at `meta_style: h3`; label = `title` at `h4` with the size
-  pulled back to body, since `h5` is the right 18px but reverts to Fraunces.
-
-**`C8 · FAQ` cost ONE rule, and the reason is worth keeping: the "rule between
-items, none above the first or below the last" look IS the master theme's
-default accordion.** `@accordion-default-item-mode` already defaults to
-`divider`, whose hook is literally `&:nth-child(n+2) { padding-top: …;
-border-top: … }` — so the whole list is four variables
-(`@accordion-default-item-border-width/-border/-item-margin-top` + the title
-type). Do NOT reach for a bespoke `.el-item { border-bottom }`; that is the
-shape people rebuild in CSS here. The single rule needed is the ICON: UIkit
-injects a hardcoded `<svg width="13" height="13">` for `uk-accordion-icon` (a
-plus whose bars rotate into a minus on open — exactly the design's behaviour,
-just a third of the size) and there is no size variable. Sized `1em` so it
-tracks `@accordion-default-title-font-size` instead of needing a paired edit.
-
-Three more things from that section:
-
-- **The divider spends the rhythm as `margin-top` + rule + `padding-top`**, both
-  from the SAME variable, so `@accordion-default-item-margin-top` is HALF the
-  gap between two questions. Item pitch = 2 × that + 1 + one title line.
-- **The design's divider is FULL ink, not `@jw-line`.** Un-blending the
-  antialiased 1px rule gives `#320610` — same finding as C6's stat rules, now
-  seen twice. On this beige band the light tint would have been nearly invisible.
-- **The design draws the question at 24px; it ships at 22 (T4).** Stefan asked
-  for smaller titles and a smaller left button after seeing the first pass —
-  the button is `button_size: "small"` (14/36, the same size W1 · Cases uses),
-  not a LESS change. So this section deliberately departs from the measurement.
-
-Layout: `2-5,3-5` at `column_gap: large`. The design's split is 464 / 80 / 736,
-and UIkit's gutters here are 16/32/64 — no 80 — but `large` (64) lands the right
-column at 733 rendered against 736 measured. Bumping `@global-large-gutter` to
-80 to be exact would silently move the TEN other rows already using
-`column_gap: large`; 3px is not worth that.
-
-**`C5 · Reviews — slider` is the ONE section so far that genuinely needed CSS**,
-and the two things it needed are worth knowing:
-
-1. **A YOOtheme panel cannot put the image beside the title while the content
-   runs full width.** `image_align: left` moves the CONTENT into the right column
-   too. The fix is to KEEP `image_align: top` — that is the setting which leaves
-   image/title/meta/content as SIBLINGS of `.el-item` — and re-lay them out with
-   `display: grid` in `.jw-review`. Switching that dropdown to "left" wraps them
-   in YOOtheme's own grid and silently breaks the rule. The image child is a
-   `<picture>`, not the `<img>`; `.el-image` is on the inner element.
-2. **The right-bleed needs THREE settings that only work together**: section
-   `width: ""` (no container at all), row `width: "default"` +
-   `width_expand: "right"`, and on the slider element
-   `container_padding_remove: true`. With the section container left in place you
-   get a NESTED container — UIkit zeroes the inner one's padding, `expand-right`
-   computes its max-width off the wrong 50%, and the whole row shifts ~70px
-   right while still not bleeding. That failure looks like "expand-right is
-   broken"; it is the nesting.
-
-3. **UIkit's margin utilities are `!important`.** The builder puts
-   `uk-margin-top` on `.el-title`, `.el-meta` AND `.el-content`, and
-   `.uk-margin-top { margin-top: … !important }` — so a plain `margin: 0` loses
-   no matter how specific the selector is. That 24px is what held the role a
-   full line below the name. With it gone the pair sits flush and grid's equal
-   split of the avatar's leftover height centres the two lines as a unit. **Any
-   future `.el-*` margin override in this theme needs `!important` for the same
-   reason** — it is not a shortcut, it is the only thing that works.
-4. **The cut-off card fades into the lemon via a gradient on the TRACK WRAPPER**
-   (`.jw-review > .uk-position-relative::after`), not an opacity on the last
-   item — which item is cut changes as the slider moves, so `:last-child` would
-   fade the wrong card after one click. Gated to ≥960px: below that the slider
-   shows one full card and the fade would wash out the card being read.
-
-Also: `slidenav_breakpoint` defaults to `xl` (≥1600), so the arrows are simply
-absent at 1440 until you lower it. Set to `m`. And `slider_finite: true` greys
-the prev arrow on slide 1 and collapses the dotnav to 3 dots for 5 items —
-`false` is what matches the design.
-
-**Cards were flat until this section and are now variable-driven.** The master
-theme exposes `@card-border-radius` (border-radius/card.less) and
-`@card-default-box-shadow` (box-shadow/card.less) — both were the UIkit defaults
-(0 / none). Set to `@jw-r-lg` + `@jw-shadow-md`, plus
-`@card-large-body-padding-{horizontal,vertical}-l: @jw-s-16` for the design's
-~60px card inset. All four are variables; no card rule exists.
-
-**Design screenshot scale is NOT constant between screenshots.** The 09:44 one
-was a 1440 frame at 0.669; the 11:21 one was effectively **1:1** (1449px carrying
-1288px of content against the known 1280 container). Re-derive the scale on every
-screenshot from the container gutter (80px) and the body line-pitch (24px) before
-trusting a single measurement — see below.
-
-**Design screenshots are 1440-frame Figma exports, often not 1:1.** The 09:44
-screenshot measured 964px of content — scale **0.669**. Confirmed independently:
-body line-pitch measured 16px against the known `@jw-t-body` 18/24, and the
-container padding measured 53px against the known 80px gutter. Divide every
-measurement by 0.669 before treating it as a CSS value. On that basis the
-contact band's bottom radius is ~51px (shipped as `@jw-r-xl: 48px`) and the
-white card's is ~12px — which is the same signal as the still-open "grey card
-16px vs the design's smaller radius" question, now pinned to ONE variable
-(`@border-rounded-border-radius`, mapped to `@jw-r-lg`) so both move together.
-
-**Header + footer are live** — logo, toolbar with a Polylang NL switcher, navbar
-CTA as a Builder widget, mobile offcanvas; footer is a builder layout in
-`config.footer.content` with a `newsletter` element (Mailchimp keys NOT set).
-
-**Theme JS** (`src/`, Vite, 21 unit tests green): `logo-eye.js` (the mark's eye
-tracks the cursor, keeps its SMIL blink), `typewriter.js` (hero's rotating line),
-and the ported ntdst scroll effects in `src/effects/` + `less/components/
-animations.less`. Lenis is wired; **Barba is deliberately NOT ported** — it needs
-output-buffer rewriting to inject `data-barba`, which is on the drift list.
-
-## The cases archive (2026-08-06) — first DYNAMIC page, and it is a TEMPLATE
-
-`/ons-werk/` is the `case` post type's ARCHIVE, not page 15. The CPT registers
-`rewrite.slug => 'ons-werk'` and `has_archive => true`, which is the *same slug*
-as the existing "Ons werk" page — and the archive wins the rewrite. Building the
-layout on page 15 produced a page that renders nowhere. It lives in a YOOtheme
-template instead: **id `Hhoi7Wz0`, type `archive-case`** (the first template on
-this site; `template list` was empty before). Page 15 was left empty, as it was.
-
-**Seven grids split by two CTA bands, each grid a different SLICE of one query.**
-The binding lives on the single `grid_item` — NOT on the grid — and the item then
-repeats over the query. Shape lifted from the Oakville demo package rather than
-guessed:
-
-```json
-{"type":"grid_item","source":{
-  "query":{"name":"cases.customCases","arguments":{"offset":1,"limit":2,"order":"date","order_direction":"DESC"}},
-  "props":{"title":{"name":"title"},"meta":{"name":"client"},
-           "image":{"name":"featuredImage.url"},"link":{"name":"link"},
-           "content":{"name":"dienstString"}}}}
-```
-
-Query name = `<rest_base>.custom<RestBase>` → `cases.customCases` (confirmed by
-introspecting the live schema, not inferred). Offsets are CUMULATIVE — 0/1/3/5/6/
-8/10 against limits 1/2/2/1/2/2/2 — so changing any grid's `limit` shifts every
-later `offset`. Source of truth: the generator, `.yoo-tools/` + the build script.
-
-**`panel_link` is the setting that solves two problems at once.** It needs
-`show_link: true` to be enabled at all (`'enable' => 'show_link'` on the field),
-and then `template-link.php` runs `striptags()` over title/meta/content because
-nested `<a>` is invalid HTML. That is what flattens `dienstString` — which is
-WP's `get_the_term_list()`, i.e. `<a rel="tag">` LINKS — into the plain
-"Dienst, dienst & dienst" line the design draws, while making the whole card a
-link to the case. Blank `link_text` to suppress the "Read more" button
-(`template-link.php` only emits it `if ($link && ($props['link_text'] ||
-$element['link_text']))`). No CSS, no field change.
-
-**The page header is Inter 32/40 — the Intro role, NOT a Fraunces heading.**
-Measured off the export (cap 23.8 and x-height 18.0 both resolve to ~32px, line
-pitch 40). Built as `title_element: "h1"` + `title_style: "text-large"`, which is
-a real option on the headline element — so the archive keeps a true `<h1>` while
-taking the Intro type. This only works because `@text-large-*` now sets the
-family (see below); without it the class lands on an `<h1>` and Fraunces wins.
-
-**12 SAMPLE cases are seeded and they are throwaway.** `.yoo-tools/seed-cases.php`
-creates them with `_jw_sample = 1` so the whole set comes back out in one
-command; the file documents it. Only five real case photos exist, so images
-repeat. Dates are spread one day apart because `order: date` is what makes the
-offsets a stable sequence.
-
-**A one-item grid is a PANEL** (Stefan, 2026-08-06 — "more transparent"). The two
-1-ups are `panel` elements now: same bindings, but the single query
-`cases.customCase`, whose resolver is `getPosts(['limit' => 1] + $args)` — so it
-honours `offset` and the cumulative sequence is unchanged. Card meta also moved
-from body 18 to the `text-small` role (14) — it read too large.
-
-**THE DOMAIN PILL IS DROPPED — decided 2026-08-06, do not re-propose it.**
-Stefan: "i don't want any code written for this." The card ships as client +
-title + plain services.
-
-Why it would have needed code, so the question is not reopened by accident: a
-`grid_item` / `panel` exposes exactly THREE text slots (meta, title, content)
-and the design's card carries FOUR values — client, title, domain-pill,
-services. There is no domain field on the case model either. And `panel_link`,
-which makes the whole card clickable, runs `striptags()` over all three slots,
-so `<span class="uk-label">` inside `content` is deleted before it renders. Every
-route to the pill therefore costs either the client line, the whole-card link, or
-a taxonomy + a custom source field.
-
-**The process lesson matters more than the pill** (`memory/lessons.md`): this was
-mis-classified as harnessed-development Class A, which mandates spec + plan +
-tasks + six gate headings — so a `## Threat model` got authored for a layout
-change, with `N/A` as its honest content. It is Class E work at most. Turn the
-class dial before reaching for ceremony.
-
-The logo wall, contact band and newsletter below the grids are not built (Stefan
-asked for header + grid).
-
-Design export scale for `jos.png` was **1.7195** (2475px frame; gutter 137 → 80,
-content 2201 → 1280 — the two knowns agreed).
 
 ## The tools archive (2026-08-06) — template `oK_cwk04`, type `archive-tool`
 
@@ -823,3 +925,9 @@ places.
 - [ ] Set the real production domain + remote path in `site.yml`; fill
       Combell SSH aliases.
 - [ ] Merge `feat/yootheme-child` once page building + the seed script land.
+
+---
+### 2026-09-21 — tagged capture
+
+**Risks**
+- staging heeft nog de defecte boekingsfeed, en het stageformulier is daar onbruikbaar tot Pro of een alternatief er is.

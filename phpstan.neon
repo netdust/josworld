@@ -31,25 +31,12 @@ parameters:
         - vendor/wp-phpunit/wp-phpunit/includes/phpunit-adapter-testcase.php
         - vendor/wp-phpunit/wp-phpunit/includes/abstract-testcase.php
         - vendor/wp-phpunit/wp-phpunit/includes/testcase.php
-        # T05's cached-meta seam
-        # (app/content/themes/josworld/services/yootheme/ntdst-cached-meta-
-        # accessor.php) declares `ntdst_get_post_meta_from_cache()` guarded by
-        # `function_exists()` and lazily `require_once`d from inside
-        # FieldResolver::resolve() — required so Brain Monkey/Patchwork can
-        # intercept it at the unit tier (see that file's docblock). PHPStan
-        # does not reflect conditionally-declared functions and does not
-        # follow a require inside a method body, so this signature-only stub
-        # makes the symbol analysable without changing the guarded, lazily-
-        # loaded runtime shape.
-        - tests/phpstan-stubs/ntdst_get_post_meta_from_cache.stub.php
         # The excluded ntdst-core package is invisible to analysis, so the
         # NTDST_Pages class and the function_exists()-guarded ntdst_pages()
         # helper both read as not-found at their consumer call sites
-        # (TeamService::closeSingleView()). Scanning the REAL file supplies
-        # both — a scanned file's guarded declarations ARE reflected
-        # (verified empirically), unlike the lazily-required accessor above,
-        # whose file is reachable through no scan or analysis path without
-        # its stub. ntdst_data() needs nothing only because Data.php's
+        # (BuilderSinglesTest reading ntdst_pages()). Scanning the REAL file
+        # supplies both — a scanned file's guarded declarations ARE reflected
+        # (verified empirically). ntdst_data() needs nothing only because Data.php's
         # symbols predate the package exclude and ride the frozen baseline.
         - app/content/mu-plugins/ntdst-core/core/Pages.php
         # Same posture for the Container class ContainerTest exercises: new
@@ -57,6 +44,30 @@ parameters:
         # discoverable. Its pre-existing baseline rows were pruned when
         # discovery made them unmatched.
         - app/content/mu-plugins/ntdst-core/core/Container.php
+        # The data manager: ntdst_data() and the model API are read at new call
+        # sites (DownloadFormService) — scanned, so no new discovery-gap entry.
+        - app/content/mu-plugins/ntdst-core/api/Data.php
+        # WP_UnitTest_Factory: `self::factory()->user->create()` is how the
+        # integration tier seeds fixtures, and abstract-testcase.php above
+        # declares the METHOD but not the factory CLASS it returns. Named
+        # individually for the same reason as the three testcase files: the
+        # whole includes/ dir must not be scanned.
+        - vendor/wp-phpunit/wp-phpunit/includes/factory/class-wp-unittest-factory.php
+        - vendor/wp-phpunit/wp-phpunit/includes/factory/class-wp-unittest-factory-for-post.php
+        - vendor/wp-phpunit/wp-phpunit/includes/factory/class-wp-unittest-factory-for-user.php
+        - vendor/wp-phpunit/wp-phpunit/includes/factory/class-wp-unittest-factory-for-thing.php
+        # ntdst-baseline is excluded from analysis below, so its admin_ui
+        # module reads as not-found where josworld's own tests instantiate it
+        # to prove the menu really goes through the MODULE. Scanned for the
+        # symbol only — the package is analysed in its own repo. Exactly the
+        # posture Pages.php / Container.php / Data.php take above.
+        - app/content/mu-plugins/ntdst-baseline/services/admin/AdminUIService.php
+        # The outgoing-mail block is a standalone mu-plugin TEMPLATE deployed to
+        # servers, never autoloaded here; MailBlockGuardTest substitutes its
+        # __PRODUCTION_HOST__ placeholder and eval()s it, so
+        # ntdst_mail_block_is_production() is invisible to static discovery.
+        # Scanned for the symbol only — the template is not analysed.
+        - scripts/remote/00-block-outgoing-mail.php
     paths:
         - app/content/mu-plugins
         - app/content/themes

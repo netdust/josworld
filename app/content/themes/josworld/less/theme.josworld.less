@@ -140,7 +140,7 @@ Type: Flat
 // carry the smaller screens (see section 2) — that is UIkit's native
 // responsive-heading mechanism, so nothing bespoke is needed.
 @jw-t1:              76px;   // Figma "T1 desktop"     — Fraunces Light 300
-@jw-t2:              56px;   // DERIVED: no "T2 desktop" variable is published.
+@jw-t2:              60px;   // Figma "T2 desktop" — Fraunces Light, 60/60
                              // Interpolated between T1 (76) and T3 (40) on the
                              // scale's own ratio. Replace if Figma publishes one.
 @jw-t3:              40px;   // Figma "T3 desktop"     — Fraunces Regular 400
@@ -159,7 +159,7 @@ Type: Flat
 
 // Line heights, as unitless ratios derived from Figma's px lineHeight / size.
 @jw-lh-t1:           1;      // 76/76
-@jw-lh-t2:           1.1;    // derived with T2
+@jw-lh-t2:           1;      // 60/60
 @jw-lh-t3:           1.1;    // 44/40
 @jw-lh-t4:           1.18;   // 26/22
 @jw-lh-intro:        1.25;   // 40/32
@@ -276,10 +276,13 @@ Type: Flat
 @global-small-gutter:               @jw-s-4;      // 16px
 @global-medium-gutter:              @jw-s-8;      // 32px
 @global-large-gutter:               @jw-s-16;     // 64px
+// Row gap of every `large`-gap grid (case tiles, tool tiles, team) below `l`:
+// UIkit halves it to 32px there, and stacked tiles on a phone need the full 64.
+@grid-large-gutter-vertical:        @jw-s-16;     // 64px
 
-@global-control-height:             48px;
-@global-control-small-height:       36px;
-@global-control-large-height:       56px;
+@global-control-height:             44px;   // Figma "Button" and form field: 44px
+@global-control-small-height:       38px;   // + the 1px border = Figma's 40px pill
+@global-control-large-height:       46px;   // + border = the 48px mobile-menu CTA ("slightly taller", Figma note)
 
 // ---------- Base elements: body + headings ----------
 @base-body-background:              @jw-bg;
@@ -298,11 +301,11 @@ Type: Flat
 @base-heading-text-transform:       none;
 
 @base-h1-font-size-m:               @jw-t1;              // 76px
-@base-h1-font-size:                 @jw-t1 * 0.6;        // ~46px on small
+@base-h1-font-size:                 @jw-t1 * 0.7;        // ~53px on small (raised 2026-09-11: read too small against the intro)
 @base-h1-line-height:               @jw-lh-t1;
 
 @base-h2-font-size-m:               @jw-t2;              // 56px
-@base-h2-font-size:                 @jw-t2 * 0.65;       // ~36px on small
+@base-h2-font-size:                 @jw-t2 * 0.6;        // 36px on small — a step under the phone H1, not level with it
 @base-h2-line-height:               @jw-lh-t2;
 
 @base-h3-font-size:                 @jw-t3;              // 40px
@@ -381,6 +384,17 @@ h4, .uk-h4 {
 
 @text-large-font-size:              @jw-t-intro;      // 32px — was `.jw-intro`
 @text-large-line-height:            @jw-lh-intro;     // 1.25
+// The text roles carry no `-m` variable the way headings do, so the intro's
+// phone size is the one media rule here: below `m` it drops to the 24/32
+// "body bigger" role, or it outweighs the 53px phone H1.
+@media (max-width: @breakpoint-small-max) {
+    .uk-text-large {
+        font-size: @jw-t-body-lg;
+        line-height: @jw-lh-body-lg;
+    }
+}
+@text-meta-font-size:               @jw-t-nav-2;      // 12px — the meta line under a post title
+@text-meta-line-height:             1.17;             // 14/12
 
 // `lead` has a full typo surface (family / weight / transform / letter-spacing /
 // style, from the master's typo layer) but `large` has only size + line-height —
@@ -403,6 +417,12 @@ h4, .uk-h4 {
 // overridden here, since Fraunces at 18px sentence-case is the design.
 @button-font-size:                  @jw-t-button;
 @button-large-font-size:            @jw-t-button;
+// Figma draws ONE button text: 18px on the 40px navbar / case-grid pill as on the
+// 44px form button. UIkit's small variant drops to @global-small-font-size (14px)
+// and every builder button on the site is `button_size: small`, so the small
+// variant takes the same text, Figma's 40px height and its 20px inset.
+@button-small-font-size:            @jw-t-button;
+@button-small-padding-horizontal:   20px;
 @button-line-height:                @global-control-height;
 @button-large-line-height:          @global-control-large-height;
 @button-small-line-height:          @global-control-small-height;
@@ -462,6 +482,17 @@ h4, .uk-h4 {
 @label-text-transform:              none;
 @label-font-size:                   @global-small-font-size;
 @label-padding-horizontal:          @jw-s-3;
+
+// A pill subnav (the diensten on a case single) wears the label look — same tokens.
+@subnav-pill-item-padding-vertical:   @jw-s-1;   // 26px tall, the Figma pill
+@subnav-pill-item-padding-horizontal: @label-padding-horizontal;
+@subnav-pill-item-background:         @label-background;
+@subnav-pill-item-color:              @label-color;
+@subnav-pill-item-hover-background:   @label-background;
+@subnav-pill-item-hover-color:        @label-color;
+@subnav-pill-item-active-background:  @label-background;
+@subnav-pill-item-active-color:       @label-color;
+@subnav-item-disabled-color:          @label-color;   // a linkless pill is not "disabled" grey
 
 // ---------- Cards ----------
 @card-default-background:           @jw-white;
@@ -575,6 +606,18 @@ h4, .uk-h4 {
 @navbar-nav-gap-m:                  @jw-s-12;   // 48px between nav items
 @navbar-gap-m:                      @jw-s-12;   // 48px between navbar sections
 
+// The sticky navbar (`navbar.sticky: 2`, back on scroll-up) re-enters as a bare
+// transparent bar on the page. UIkit adds `uk-navbar-sticky` to the container in
+// that state and `.hook-navbar-sticky()` is its extension point: a white bar
+// with a little room around the 80px item row. The `:not()` matches the theme's
+// own container rule in specificity (the master box-shadow hook does the same),
+// or the transparent @navbar-background wins.
+.hook-navbar-sticky() {
+    padding-top: @jw-s-3;
+    padding-bottom: @jw-s-3;
+    &:not(.uk-navbar-transparent) { background-color: @jw-white; }
+}
+
 // ---------- Toolbar (the utility row above the navbar) ----------
 // The toolbar menu renders as `uk-subnav`, NOT as a navbar nav, so it takes an
 // entirely separate variable set from the block above.
@@ -601,12 +644,91 @@ h4, .uk-h4 {
     text-decoration: none;
 }
 
+// The toolbar menu is a `uk-dropnav`, so the language switcher opens a plain
+// `uk-dropdown` — the `@navbar-dropdown-*` values above never reach it. It is
+// the only plain dropdown on the site, so these apply to nothing else.
+@dropdown-border-radius:            @jw-r-md;
+@dropdown-min-width:                120px;      // three two-letter items, not UIkit's 200
+@dropdown-nav-item-color:           @jw-text;   // muted grey read as disabled next to the trigger
+@dropdown-nav-item-hover-color:     @jw-accent;
+// The radius was always there but could not be SEEN: UIkit's default surface
+// is the muted background, which on this palette is nearly the page itself,
+// so the panel read as loose text floating over the header CTA. A white
+// surface and the standard lift give the rounded shape an edge.
+@dropdown-background:               @jw-white;
+@dropdown-box-shadow:               @jw-shadow-md;
+.hook-dropdown-nav() {
+    // The toolbar's own size, so the items match the "NL" they open from by
+    // construction. The previous value (the 12px 2nd-level nav role) was
+    // chosen on the belief that NL was 12px; YOOtheme sets the toolbar to
+    // `@theme-toolbar-font-size`, which is 14px.
+    font-size: @theme-toolbar-font-size;
+}
+
 // ---------- Offcanvas (the mobile dialog panel) ----------
 // Defaults to @global-secondary-background, i.e. raspberry — which collides
 // with the raspberry CTA inside it and forces the button to flip to lemon.
 // Brown is this palette's designated panel surface: it inverts to beige text
 // with a lemon primary, the pairing section 2's inverse block already defines.
 @offcanvas-bar-background:          @jw-brown;
+
+// ---------- Mobile dialog (the Figma "Mobile menu open" frame) ----------
+// `mobile.dialog.layout: dropbar-top`: a lemon panel dropped under the mobile
+// header with the page still visible beneath. 48 above the first link, 16 at
+// the sides, 24 under the button — the frame's own rhythm.
+@dropbar-background:                @jw-lemon;
+@dropbar-color:                     @jw-text;
+@dropbar-padding-top:               @jw-s-12;
+@dropbar-padding-bottom:            @jw-s-6;
+@dropbar-padding-horizontal:        @jw-s-4;
+
+// The main links are the 24/32 "body bigger" role (nav primary), the second
+// group the 16/22 navigation role (nav secondary); neither style is used
+// anywhere else, so both map straight onto the frame.
+@nav-primary-font-size:             @jw-t-body-lg;
+@nav-primary-line-height:           @jw-lh-body-lg;
+@nav-primary-letter-spacing:        @jw-ls-body;
+@nav-primary-item-color:            @jw-text;
+@nav-primary-item-hover-color:      @jw-accent;
+@nav-primary-item-active-color:     @jw-text;
+@nav-primary-item-padding-vertical: @jw-s-2;     // 16px between links
+
+@nav-secondary-font-size:           @jw-t-nav;
+@nav-secondary-line-height:         @jw-lh-nav;
+@nav-secondary-item-color:          @jw-text;
+@nav-secondary-item-hover-color:    @jw-accent;
+@nav-secondary-item-active-color:   @jw-text;
+@nav-secondary-item-padding-vertical: @jw-s-1;   // 8px between links
+
+// "NL | EN | FR" is the divider subnav at the 16px navigation role; the global
+// border is invisible on lemon and the bar is a glyph-high hairline, not 1.5em.
+@subnav-item-font-size:             @jw-t-nav;
+@subnav-divider-border:             @jw-brown;
+@subnav-divider-border-height:      1em;
+@subnav-divider-margin-horizontal:  @jw-s-2;
+
+// With the transparent mobile header the theme insets the dropbar behind it
+// and its drop script stretches the box to the viewport (`stretch: true` is
+// hard-coded in templates/header-mobile.php) while the reveal animation
+// transitions that same inline height — so the box cannot be sized by CSS
+// without killing the animation. The lemon panel is therefore painted on the
+// inner wrapper, which is content-sized: the box stays transparent and keeps
+// animating, the panel ends under the button with the page visible beneath.
+// No radius variable exists for the dropbar (master/border-radius has none).
+.uk-dropbar-inset.uk-dropbar-top {
+    padding: 0;
+    background: transparent;
+
+    // A descendant, not a child: the reveal animation wraps the content in a
+    // temporary div for its duration, and a child selector loses the lemon there.
+    .tm-height-min-1-1 {
+        min-height: 0;
+        padding: 0 @dropbar-padding-horizontal @dropbar-padding-bottom;
+        background: @dropbar-background;
+        border-bottom-left-radius: 24px;
+        border-bottom-right-radius: 24px;
+    }
+}
 
 // Grid dividers are their own variable (NOT @base-hr-border, which drives <hr>).
 // Default is @global-border — invisible against the lemon block, where the design
@@ -773,6 +895,22 @@ h4, .uk-h4 {
 // ========================================================================
 @import "components/animations.less";
 
+// ---------- Footer: the newsletter lingers through the reveal (phone) ----------
+// The footer is the builder's `sticky: reveal` section — it waits behind the
+// page and the content above scrolls away to uncover it. On a phone it is
+// ~1,560px tall against an ~840px screen, so the newsletter at its top was
+// past almost as soon as it appeared. Three times the large-section padding
+// above it (review 2026-09-18) keeps it on screen for longer.
+//
+// A rule rather than the builder's `padding_top`, because that setting is one
+// value for every screen size and only phones asked for more. The footer
+// holds exactly one primary section, so no class needs adding to the layout.
+@media (max-width: @breakpoint-small-max) {
+    footer .uk-section-primary.uk-section-large-top {
+        padding-top: (@section-large-padding-vertical * 3);
+    }
+}
+
 // ---------- Tile card ----------
 // A rounded inset card built from two collapsed tile-muted columns. UIkit exposes
 // no radius for tiles (the master border-radius set covers cards/sections, not
@@ -894,15 +1032,18 @@ h4, .uk-h4 {
 // DOM order is meta, title, link; the design's reading order is title, type,
 // link. Explicit grid-column on each part reorders them without touching the
 // markup.
+//
+// The whole row is a link ("Link the panel" on the grid element), and that
+// setting RESHAPES the DOM: YOOtheme wraps meta, title and link in an
+// `<a class="uk-link-toggle">` inside `.el-item`, so they stop being its
+// children. A grid left on `.el-item` then has a single cell and the row
+// collapses into a stack. So the grid sits on whichever element DIRECTLY
+// holds the three parts — `.el-item` when the row is not linked, the `<a>`
+// when it is — and the row survives the setting being flipped either way.
 .jw-vacature-row {
 
+    // The row frame: the rules and the vertical rhythm, in both states.
     .el-item {
-        display: grid;
-        // 45/55, not an even split: the design puts the type column at x623 of
-        // a 1280 container, which an even split overshoots by ~50px.
-        grid-template-columns: 45fr 55fr auto;
-        align-items: center;
-        column-gap: @jw-s-6;
         border-top: 1px solid @jw-primary;
         padding: @jw-s-6 0;
     }
@@ -910,13 +1051,27 @@ h4, .uk-h4 {
     // The last row closes the table — the design draws a rule under it too.
     .el-item:last-child { border-bottom: 1px solid @jw-primary; }
 
+    .el-item:not(:has(> .uk-link-toggle)),
+    .el-item > .uk-link-toggle {
+        display: grid;
+        // 45/55, not an even split: the design puts the type column at x623 of
+        // a 1280 container, which an even split overshoots by ~50px.
+        grid-template-columns: 45fr 55fr auto;
+        align-items: center;
+        column-gap: @jw-s-6;
+    }
+
     .el-title { grid-column: 1; grid-row: 1; margin: 0 !important; }
+
+    // The whole row is the link, so the name underlines when the row is hovered.
+    .uk-link-toggle:hover .el-title { text-decoration: underline; }
     .el-meta  { grid-column: 2; grid-row: 1; margin: 0 !important; }
 
-    // The link has no class of its own — YOOtheme wraps it in a bare div and
-    // only the <a> inside carries `.el-link`. `:last-child` is safe here
-    // because show_content is off, so the link wrapper is always last.
-    .el-item > div:last-child {
+    // The link has no class of its own — YOOtheme wraps it in a bare div (and
+    // turns it into a div outright once the panel is linked). `:last-child`
+    // is safe because show_content is off, so that wrapper is always last.
+    .el-item > div:last-child,
+    .el-item > .uk-link-toggle > div:last-child {
         grid-column: 3;
         grid-row: 1;
         margin: 0 !important;
@@ -1032,6 +1187,13 @@ h4, .uk-h4 {
     .jw-review .uk-slidenav-container { z-index: 2; }
 }
 
+// Below phone-landscape the slider shows one full card, so the row's right-hand
+// bleed (Section/Row padding removed on the expanding side — no breakpoint in the
+// builder) only glues that card to the screen edge. Give the gutter back there.
+@media (max-width: @breakpoint-xsmall-max) {
+    .jw-review.uk-container-item-padding-remove-right { width: auto; margin-right: 0; }
+}
+
 // UIkit's slidenav is a bare chevron — the design's white pill needs a
 // background, a radius and an equal width/height. The first two ARE variables
 // (@slidenav-background / @slidenav-border-radius) but they are global, and the
@@ -1131,14 +1293,37 @@ h4, .uk-h4 {
 // the way the design draws it. Safe ONLY because this content row holds the
 // term list and nothing else — if a case card ever shows prose here, this line
 // would swallow it.
-.jw-case-card .el-content {
+.jw-tags {
     font-size: 0;
 }
 
-.jw-case-card .el-content a[rel="tag"] {
+// The card's label row is the case `labels` field: the domain pill, then the
+// diensten as plain text next to it (see CaseService::resolve_case_labels).
+.jw-case-card .el-content,
+.jw-case-labels {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: @jw-s-2;
+    font-size: @label-font-size;
+    line-height: @global-line-height;
+
+    a[rel="tag"] {
+        margin-right: 0;
+    }
+}
+
+// The case header centres its row.
+.jw-case-labels {
+    justify-content: center;
+}
+
+.jw-case-card .el-content a[rel="tag"],
+.jw-case-labels a[rel="tag"],
+.jw-tags a[rel="tag"] {
     display: inline-block;
     margin-right: @jw-s-2;
-    padding: 0 @label-padding-horizontal;
+    padding: @jw-s-1 @label-padding-horizontal;   // 26px tall, the Figma pill
     background: @label-background;
     border-radius: @label-border-radius;
     font-size: @label-font-size;
@@ -1221,6 +1406,8 @@ h4, .uk-h4 {
 // item to the tallest, and the supplied logos have wildly different aspect
 // ratios, so without this they sit on different baselines.
 .jw-logo-wall {
+    overflow: hidden;
+
     .el-item {
         display: flex;
         align-items: center;
@@ -1228,10 +1415,35 @@ h4, .uk-h4 {
     }
 
     .el-image {
-        max-height: 34px;
+        max-height: 56px;
         width: auto;
         filter: grayscale(1);
     }
+
+    // A steady flow, not scroll-driven (Stefan, 2026-09-30): the wall is a grid
+    // on `auto` widths whose track runs one linear keyframe. The items are two
+    // identical halves, so -50% loops without a seam, and EACH HALF must be
+    // wider than the widest screen or the track runs out on the right (the
+    // first marquee's failure, 2026-09-10) — hence the fixed item width and a
+    // dozen-plus items per half. Keep it two halves.
+    > .uk-grid {
+        flex-wrap: nowrap;
+        width: max-content;
+        animation: jw-marquee 60s linear infinite;
+
+        > * {
+            flex: none;
+            width: 240px;
+        }
+    }
+}
+
+@keyframes jw-marquee {
+    to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .jw-logo-wall > .uk-grid { animation: none; }
 }
 
 
@@ -1270,4 +1482,174 @@ h4, .uk-h4 {
     font-size: @jw-t-disclaimer;
     line-height: 1.33;
     letter-spacing: @jw-ls-none;
+}
+
+// A case single's fact dividers are ink, not the muted global border.
+.jw-hr-dark {
+    border-color: @jw-brown;
+}
+
+// A case single's team tile: the email reads as a link, in the link colour.
+.jw-team-tile .el-content {
+    color: @jw-raspberry;
+}
+
+// The tile's name is bound data (no HTML to bold), so the bold body face is a rule.
+.jw-team-tile .el-title {
+    font-family: @jw-font-body;
+    font-size: @jw-t-body;
+    font-weight: 700;
+    line-height: @jw-lh-body;
+}
+
+// UIkit has no radius or size variable for a pill subnav item — the hook is the next rung.
+.hook-subnav-pill-item() {
+    border-radius: @label-border-radius;
+    font-size: @label-font-size;
+    line-height: @global-line-height;
+}
+
+// Download form: the two consent rows read as one block; the input gap returns before the button.
+.ff-el-group:has(.ff-el-form-check) {
+    margin-bottom: 0;
+    .ff-el-form-check { margin-bottom: 4px; }
+}
+.ff-el-group:has(.ff-el-form-check) + .ff-el-group:not(:has(.ff-el-form-check)) {
+    margin-top: 20px;
+}
+
+// ---------- Fluent Forms ----------
+// FluentForm draws its own controls, not uk-input; map them onto the Figma "Form field"
+// (bold 18px label, 44px control with an 8px radius and a brown-60 border) and the pill button.
+.frm-fluent-form {
+    .ff-el-input--label label {
+        font-family: @jw-font-body;
+        font-size: @jw-t-body;
+        font-weight: 700;
+        color: @jw-brown;
+    }
+    .ff-el-form-control {
+        height: 44px;
+        padding: 12px 16px;
+        font-family: @jw-font-body;
+        font-size: @jw-t-body;
+        line-height: @jw-lh-body;
+        color: @jw-brown;
+        background: @jw-white;
+        border: 1px solid @jw-brown-60;
+        border-radius: @jw-r-md;
+        box-shadow: none;
+        &:focus { border-color: @jw-brown; }
+        &::placeholder { color: @jw-brown-60; }
+    }
+    textarea.ff-el-form-control {
+        height: auto;
+        min-height: 197px;
+    }
+    .ff-btn-submit {
+        min-width: 110px;
+        height: 44px;
+        padding: 0 20px;
+        font-family: @jw-font-display;
+        font-size: @jw-t-button;
+        line-height: @jw-lh-button;
+        border: 0;
+        border-radius: @jw-r-pill;
+    }
+}
+
+// Footer signup (Fluent form 2): the pill field and raspberry button of the YOOtheme
+// Newsletter element it replaced, on one row. FluentForms sets flex-basis inline.
+.jw-footer-newsletter .frm-fluent-form {
+    .ff-t-container { display: flex; gap: @jw-s-4; }
+    .ff-t-cell { padding: 0; }
+    .ff-t-column-1 { flex: 1 1 0 !important; min-width: 0; }
+    .ff-t-column-2 { flex: 0 0 auto !important; width: auto !important; }
+    .ff-el-group { margin: 0; }
+    .ff-el-form-control {
+        padding: 0 @jw-s-4;
+        color: fade(@jw-beige, 80%);
+        background: fade(@jw-beige, 10%);
+        border: 0;
+        border-radius: @jw-r-pill;
+        &::placeholder { color: fade(@jw-beige, 60%); }
+    }
+    .ff-t-cell .ff_submit_btn_wrapper_custom .ff-btn-submit { margin: 0; }   // FluentForms' own rule has 20px here
+    .ff-btn-submit {
+        padding: 0 32px;
+        color: @jw-white;
+        background: @jw-raspberry;
+        border-radius: @jw-r-pill;
+        &:hover { background: @jw-raspberry; opacity: .9; }
+    }
+    .error { margin-top: 8px; color: @jw-raspberry; }
+    .ff-message-success { color: fade(@jw-beige, 80%); }
+}
+// The design stacks them on a phone: full-width field, a small gap, full-width button.
+@media (max-width: @breakpoint-small-max) {
+    .jw-footer-newsletter .frm-fluent-form {
+        .ff-t-container { flex-direction: column; }
+        .ff-t-column-1, .ff-t-column-2 { flex: 0 0 auto !important; width: 100% !important; }
+        .ff-btn-submit { width: 100%; }
+    }
+}
+
+// ---------- Plain pages (no builder layout — the privacy policy) ----------
+// The fallback page template titles with `uk-article-title`; Figma sets those
+// page titles in the intro role, like Blog & nieuws.
+@article-title-font-size-m:         @jw-t-intro;
+@article-title-font-size:           @jw-t-intro;
+@article-title-line-height:         @jw-lh-intro;
+.hook-article-title() {
+    font-family: @jw-font-body;
+    font-weight: @jw-fw-regular;
+    letter-spacing: @jw-ls-intro;
+}
+
+// ---------- Breadcrumbs (post header) ----------
+@breadcrumb-item-font-size:         @jw-t-nav;
+@breadcrumb-item-color:             @jw-brown;
+@breadcrumb-item-hover-color:       @jw-raspberry;
+@breadcrumb-item-active-color:      @jw-brown;
+@breadcrumb-divider-color:          @jw-brown;
+.hook-breadcrumb-item-active() { font-weight: 700; }
+// The post header reads "Blog & nieuws / title": the category level stays out of the trail.
+.jw-post-crumb .uk-breadcrumb > li:not(:first-child):not(:last-child) { display: none; }
+
+// ---------- Blog article ----------
+// Figma "Body blog (bigger spacing)": 18/30 for easier reading; the first paragraph is the
+// 24px intro, h2/h3 take the T3/T4 roles so an editor's H2 is not the 60px page title.
+.jw-blog-body {
+    p, li { line-height: (30 / 18); }
+    .uk-panel > p:first-child {
+        font-size: @jw-t-body-lg;
+        line-height: @jw-lh-body-lg;
+    }
+    h2 { font-size: @jw-t3; line-height: @jw-lh-t3; }
+    h3 { font-family: @jw-font-body; font-size: @jw-t4; font-weight: 600; line-height: @jw-lh-t4; }
+    h2, h3 { margin-top: @jw-s-8; }
+    blockquote {
+        margin: @jw-s-16 0;
+        font-family: @jw-font-display;
+        font-size: @jw-t2;
+        font-weight: 300;
+        font-style: normal;
+        // Tighter than the T2 role's 60/60 (review 2026-09-18): at this size a
+        // display serif reads as one block only below 1.0. Scoped to the blog
+        // quote, so every other T2 keeps the token's leading.
+        line-height: (54 / 60);
+        text-align: center;
+        p { line-height: inherit; }   // the 30/18 body rule above would win
+    }
+    img { border-radius: 0; }
+}
+
+// ---------- Motion ----------
+// UIkit ignores the OS "reduce motion" setting, and scrollspy hides its targets inline
+// until they are scrolled to: under reduced motion they are simply there.
+@media (prefers-reduced-motion: reduce) {
+    [uk-scrollspy-class] {
+        opacity: 1 !important;
+        animation: none !important;
+    }
 }

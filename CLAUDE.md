@@ -14,16 +14,16 @@ start of every session. Operational config (stack, hosting, deploy, risk): `site
    the process work; the netdust overlays add the gates and this stack's environment.
 
 2. **Design uses the framework skills for the technical shape** —
-   `netdust-wp:ntdst-architecture` (services, DI, boundaries), `ntdst-data` (CPTs,
-   fields, queries, REST), `ntdst-patterns` (where files live). Intent questions still
+   `netdust-wp:ntdst-framework` (services, DI, boundaries, CPTs, fields, queries,
+   REST), `ntdst-patterns` (where files live). Intent questions still
    go to the human via `superpowers:brainstorming` — every requirement in a spec quotes
    the ask or is an approved invention (`Source:` lines, machine-checked).
 
-3. **ntdst-core is always the base** (daan's copy is HEAD — port from there, never fork
-   conventions here). Never reinvent what the framework or an existing module already
-   solves; the `invariant-auditor` and `ntdst-drift-reviewer` check for bypasses AND
-   second homes against `ARCHITECTURE-INVARIANTS.md` (author it via
-   `/architecture-invariants audit` if missing) and `docs/architecture/CODE-MAP.md`.
+3. **ntdst-core is always the base.** Framework conventions apply to all new code —
+   never reinvent what the framework or an existing module already solves; the
+   `invariant-auditor` and `ntdst-drift-reviewer` check for bypasses AND second homes
+   against `ARCHITECTURE-INVARIANTS.md` (author it via `/architecture-invariants audit`
+   if missing) and `docs/architecture/CODE-MAP.md`.
 
 4. **Plan gates on WP work**: `netdust-wp:wp-plan-requirements` injects the four-pillar
    security line per data-flow and the ntdst-core layering checklist into every plan;

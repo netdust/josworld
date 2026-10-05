@@ -57,6 +57,9 @@ Thumbs.db
 !composer.lock
 !wp-cli.yml
 !Makefile
+!Makefile.netdust
+!mk/
+!.netdust-devops
 !phpstan-baseline.neon
 
 # Track favicon files, if they exist
@@ -137,8 +140,16 @@ Thumbs.db
 !app/content/
 !app/content/**
 
+# Runtime caches (Matomo's lives here) — never tracked
+app/content/cache/
+
 # Ignore uploads directory (user files)
 app/content/uploads/
+
+# Ignore WordPress language packs — downloaded per host from wordpress.org and
+# regenerated on update. Not in deploy.payload, so no environment needs them
+# from git; nl_BE alone is 6 MB of generated .mo/.po.
+app/content/languages/
 
 # Ignore debug logs
 app/content/debug.log
@@ -208,3 +219,7 @@ app/content/mu-plugins/ntdst-core/
 # installed via installer-paths into content/mu-plugins/ntdst-baseline/ —
 # externally managed like vendor/, never hand-edited or committed here.
 app/content/mu-plugins/ntdst-baseline/
+
+# Local reference material: design-asset exports and paid plugin zips never enter the repo.
+docs/*.zip
+docs/Assets-*/
