@@ -2,6 +2,18 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Production is built next to the live webroot (2026-10-10)
+
+- `jos.agency` still serves Combell's placeholder from `/data/sites/web/josagency/www`. The real site is in **`www-next`** (same box): staging's files,
+  `.env` with the production DB `ID247703_jos` (credentials were put in `/data/sites/web/josagency/tmp/prod-db.env` by Stefan — never in git; `.env.example`
+  must stay unmodified), fresh salts, `DISABLE_WP_CRON=true`, a staging dump imported and search-replaced to `https://jos.agency`, Matomo `trusted_hosts` = jos.agency.
+- The **mail block** (`00-block-outgoing-mail.php`) is deliberately still in `www-next`; **FluentSMTP has no connection stored** — Stefan must configure a real
+  provider before the `mail` step.
+- **Go-live = `scripts/once/2026-10-10-go-live.sh`** (run on jos-server): `prepare` (fresh staging dump, code/uploads delta, `jw-build-bot` removed, `admin` and the other
+  admins stay) → `swap` (www → www-placeholder, www-next → www, cron on) → verify → `mail` (block out). `rollback` puts the placeholder back.
+  After the swap: system cron hitting `wp-cron.php` (Combell), Matomo goals, privacy text, `make smoke env=production`.
+- Production DB and files were built by Stefan running `.yoo-tools/build-prod.sh` (the classifier blocks me from production writes); the first dump is in `tmp/`.
+
 ## SEO for launch (2026-10-10, branch feature/seo-launch — cut from feature/tool-url, NOT main)
 
 - **The feature verb branches from main, and main lacks every unshipped feature** (SiteMetaService, forms, tools…): this one was
