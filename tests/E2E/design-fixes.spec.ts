@@ -71,6 +71,12 @@ test.describe('design fixes (desktop) @smoke @e2e', () => {
     await page.goto('/jobs-stages/');
     const row = page.locator('.jw-vacature-row .el-item').first();
 
+    // With no opening the page says so (the designed empty state) instead of listing anything.
+    if ((await row.count()) === 0) {
+      await expect(page.getByText('Momenteel zijn er géén openstaande vacatures')).toBeVisible();
+      return;
+    }
+
     const link = row.locator(':scope > a.uk-link-toggle');
     await expect(link).toHaveCount(1);
     await expect(link).toHaveAttribute('href', /\/jobs-stages\/[^/]+\//);
@@ -97,7 +103,10 @@ test.describe('design fixes (desktop) @smoke @e2e', () => {
   // Was the T2 role's 60/60; the 2026-09-18 review asked for tighter lines.
   // Scoped to the blog quote — every other T2 keeps the token's leading.
   test('blog quote sets its 60px lines at 54px — tighter than T2', async ({ page }) => {
-    await page.goto('/stageverhalen-een-frisse-wind-bij-josworld/');
+    // The story's slug follows the brand name, which differs between a local copy and staging.
+    for (const slug of ['stageverhalen-een-frisse-wind-bij-jos', 'stageverhalen-een-frisse-wind-bij-josworld']) {
+      if ((await page.goto(`/${slug}/`))?.ok()) break;
+    }
     const q = page.locator('.jw-blog-body blockquote p').first();
     expect(await q.evaluate((el) => getComputedStyle(el).fontSize)).toBe('60px');
     expect(await q.evaluate((el) => getComputedStyle(el).lineHeight)).toBe('54px');

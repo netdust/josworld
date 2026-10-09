@@ -83,7 +83,7 @@ test.describe('served HTML: other pages @e2e', () => {
   });
 
   test('a blog post is an article, a page is not', async ({ request }) => {
-    const post = await (await request.get(process.env.E2E_FIXTURE_URL ?? '/e2e-fixture-post/')).text();
+    const post = await (await request.get(process.env.E2E_FIXTURE_URL ?? '/waarom-we-een-cooperatie-werden/')).text();
     expect(meta(post, 'property', 'og:type')).toBe('article');
   });
 });

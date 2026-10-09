@@ -21,6 +21,19 @@
 - Open for Stefan: tool slugs don't match titles (`contentkalender` = Backlashplanner, `checklist-fair-aanbesteden`,
   `checklist-campagne`); typos in team bios ("tusen", "admistratieve").
 
+## Staging drift found by the e2e run (2026-10-10)
+
+Staging's DB is the master (it carries Stefan's real content); local lags. Fixed on staging, backups in `~/…/staging.jos.agency/yoo-theme-mods-backup-*.json`:
+- **Mobile panel was ~330px too tall**: the "Mobiel" menu (20) was assigned to `dialog-mobile` (config `menu.positions.dialog-mobile.menu` + the
+  `nav_menu_locations` entry), which prints a second unstyled copy of the nav above the Figma panel (the panel itself builds from the navbar +
+  toolbar menus). Unassigned. The "Mobiel" menu still exists, unused.
+- **A pull quote written with an H3** (post 277) lost the blog-quote look, which styles `blockquote p`: turned into a `<p>`. Editors should use a
+  plain paragraph in a quote.
+- **Jobs & stages shows the designed "no vacancies" notice** (the list row is disabled in the staging template by choice). The e2e test accepts
+  either state. The Copywriter vacancy is still published, so it is in the sitemap and has a page: unpublish it if the notice is the intent.
+- The e2e no longer needs `/e2e-fixture-post/` (trashed on staging): the blog tests use real posts (`stageverhalen-…-bij-jos`, `waarom-we-een-cooperatie-werden`).
+- Local still has the old label "Voor social profit & duurzame ondernemers" in the "Mobiel" menu and an older Jobs template: don't treat local as the source.
+
 ## The three tools in docs/tools are online (2026-10-09, branch feature/tool-url)
 
 - **Two interactive tools** (`campagnestart.html`, `faire-aanbestedingsscan - V3.html`) were built with a one-block THEMING LAYER:
