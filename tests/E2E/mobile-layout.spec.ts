@@ -23,7 +23,7 @@ test.describe('phone layout @smoke @e2e', () => {
       const overlap = await page.locator('.jw-tile-card').first().evaluate((col) => {
         const shown = (sel: string) => [...col.querySelectorAll<HTMLElement>(sel)].find((i) => i.offsetParent)!;
         const s = shown('img[src*="sun"]').getBoundingClientRect();
-        const c = shown('img[src*="tool-card"]').getBoundingClientRect();
+        const c = shown('img:not([src*="sun"])').getBoundingClientRect();
         return Math.min(s.bottom, c.bottom) - Math.max(s.top, c.top);
       });
       expect(overlap).toBeGreaterThanOrEqual(200);
