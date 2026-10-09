@@ -13,9 +13,15 @@ use WP_UnitTestCase;
  */
 final class CaseDomainUrlTest extends WP_UnitTestCase
 {
+    private ?\WP_Post_Type $originalCase = null;
+    private ?\WP_Taxonomy $originalDomain = null;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->originalCase = clone get_post_type_object('case');
+        $this->originalDomain = clone get_taxonomy('domain');
 
         $this->set_permalink_structure('/%postname%/');
         // Both types registered at boot, before permalinks existed, and WordPress only builds their rules
@@ -23,6 +29,17 @@ final class CaseDomainUrlTest extends WP_UnitTestCase
         register_post_type('case', (array) get_post_type_object('case'));
         register_taxonomy('domain', 'case', (array) get_taxonomy('domain'));
         flush_rewrite_rules();
+    }
+
+    protected function tearDown(): void
+    {
+        // The registrations above are rebuilt for the rewrite rules: hand the REAL ones back to later tests.
+        $GLOBALS['wp_post_types']['case'] = $this->originalCase;
+        $GLOBALS['wp_taxonomies']['domain'] = $this->originalDomain;
+        $this->set_permalink_structure('');
+        flush_rewrite_rules();
+
+        parent::tearDown();
     }
 
     private function domain(string $name): \WP_Term
@@ -73,5 +90,28 @@ final class CaseDomainUrlTest extends WP_UnitTestCase
         $this->assertNotSame('klimaat', get_post_field('post_name', $id), 'the slug is kept free for the overview');
         $this->go_to(home_url('/ons-werk/klimaat/'));
         $this->assertTrue(is_tax('domain', 'klimaat'));
+    }
+
+    public function test_two_cases_that_both_lose_a_domains_slug_do_not_share_the_next_one(): void
+    {
+        $this->domain('Klimaat');
+        $args = ['post_type' => 'case', 'post_status' => 'publish', 'post_name' => 'klimaat'];
+        $first = self::factory()->post->create($args);
+        $second = self::factory()->post->create($args);
+
+        $slugs = [get_post_field('post_name', $first), get_post_field('post_name', $second)];
+
+        $this->assertNotContains('klimaat', $slugs);
+        $this->assertCount(2, array_unique($slugs), 'each case keeps its own URL');
+    }
+
+    public function test_a_domain_can_not_take_the_slug_of_an_existing_case(): void
+    {
+        self::factory()->post->create(['post_type' => 'case', 'post_status' => 'publish', 'post_name' => 'energie']);
+
+        $result = wp_insert_term('Energie', 'domain');
+
+        $this->assertWPError($result, 'the case would go dark behind the overview');
+        $this->assertNull(term_exists('energie', 'domain'));
     }
 }

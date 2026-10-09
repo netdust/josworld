@@ -14,6 +14,14 @@
   it; `case-term-limits.js` stops over-ticking on the edit screen (`tests/js/case-term-limits.behavior.test.js`);
   `resolve_case_labels` shows at most 3 diensten. **After deploy run `wp rewrite flush --hard` on each environment** (the
   rules live in the DB; the staging→production copy carries them once staging is flushed).
+- **Review fix pass (2026-10-09, `specs/taxonomy-archives/review.md`):** the case slug guard now delegates to a real
+  uniqueness check (two cases no longer share `klimaat-2`) and runs at priority 20, AFTER baseline's Polylang
+  `SharedSlugs`; a domain term whose slug is a case's is refused (`pre_insert_term`); `clampTerms` skips terms that no
+  longer exist and logs a failed corrective write; `AdminAppService` derives its taxonomy list from the registry (no hand-kept
+  copy); the label cap reads `CaseService::LIMITS`; the admin scripts are versioned by file mtime. **Open, baseline's:**
+  `ntdst-baseline` `SharedSlugs::repair()` can restore a case's original slug on language assignment and so take a domain's
+  URL once nl/en/fr exist (latent today: one language) — a premise defect to file against baseline, not patched here.
+  Staging domain slugs vs case slugs: no clash (18 cases, 6 domains).
 - **Rounded last band (2026-10-09):** the closing yellow "A14 · Maak kennis met Jos" band of the Ons werk archive and both
   taxonomy templates lacked `jw-band-round-bottom` (every other page's last yellow band has it). Added to
   `archive-case`, `taxonomy-domain`, `taxonomy-dienst` and the library section `c6a026fc` on local + staging

@@ -92,10 +92,12 @@ final class AdminAppMenuTest extends WP_UnitTestCase
             );
         }
 
-        $this->assertContains(
-            'edit-tags.php?taxonomy=dienst&post_type=case',
-            $under,
-            'the `dienst` taxonomy must follow `case` under Josworld',
-        );
+        foreach (['dienst', 'domain', 'doelgroep'] as $taxonomy) {
+            $this->assertContains(
+                "edit-tags.php?taxonomy={$taxonomy}&post_type=case",
+                $under,
+                "the `{$taxonomy}` taxonomy must follow `case` under Josworld",
+            );
+        }
     }
 }

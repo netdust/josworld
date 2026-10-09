@@ -178,4 +178,20 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
 
         $this->assertFalse(wp_script_is('josworld-case-term-limits', 'enqueued'));
     }
+
+    public function test_the_scripts_are_versioned_by_their_file_so_a_deploy_busts_the_cache(): void
+    {
+        set_current_screen('case');
+        (new AdminUIService())->enqueueConditionalFieldScripts('post.php');
+
+        global $wp_scripts;
+        $dir = dirname(__DIR__, 2) . '/app/content/mu-plugins/josworld-core/assets/js/';
+        $scripts = [
+            'josworld-metabox-conditional' => 'metabox-conditional.js',
+            'josworld-case-term-limits' => 'case-term-limits.js',
+        ];
+        foreach ($scripts as $handle => $file) {
+            $this->assertSame((string) filemtime($dir . $file), $wp_scripts->registered[$handle]->ver, $handle);
+        }
+    }
 }

@@ -70,6 +70,14 @@ final class AdminUIService
         }
     }
 
+    /** The file's mtime: a deploy that changes the script busts the browser cache (like AdminChromeService). */
+    private function version(string $script): ?string
+    {
+        $mtime = filemtime(dirname(__DIR__, 2) . '/assets/js/' . $script);
+
+        return $mtime === false ? null : (string) $mtime;
+    }
+
     /** The block editor stops accepting a tick past the limits the server enforces on save. */
     private function enqueueCaseTermLimits(): void
     {
@@ -77,7 +85,7 @@ final class AdminUIService
             'josworld-case-term-limits',
             plugins_url('assets/js/case-term-limits.js', dirname(__DIR__, 2) . '/josworld-core.php'),
             ['wp-data', 'wp-editor'],
-            null,
+            $this->version('case-term-limits.js'),
             true,
         );
 
@@ -102,7 +110,7 @@ final class AdminUIService
             'josworld-metabox-conditional',
             plugins_url('assets/js/metabox-conditional.js', dirname(__DIR__, 2) . '/josworld-core.php'),
             ['jquery', 'ntdst-metabox-fields'],
-            null,
+            $this->version('metabox-conditional.js'),
             true,
         );
 

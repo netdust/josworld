@@ -45,11 +45,6 @@ final class AdminAppService
         'tool' => 'Tools',
     ];
 
-    /** Taxonomies that must follow their post type into the menu. */
-    private const TAXONOMIES = [
-        'case' => ['domain' => 'Domeinen', 'dienst' => 'Diensten', 'doelgroep' => 'Doelgroepen'],
-    ];
-
     private ?ActivitySource $bookings = null;
     private ?ActivitySource $submissions = null;
 
@@ -103,9 +98,26 @@ final class AdminAppService
             'menu_position' => 3,
             'capability' => 'edit_posts',
             'post_types' => $this->labelled(self::POST_TYPES),
-            'taxonomies' => array_map([$this, 'labelled'], self::TAXONOMIES),
+            'taxonomies' => ['case' => $this->taxonomiesOf('case')],
             'render' => [$this, 'renderDashboard'],
         ];
+    }
+
+    /**
+     * Whatever taxonomies the type registers with a screen follow it into the menu — no second list to keep.
+     *
+     * @return array<string, string> name => label
+     */
+    private function taxonomiesOf(string $postType): array
+    {
+        $labels = [];
+        foreach (get_object_taxonomies($postType, 'objects') as $name => $taxonomy) {
+            if ($taxonomy->show_ui) {
+                $labels[$name] = (string) $taxonomy->labels->name;
+            }
+        }
+
+        return $labels;
     }
 
     /**

@@ -56,7 +56,9 @@ final class CaseService
         add_action('pre_get_posts', [$this, 'showWholeTermOnOnePage']);
         add_action('set_object_terms', [$this, 'clampTerms'], 10, 5);
         add_filter('request', [$this, 'resolveOnsWerkSlug']);
-        add_filter('wp_unique_post_slug', [$this, 'keepDomainSlugsFree'], 10, 4);
+        // After baseline's shared-slug filter (Polylang), so a domain's slug stays the overview's.
+        add_filter('wp_unique_post_slug', [$this, 'keepDomainSlugsFree'], 20, 4);
+        add_filter('pre_insert_term', [$this, 'refuseTheSlugOfACase'], 10, 3);
     }
 
     /**
@@ -81,12 +83,24 @@ final class CaseService
             return;
         }
 
+        $keep = [];
+        foreach (array_slice($ordered, 0, $limit) as $ttId) {
+            $term = get_term_by('term_taxonomy_id', $ttId, $taxonomy);
+            if ($term instanceof \WP_Term) {
+                $keep[] = $term->term_id;
+            }
+        }
+
         remove_action('set_object_terms', [$this, 'clampTerms'], 10);
-        wp_set_object_terms($objectId, array_map(
-            static fn (int $ttId): int => (int) get_term_by('term_taxonomy_id', $ttId, $taxonomy)->term_id,
-            array_slice($ordered, 0, $limit)
-        ), $taxonomy);
+        $result = wp_set_object_terms($objectId, $keep, $taxonomy);
         add_action('set_object_terms', [$this, 'clampTerms'], 10, 5);
+
+        if (is_wp_error($result)) {
+            wp_trigger_error(
+                __METHOD__,
+                "Could not keep case {$objectId} within its {$taxonomy} limit: " . $result->get_error_message()
+            );
+        }
     }
 
     /**
@@ -125,11 +139,60 @@ final class CaseService
         }
 
         $candidate = $slug;
-        for ($n = 2; get_term_by('slug', $candidate, 'domain'); $n++) {
+        for ($n = 2; $this->slugIsTaken($candidate, $postId, $candidate !== $slug); $n++) {
             $candidate = $slug . '-' . $n;
         }
 
         return $candidate;
+    }
+
+    /** A domain owns its slug; a suffixed candidate must also be free among the cases (core never saw it). */
+    private function slugIsTaken(string $slug, int $postId, bool $checkCases): bool
+    {
+        if (get_term_by('slug', $slug, 'domain')) {
+            return true;
+        }
+
+        return $checkCases && $this->caseExists($slug, $postId);
+    }
+
+    private function caseExists(string $slug, int $exceptId = 0): bool
+    {
+        return get_posts([
+            'name' => $slug,
+            'post_type' => 'case',
+            'post_status' => ['publish', 'draft', 'pending', 'private', 'future'],
+            'post__not_in' => [$exceptId],
+            'numberposts' => 1,
+            'fields' => 'ids',
+            'suppress_filters' => true,
+        ]) !== [];
+    }
+
+    /**
+     * A domain whose slug is a case's would take that case's URL: the term wins /ons-werk/<slug>.
+     *
+     * @param array<string, mixed> $args
+     */
+    public function refuseTheSlugOfACase(mixed $term, string $taxonomy, array $args = []): mixed
+    {
+        if ($taxonomy !== 'domain' || is_wp_error($term)) {
+            return $term;
+        }
+
+        $slug = sanitize_title((string) ($args['slug'] ?? $term));
+        if ($slug === '' || ! $this->caseExists($slug)) {
+            return $term;
+        }
+
+        return new \WP_Error(
+            'jw_domain_slug_is_a_case',
+            sprintf(
+                /* translators: %s: the slug */
+                __('Er bestaat al een case op /ons-werk/%s/: kies een andere naam.', JOSWORLD_CORE_TEXTDOMAIN),
+                $slug
+            )
+        );
     }
 
     /** A `domain` / `dienst` archive is Ons werk filtered: the builder template lists the main query, all of it. */
@@ -350,7 +413,8 @@ function resolve_case_labels(mixed $post): ?string
     }
 
     if (is_array($diensten) && $diensten !== []) {
-        $names = array_map(static fn ($term) => esc_html($term->name), array_slice($diensten, 0, 3));
+        $shown = array_slice($diensten, 0, CaseService::LIMITS['dienst']);
+        $names = array_map(static fn ($term) => esc_html($term->name), $shown);
         $last = array_pop($names);
         $text = $names === [] ? $last : implode(', ', $names) . ' &amp; ' . $last;
         $html .= '<span class="jw-diensten">' . $text . '</span>';

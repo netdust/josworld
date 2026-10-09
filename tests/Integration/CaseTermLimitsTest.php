@@ -90,4 +90,15 @@ final class CaseTermLimitsTest extends WP_UnitTestCase
     {
         return ['domain' => ['domain'], 'dienst' => ['dienst']];
     }
+
+    public function test_a_clamp_that_meets_unknown_terms_neither_fatals_nor_loops(): void
+    {
+        $case = $this->newCase();
+
+        // Term-taxonomy ids that map to no term (deleted between the write and the clamp).
+        ntdst_get(\josworld\services\content\CaseService::class)
+            ->clampTerms($case, [], [999991, 999992, 999993, 999994], 'dienst', false);
+
+        $this->assertSame([], wp_get_object_terms($case, 'dienst', ['fields' => 'ids']));
+    }
 }
