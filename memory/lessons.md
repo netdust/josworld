@@ -394,3 +394,5 @@ only when the grep proves the field absent, and say so in the report.
 
 ### 2026-09-21
 - een CRM-koppeling bewijs je met een echte inzending en het teruggelezen contact, niet door de configuratie of de loader te lezen. De boekingsfeed leek gezond en heeft nooit gelopen.
+
+- **Never write backups into a web root** (2026-10-10): `yoo-*-backup-*.json` (YOOtheme config incl. `yootheme_apikey`) sat in the staging site root and were downloadable. Backups go to `/data/sites/web/josagency/tmp/backups/` (outside `www/` and `subsites/`). Moved 13 files; nginx kept serving the old ones from a cache for a while — recheck, and consider rotating the YOOtheme API key.
