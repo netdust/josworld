@@ -21,7 +21,11 @@
   same-site page is opened, not saved. **Core limitation, not fixed here:** ntdst-core's metabox derives a field's label from
   its KEY (`MetaboxGenerator.php:780`) and ignores `label` — the editor shows "Delivery", "File", "Url" (and for cases "Client",
   "Hover Image"); a gap to take to ntdst-core. `rel="noopener noreferrer"` on an external tool button: not done.
-- Still open (copy, Stefan's): the confirmation sentence "Je download staat klaar:" and the button "Download" say download
+- **Neutral copy (2026-10-09, Stefan: "neutral"):** the tool UI no longer promises a download: confirmation "Je tool staat klaar", form 3
+  button "Ontvang de tool" (`scripts/once/2026-10-09-form3-neutral-copy.php`, idempotent), tool-page heading "Ontvang deze tool" (7 tool pages
+  + library "Inhoud + downloadformulier"), the single-tool button "Open tool" (template + library "Single · Tool") — local + staging.
+  The archive heading "Gratis tools & downloads" is design copy and was left.
+- (was open, now done) the confirmation sentence "Je download staat klaar:" and the button "Download" say download
   also for a link tool.
 
 ## Taxonomy archives = Ons werk, filtered (2026-10-09, branch feature/taxonomy-archives)
