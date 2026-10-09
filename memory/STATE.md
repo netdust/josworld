@@ -30,7 +30,7 @@ Staging's DB is the master (it carries Stefan's real content); local lags. Fixed
 - **A pull quote written with an H3** (post 277) lost the blog-quote look, which styles `blockquote p`: turned into a `<p>`. Editors should use a
   plain paragraph in a quote.
 - **Jobs & stages shows the designed "no vacancies" notice** (the list row is disabled in the staging template by choice). The e2e test accepts
-  either state. The Copywriter vacancy is still published, so it is in the sitemap and has a page: unpublish it if the notice is the intent.
+  either state. The Copywriter vacancy stays published (Stefan, 2026-10-10: "don't unpublish"), so it keeps its page and its sitemap entry.
 - The e2e no longer needs `/e2e-fixture-post/` (trashed on staging): the blog tests use real posts (`stageverhalen-…-bij-jos`, `waarom-we-een-cooperatie-werden`).
 - Local still has the old label "Voor social profit & duurzame ondernemers" in the "Mobiel" menu and an older Jobs template: don't treat local as the source.
 
