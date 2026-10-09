@@ -2,6 +2,21 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Taxonomy archives = Ons werk, filtered (2026-10-09, branch feature/taxonomy-archives)
+
+- `/domein/<term>/` (and `/dienst/<term>/`) had NO template, so YOOtheme fell back to the default and printed every
+  case's full content (a 42,000px page). YOOtheme matches templates of type `taxonomy-<taxonomy>`; two were added from
+  the Ons werk (`archive-case`) layout — header "Ons werk" + the TERM NAME as heading, the featured case, the card grid
+  (offset 1…), the closing CTA. Sources are the taxonomy archive's own fields, nested under the taxonomy's query field:
+  `domains.taxonomyDomain` (the term), `domains.domainCaseSingle`, `domains.domainCase` (same for `diensts.…`) — NOT bare
+  `domainCase`. They list the MAIN query's posts, so `CaseService::showWholeTermOnOnePage` sets `posts_per_page = -1`
+  on those archives (`CaseTaxonomyArchiveTest`).
+- The templates are DB, not code: applied on local (`n63dkMld`, `UtlzOGyF`) and staging (`1_1RvEJr`, `PGLd__Rm`),
+  generated from each environment's own `archive-case` template by `.yoo-tools/taxonomy-template.py` (local-only tool),
+  so they travel with the staging→production database copy. After flushing: `wp rewrite flush --hard` if the `domein`
+  URLs 404 on a fresh environment. `tests/E2E/taxonomy-archive.spec.ts` (`@e2e`) follows the first domain pill on Ons werk.
+- A term with one case shows only the featured tile (the grid is empty); the big-tile/grid alternation of Ons werk is not repeated.
+
 ## Duplicate pages, posts and CPTs (2026-10-05, branch feature/duplicate-pages)
 
 - **ntdst-baseline v2.15.0** (new `duplicate` module, off by default; built in ~/Sites/ntdst-baseline,

@@ -42,6 +42,15 @@ final class CaseService
         $this->registerDataModel();
         $this->registerAdminColumns();
         add_action('after_setup_theme', [$this, 'attachLabelsField'], 20);
+        add_action('pre_get_posts', [$this, 'showWholeTermOnOnePage']);
+    }
+
+    /** A `domain` / `dienst` archive is Ons werk filtered: the builder template lists the main query, all of it. */
+    public function showWholeTermOnOnePage(\WP_Query $query): void
+    {
+        if ($query->is_main_query() && ! is_admin() && $query->is_tax(['domain', 'dienst'])) {
+            $query->set('posts_per_page', -1);
+        }
     }
 
     public function attachLabelsField(): void
