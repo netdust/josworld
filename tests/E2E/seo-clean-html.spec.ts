@@ -64,8 +64,8 @@ test.describe('served HTML: the homepage @e2e', () => {
   });
 
   test('a favicon and a touch icon are declared', () => {
-    expect(html).toMatch(/rel=["']icon["'][^>]*favicon\.png/);
-    expect(html).toMatch(/rel=["']apple-touch-icon["'][^>]*touchicon\.png/);
+    expect(html).toMatch(/rel=["']icon["'][^>]*icon-32\.png/);
+    expect(html).toMatch(/rel=["']apple-touch-icon["'][^>]*icon-180\.png/);
   });
 
   test('outside production the site asks not to be indexed', () => {
@@ -127,11 +127,12 @@ test.describe('served HTML: listings, icons and share images @e2e', () => {
     expect(html).toMatch(/rel=["']manifest["'] href=["'][^"']*site\.webmanifest["']/);
     expect(meta(html, 'name', 'theme-color')).toBe('#FFF794');
 
-    for (const file of ['favicon.ico', 'icon-192.png', 'icon-512.png', 'touchicon.png', 'site.webmanifest']) {
+    for (const file of ['favicon.ico', 'icon/icon-32.png', 'icon/icon-180.png', 'icon/icon-192.png', 'icon/icon-270.png', 'icon/icon-512.png', 'site.webmanifest']) {
       const res = await request.get(`/content/themes/josworld/images/${file}`);
       expect(res.status(), file).toBe(200);
     }
     const manifest = await (await request.get('/content/themes/josworld/images/site.webmanifest')).json();
     expect(manifest.icons).toHaveLength(2);
+    expect(html).toMatch(/rel=["']icon["'][^>]*icon-192\.png/);
   });
 });

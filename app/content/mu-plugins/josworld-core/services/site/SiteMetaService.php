@@ -122,6 +122,7 @@ final class SiteMetaService
             'og_image_fallback'      => $this->imageUrl('og-default.png'),
             'og_image_fallback_size' => [1200, 630],
             'og_image_crop'          => ['width' => 1200, 'height' => 630],
+            'site_icon'              => $this->imageUrl('icon'),
         ]);
     }
 
@@ -163,16 +164,14 @@ final class SiteMetaService
         return array_intersect_key($taxonomies, array_flip(self::SITEMAP_TAXONOMIES));
     }
 
-    /** YOOtheme prints the favicon and the touch icon; the rest of the set and the manifest are ours. */
+    /** Baseline's site_icon prints the PNG sizes; the .ico, the manifest and the colour are ours. */
     public function printIconTags(): void
     {
         printf(
             '<link rel="icon" href="%s" sizes="16x16 32x32 48x48">' . "\n"
-            . '<link rel="icon" type="image/png" href="%s" sizes="192x192">' . "\n"
             . '<link rel="manifest" href="%s">' . "\n"
             . '<meta name="theme-color" content="%s">' . "\n",
             esc_url($this->imageUrl('favicon.ico')),
-            esc_url($this->imageUrl('icon-192.png')),
             esc_url($this->imageUrl('site.webmanifest')),
             esc_attr(self::THEME_COLOR),
         );

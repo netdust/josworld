@@ -134,9 +134,10 @@ final class SiteMetaServiceTest extends TestCase
 
         $this->assertSame([1200, 630], $config['og_image_fallback_size']);
         $this->assertSame(['width' => 1200, 'height' => 630], $config['og_image_crop']);
+        $this->assertSame('https://jos.test/content/themes/josworld/images/icon', $config['site_icon']);
     }
 
-    public function test_the_head_carries_the_icon_set_the_manifest_and_the_theme_colour(): void
+    public function test_the_head_carries_the_ico_the_manifest_and_the_theme_colour(): void
     {
         Functions\when('esc_url')->returnArg();
         Functions\when('esc_attr')->returnArg();
@@ -150,7 +151,6 @@ final class SiteMetaServiceTest extends TestCase
             '<link rel="icon" href="' . $images . '/favicon.ico" sizes="16x16 32x32 48x48">',
             $head,
         );
-        $this->assertStringContainsString('href="' . $images . '/icon-192.png" sizes="192x192"', $head);
         $this->assertStringContainsString('<link rel="manifest" href="' . $images . '/site.webmanifest">', $head);
         $this->assertStringContainsString('<meta name="theme-color" content="#FFF794">', $head);
     }
@@ -179,8 +179,11 @@ final class SiteMetaServiceTest extends TestCase
         $images = __DIR__ . '/../../app/content/themes/josworld/images/';
         $manifest = json_decode((string) file_get_contents($images . 'site.webmanifest'), true);
 
-        foreach (['favicon.ico', 'icon-192.png', 'icon-512.png', 'og-default.png'] as $file) {
+        foreach (['favicon.ico', 'og-default.png'] as $file) {
             $this->assertFileExists($images . $file);
+        }
+        foreach ([32, 180, 192, 270, 512] as $size) {
+            $this->assertSame([$size, $size], array_slice(getimagesize($images . "icon/icon-{$size}.png"), 0, 2));
         }
         foreach ($manifest['icons'] as $icon) {
             $this->assertFileExists($images . $icon['src']);

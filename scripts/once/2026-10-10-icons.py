@@ -4,8 +4,9 @@ The Jos icon set, rendered from the wordmark in images/og-default.png (Jos Yello
 
     python3 scripts/once/2026-10-10-icons.py
 
-favicon.ico (16/32/48) and icon-192/-512 are new; favicon.png and touchicon.png (what YOOtheme's
-Customizer points at) are left alone. Re-run only if the logo changes.
+images/icon/icon-{32,180,192,270,512}.png are the sizes WordPress's Site Icon asks for (baseline's `site_icon`
+config points at that folder); favicon.ico and site.webmanifest sit beside it. Needs Pillow. Re-run only if the
+logo changes.
 """
 import json
 import pathlib
@@ -13,6 +14,8 @@ import pathlib
 from PIL import Image
 
 IMAGES = pathlib.Path(__file__).resolve().parents[2] / 'app/content/themes/josworld/images'
+ICONS = IMAGES / 'icon'
+SIZES = (32, 180, 192, 270, 512)
 YELLOW = (255, 247, 148)
 WIDTH_SHARE = 0.74  # the wordmark's share of the icon width, as on touchicon.png
 
@@ -34,22 +37,23 @@ def icon(mark: Image.Image, size: int) -> Image.Image:
 
 def main() -> None:
     mark = wordmark()
-    icon(mark, 512).save(IMAGES / 'icon-512.png', optimize=True)
-    icon(mark, 192).save(IMAGES / 'icon-192.png', optimize=True)
+    ICONS.mkdir(exist_ok=True)
+    for size in SIZES:
+        icon(mark, size).save(ICONS / f'icon-{size}.png', optimize=True)
     icon(mark, 256).save(IMAGES / 'favicon.ico', sizes=[(16, 16), (32, 32), (48, 48)])
     manifest = {
         'name': 'Jos',
         'short_name': 'Jos',
         'icons': [
-            {'src': 'icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
-            {'src': 'icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
+            {'src': 'icon/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
+            {'src': 'icon/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
         ],
         'theme_color': '#FFF794',
         'background_color': '#FFF794',
         'display': 'browser',
     }
     (IMAGES / 'site.webmanifest').write_text(json.dumps(manifest, indent=2) + '\n')
-    print('icon-192.png icon-512.png favicon.ico site.webmanifest')
+    print('icon/icon-*.png favicon.ico site.webmanifest')
 
 
 if __name__ == '__main__':
