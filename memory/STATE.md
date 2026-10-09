@@ -14,6 +14,10 @@
   it; `case-term-limits.js` stops over-ticking on the edit screen (`tests/js/case-term-limits.behavior.test.js`);
   `resolve_case_labels` shows at most 3 diensten. **After deploy run `wp rewrite flush --hard` on each environment** (the
   rules live in the DB; the staging→production copy carries them once staging is flushed).
+- **Rounded last band (2026-10-09):** the closing yellow "A14 · Maak kennis met Jos" band of the Ons werk archive and both
+  taxonomy templates lacked `jw-band-round-bottom` (every other page's last yellow band has it). Added to
+  `archive-case`, `taxonomy-domain`, `taxonomy-dienst` and the library section `c6a026fc` on local + staging
+  (`.yoo-tools/round-last-band.py`, `scan-last-band.php`). A template regenerated from `archive-case` inherits it.
 - **Doelgroep (2026-10-09):** a case is in EITHER "Voor publieke sector" OR "Voor social profit & ondernemers" — a third
   case taxonomy `doelgroep` (hierarchical pick-list, limit 1, no public URL: `public` but not `publicly_queryable`,
   `rewrite => false`; `CaseDoelgroepTest`). The two TERMS are data: created on local; on staging/production create them
