@@ -49,10 +49,20 @@ assert_exit     "bad usage exits 2"   2 scripts/site
 
 echo
 echo "site.yml — every environment is fully described"
+# A rung exists before its server does: production is declared with its branch
+# and no path until it is provisioned, and a development rung may be branch-only.
+# branch and role are always owed; url, path and confirm only once a server is bound.
 for e in $(scripts/site environments); do
-  for k in url path branch role confirm; do
+  for k in branch role; do
     assert_nonempty "$e.$k is set" "$(scripts/site environments.$e.$k)"
   done
+  if scripts/site environments.$e.path >/dev/null 2>&1; then
+    for k in url path confirm; do
+      assert_nonempty "$e.$k is set" "$(scripts/site environments.$e.$k)"
+    done
+  else
+    PASS=$((PASS+1)); printf '  ok   %s has no server yet — a branch-only rung\n' "$e"
+  fi
 done
 HAS_PROD=$(scripts/site environments.production.path >/dev/null 2>&1 && echo yes || echo no)
 if [ "$HAS_PROD" = "yes" ]; then
@@ -101,6 +111,11 @@ echo
 echo "deploy.exclude — must not hide payload content"
 assert_eq "does not exclude *.map (font-encoding tables are not source maps)" \
   "0" "$(scripts/site deploy.exclude | grep -cx '\*\.map')"
+# The mail block is installed into a payload directory synced with --delete and
+# exists only on the server. Unexcluded, every deploy deletes it and a
+# non-production environment silently starts sending real mail (josworld, 2026-09-05).
+assert_eq "excludes the outgoing-mail block so --delete cannot remove it" \
+  "1" "$(scripts/site deploy.exclude | grep -cx '00-block-outgoing-mail\.php')"
 assert_eq "excludes repo metadata" \
   "1" "$(scripts/site deploy.exclude | grep -cx '\.git\*')"
 fi
@@ -110,7 +125,10 @@ echo "state dir — must sit outside every web root"
 STATE=$(scripts/site deploy.state_dir)
 assert_nonempty "state_dir is set" "$STATE"
 for e in $(scripts/site environments); do
-  P=$(scripts/site environments.$e.path)
+  # An empty path would make ""/* match every state_dir — nothing to check yet.
+  if ! P=$(scripts/site environments.$e.path 2>/dev/null); then
+    PASS=$((PASS+1)); printf '  ok   %s has no server yet — state_dir check n/a\n' "$e"; continue
+  fi
   case "$STATE" in
     "$P"/*) FAIL=$((FAIL+1)); printf '  FAIL state_dir is inside %s (web-served)\n' "$e";;
     *)      PASS=$((PASS+1)); printf '  ok   state_dir is outside %s\n' "$e";;
@@ -119,13 +137,13 @@ done
 
 echo
 echo "deploy gate — refusals"
-assert_refuses "refuses a missing env argument" "Usage: make deploy env=" make -s _deploy-gate
-assert_refuses "refuses an unknown environment" "Unknown environment"    make -s _deploy-gate env=nope
+assert_refuses "refuses a missing env argument" "Usage: make deploy env=" make -s _deploy-guard
+assert_refuses "refuses an unknown environment" "Unknown environment"    make -s _deploy-guard env=nope
 CURRENT=$(git branch --show-current)
 PROD_BRANCH=$(scripts/site environments.production.branch 2>/dev/null)
 if [ "$HAS_PROD" = "yes" ] && [ "$CURRENT" != "$PROD_BRANCH" ]; then
   assert_refuses "refuses production from the wrong branch" "deploys from" \
-    make -s _deploy-gate env=production
+    make -s _deploy-guard env=production
 fi
 
 echo
@@ -142,9 +160,15 @@ assert_eq "the mail block is parameterised, not hardcoded" \
   "1" "$(grep -q '__PRODUCTION_HOST__' scripts/remote/00-block-outgoing-mail.php && echo 1 || echo 0)"
 
 echo
-echo "promote — one feature, not the whole integration branch"
-assert_refuses "refuses promote without a name"  "Usage: make promote name=" make -s promote
-assert_refuses "refuses an unknown feature branch" "No such branch"         make -s promote name=definitely-not-a-real-feature
+echo "promote — one feature onto the staging branch"
+assert_refuses "refuses promote without a name"   "Usage: make promote name="   make -s promote
+assert_refuses "refuses unpromote without a name" "Usage: make unpromote name=" make -s unpromote
+# The terminal floor runs before anything is read, so this holds with or without
+# an origin. WHICH names are refused is flow-test.sh's subject, not this one's.
+assert_refuses "refuses a promote it could never read a typed 'yes' for" "needs a terminal" \
+  bash -c 'make -s promote name=definitely-not-a-real-feature < /dev/null'
+assert_refuses "…and an unpromote too" "needs a terminal" \
+  bash -c 'make -s unpromote name=definitely-not-a-real-feature < /dev/null'
 
 echo
 echo "transport — one workflow, pluggable file movement"

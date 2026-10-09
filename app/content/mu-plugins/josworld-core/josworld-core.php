@@ -22,6 +22,17 @@ defined('ABSPATH') || exit;
 defined('JOSWORLD_CORE_META_PREFIX') || define('JOSWORLD_CORE_META_PREFIX', '_jw_');
 defined('JOSWORLD_CORE_TEXTDOMAIN') || define('JOSWORLD_CORE_TEXTDOMAIN', 'josworld-core');
 
+// The ntdst-baseline yootheme module publishes every model to the builder's
+// Dynamic Content picker; polylang owns the multilingual layer (shared slugs,
+// layout copy on a "+" translation, the `wp ntdst polylang` commands).
+// Assignment, not union: both keys already exist (off).
+add_filter('ntdst/baseline/modules', static function (array $modules): array {
+    $modules['yootheme'] = true;
+    $modules['polylang'] = true;
+
+    return $modules;
+});
+
 add_action('plugins_loaded', function (): void {
     // Fail quiet if ntdst-core didn't load (framework missing/disabled) —
     // no fatal, no partial registration.
@@ -42,8 +53,7 @@ add_action('plugins_loaded', function (): void {
      * unit test guards this.
      *
      * Boot order: content services first, then admin-only (inside the
-     * is_admin() branch only — never booted on a front-end request), then
-     * multilingual.
+     * is_admin() branch only — never booted on a front-end request).
      */
     $dir = __DIR__ . '/services';
 
@@ -53,11 +63,22 @@ add_action('plugins_loaded', function (): void {
     require_once $dir . '/content/VacatureService.php';
     require_once $dir . '/content/ToolService.php';
 
-    // Admin-only service:
+    // Admin-only services. ActivitySource first: both repositories implement
+    // it, and AdminAppService type-hints it in its constructor.
     require_once $dir . '/admin/AdminUIService.php';
+    require_once $dir . '/admin/ActivitySource.php';
+    require_once $dir . '/admin/BookingRepository.php';
+    require_once $dir . '/admin/SubmissionRepository.php';
+    require_once $dir . '/admin/AdminAppService.php';
+    require_once $dir . '/admin/AdminChromeService.php';
 
-    // Multilingual service:
-    require_once $dir . '/multilingual/MultilingualService.php';
+    // Form service:
+    require_once $dir . '/forms/CrmContactLanguageService.php';
+    require_once $dir . '/forms/CrmDownloadedToolService.php';
+    require_once $dir . '/site/SiteMetaService.php';
+
+    // Forms: the tool download confirmation.
+    require_once $dir . '/forms/DownloadFormService.php';
 
     unset($dir); // no longer needed after the require_once list above
 
@@ -72,10 +93,23 @@ add_action('plugins_loaded', function (): void {
         // of this branch without also moving its require_once with it.
         if (is_admin()) {
             ntdst_get(\josworld\services\admin\AdminUIService::class);
+            // Declares the Josworld app to ntdst-baseline's admin_ui module.
+            // Must resolve before `admin_menu` (priority 9) reads the filter.
+            ntdst_get(\josworld\services\admin\AdminAppService::class);
+            // The CPT list/edit screens wear the dashboard's chrome.
+            ntdst_get(\josworld\services\admin\AdminChromeService::class);
         }
 
-        // Multilingual service — resolved unconditionally: the Polylang
-        // absence guards live INSIDE the service, never at this call site.
-        ntdst_get(\josworld\services\multilingual\MultilingualService::class);
+        // Form service — resolved unconditionally: the FluentCRM/Polylang
+        // absence guards live INSIDE the service, as below.
+        ntdst_get(\josworld\services\forms\CrmContactLanguageService::class);
+        ntdst_get(\josworld\services\forms\CrmDownloadedToolService::class);
+
+        // josworld's values for ntdst-baseline and the front-end tidying; must be attached
+        // before baseline boots its modules (both hang on after_setup_theme:5).
+        ntdst_get(\josworld\services\site\SiteMetaService::class);
+
+        // The download form's confirmation runs on a front-end submission.
+        ntdst_get(\josworld\services\forms\DownloadFormService::class);
     }, 5);
 }, 5);
