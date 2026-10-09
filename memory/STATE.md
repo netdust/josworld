@@ -2,6 +2,19 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## The three tools in docs/tools are online (2026-10-09, branch feature/tool-url)
+
+- **Two interactive tools** (`campagnestart.html`, `faire-aanbestedingsscan - V3.html`) were built with a one-block THEMING LAYER:
+  `scripts/once/2026-10-09-skin-tools.py` swaps their tokens for the Jos ones (Beige/Brown/Brown 60%/Brown 10%/Raspberry),
+  self-hosts Inter + Fraunces (`themes/josworld/fonts/`, copied from YOOtheme's cache — no Google call), gives display type
+  Fraunces' real weight (300/400 only), adds the Jos bar/footer (hidden in print) and `noindex`, and writes
+  `themes/josworld/tools/<slug>.html`. Re-run it after the docs/tools sources change. Their markup and scripts are untouched.
+- **Served at `/tool-app/<slug>/`** by `ToolAppService` (a rewrite rule; the slug is looked up in the folder's file list, never a path;
+  `X-Robots-Tag: noindex`). **After the deploy run `wp rewrite flush --hard` on each environment.**
+- **The tools as `tool` posts** (`scripts/once/2026-10-09-tools-online.php`, by title, idempotent): "Faire aanbestedingsscan" and
+  "Campagnebasis" become LINK tools pointing at their tool app; "Backlashplanner" becomes a FILE tool (the xlsx, already in the Jos palette
+  and fonts, goes into the media library). Staging→production copy carries the posts and the upload.
+
 ## A tool is a file OR a link (2026-10-09, branch feature/tool-url)
 
 - `tool` gets `delivery` (select `file` | `url`, default `file` so existing tools stay files) and `url` (http(s) only);

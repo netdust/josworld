@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zet de basis voor je campagne | Jos</title>
+<style>
+/* ============================================================
+   THEMING LAYER
+   Zelfde tokens als de faire aanbestedingsscan. Vervang de
+   waarden door die van de nieuwe website en beide tools nemen
+   de huisstijl over zonder verdere ingrepen.
+   ============================================================ */
+/* Self-hosted: the site's own Inter and Fraunces, no call to Google. */
+@font-face{font-family:'Inter';font-weight:400;font-style:normal;font-display:swap;src:url(/content/themes/josworld/fonts/inter-400.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-weight:600;font-style:normal;font-display:swap;src:url(/content/themes/josworld/fonts/inter-600.woff2) format('woff2')}
+@font-face{font-family:'Fraunces';font-weight:300;font-style:normal;font-display:swap;src:url(/content/themes/josworld/fonts/fraunces-300.woff2) format('woff2')}
+@font-face{font-family:'Fraunces';font-weight:400;font-style:normal;font-display:swap;src:url(/content/themes/josworld/fonts/fraunces-400.woff2) format('woff2')}
+:root{
+  --paper:#FCFCF7;
+  --card:#FFFFFF;
+  --ink:#35070C;
+  --ink-soft:#866A6D;
+  --line:#EBE6E7;
+  --accent:#E60B66;
+  --accent-soft:#FCE5EE;
+  --warn:#C07C00;
+  --warn-soft:#F8EFDA;
+  --alert:#B03A20;
+  --alert-soft:#F7E7E2;
+  --display:'Fraunces',Georgia,'Times New Roman',serif;
+  --body:'Inter','Helvetica Neue',Arial,sans-serif;
+  --r:14px;
+  --btn-r:999px;
+  --maxw:820px;
+}
+/* ============================================================ */
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:40px 20px 80px}
+
+h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:-.02em;margin:0}
+h1{font-size:clamp(32px,5.4vw,48px);line-height:1.04}
+h2{font-size:clamp(24px,4vw,32px);line-height:1.1}
+h3{font-size:19px;font-weight:600;letter-spacing:-.01em}
+p{margin:0 0 14px}
+.eyebrow{font-family:var(--body);font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 18px}
+.lead{font-size:18px;color:var(--ink-soft);max-width:58ch}
+.small{font-size:14px;color:var(--ink-soft)}
+.mt{margin-top:26px}
+strong{font-weight:600}
+
+.btn{display:inline-flex;align-items:center;gap:10px;font-family:var(--body);font-size:15px;font-weight:600;background:var(--ink);color:#fff;border:1px solid var(--ink);padding:14px 24px;border-radius:var(--btn-r);cursor:pointer;transition:transform .15s ease,opacity .15s ease}
+.btn:hover{transform:translateY(-1px);opacity:.9}
+.btn-ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn-ghost:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.btn:disabled:hover{transform:none;opacity:.35}
+.btn:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 28px;padding:0;list-style:none}
+.pill{font-size:13px;font-weight:500;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 14px}
+
+.step{display:none}
+.step.on{display:block;animation:fade .3s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- voortgang ---------- */
+.stappen{display:flex;gap:6px;margin-bottom:12px;padding:0}
+.stappen button{flex:1 1 0;min-width:0;height:22px;padding:0;background:transparent;border:0;cursor:pointer;display:flex;align-items:center}
+.stappen button i{display:block;width:100%;height:5px;background:var(--line);border-radius:999px;transition:background .25s ease,height .15s ease}
+.stappen button[data-staat="gedaan"] i{background:var(--accent)}
+.stappen button[data-staat="hier"] i{background:var(--accent);height:9px}
+.stappen button:hover i{height:9px}
+.stappen button:hover i,.stappen button:focus-visible i{background:var(--ink)}
+.stappen button[data-staat="hier"]:hover i{background:var(--accent)}
+.progress-label{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--ink-soft);margin-bottom:30px}
+
+/* ---------- vraagscherm ---------- */
+.deel-num{font-family:var(--display);font-size:13px;font-weight:400;letter-spacing:.1em;color:var(--accent);display:block;margin-bottom:8px}
+.body-tekst{color:var(--ink-soft);max-width:58ch;margin-top:14px}
+.body-tekst strong{color:var(--ink)}
+
+.veld{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;margin-top:26px}
+.veld-label{font-family:var(--display);font-size:17px;font-weight:400;letter-spacing:-.01em;margin:0 0 12px}
+.veld-label span{font-family:var(--body);font-size:13px;font-weight:400;color:var(--ink-soft);display:block;margin-top:2px}
+input[type=text],textarea{width:100%;font-family:var(--body);font-size:16px;line-height:1.5;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px 14px;resize:vertical}
+input[type=text]::placeholder,textarea::placeholder{color:var(--ink-soft);opacity:.55}
+textarea{min-height:84px}
+.rij{margin-bottom:10px}
+.rij:last-child{margin-bottom:0}
+.hintje{font-size:14px;color:var(--ink-soft);font-style:italic;margin:10px 0 0}
+
+.keuze{display:grid;gap:8px}
+.keuze button{display:block;width:100%;text-align:left;font:inherit;font-size:15px;color:inherit;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:13px 16px;cursor:pointer;transition:border-color .15s ease,background .15s ease}
+.keuze button:hover{border-color:var(--ink)}
+.keuze button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.chip{font:inherit;font-size:13px;color:var(--ink-soft);background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:5px 13px;cursor:pointer}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+
+.groep{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
+.groep:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.groep-kop{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.groep-kop .nr{font-family:var(--display);font-size:13px;font-weight:400;color:var(--accent);letter-spacing:.08em}
+.mark-belangrijk{font:inherit;font-size:12px;font-weight:500;color:var(--ink-soft);background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer}
+.mark-belangrijk[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+.foto{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.foto .vraag{font-size:14px;color:var(--ink-soft);margin-right:4px}
+.foto button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 14px;cursor:pointer}
+.foto button[aria-pressed="true"][data-ja="1"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.foto button[aria-pressed="true"][data-ja="0"]{background:var(--warn-soft);border-color:var(--warn);color:var(--warn);font-weight:600}
+
+.voorbeeld{background:var(--accent-soft);border-radius:var(--r);padding:16px 20px;margin-top:20px}
+.voorbeeld h4{font-family:var(--display);font-size:13px;font-weight:400;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 8px}
+.voorbeeld p{font-size:15px;color:var(--ink);margin:0 0 6px}
+.voorbeeld p:last-child{margin-bottom:0}
+.voorbeeld em{color:var(--ink-soft)}
+
+.nav{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:30px}
+.hint{font-size:14px;color:var(--ink-soft)}
+
+/* ---------- overzicht ---------- */
+.samenvatting{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px 24px;margin-bottom:26px}
+.blok{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;margin-bottom:12px}
+.blok-kop{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.blok-kop h3{font-size:17px}
+.merk{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:4px 11px;white-space:nowrap}
+.merk.ok{background:var(--accent-soft);color:var(--accent)}
+.merk.bijna{background:var(--warn-soft);color:var(--warn)}
+.merk.leeg{background:var(--line);color:var(--ink-soft)}
+.blok .inhoud{margin:0}
+.blok .inhoud li{margin-bottom:4px}
+.blok ul{margin:0;padding-left:20px}
+.blok .reden{font-size:14px;color:var(--ink-soft);border-left:2px solid var(--line);padding:8px 0 8px 12px;margin:12px 0 0}
+.blok .leeg-tekst{color:var(--ink-soft);font-style:italic}
+.blok .bewerk{font:inherit;font-size:13px;font-weight:600;color:var(--accent);background:transparent;border:0;padding:0;margin-top:12px;cursor:pointer;text-decoration:underline}
+
+.capture{background:var(--ink);color:#fff;border-radius:var(--r);padding:28px;margin:34px 0}
+.capture h3{color:#fff;margin-bottom:8px}
+.capture p{color:#fff;opacity:.8;font-size:15px;max-width:52ch}
+.capture form{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.capture input{flex:1 1 240px;font:inherit;font-size:15px;padding:14px 18px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#fff;border-radius:var(--btn-r)}
+.capture input::placeholder{color:rgba(255,255,255,.55)}
+.capture .btn{background:#fff;color:var(--ink);border-color:#fff}
+.capture .consent{font-size:13px;opacity:.65;margin:14px 0 0}
+.done-msg{margin-top:16px;font-size:15px;color:#fff}
+
+.cta-band{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;background:var(--accent-soft);border-radius:var(--r);padding:22px 24px;margin:34px 0}
+.cta-band p{margin:4px 0 0;font-size:15px;color:var(--ink-soft);max-width:46ch}
+
+.melding{background:var(--warn-soft);color:var(--warn);border-radius:var(--r);padding:14px 18px;margin-bottom:22px;font-size:15px;font-weight:500}
+
+/* ---------- blanco canvas, alleen bij het afdrukken ---------- */
+#blanco{display:none}
+#blanco h2{margin-bottom:4px}
+#blanco .vak{border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;break-inside:avoid}
+#blanco .vak h3{font-size:16px;margin-bottom:2px}
+#blanco .vak .sub{font-size:13px;color:var(--ink-soft);margin:0 0 10px}
+#blanco .lijn{border-bottom:1px solid var(--line);height:22px}
+
+@media print{
+  .nav,.capture,.cta-band,.progress,.progress-label,.bewerk,.melding{display:none !important}
+  body.print-blanco .wrap > section:not(#blanco){display:none !important}
+  body.print-blanco #blanco{display:block}
+  body{background:#fff}
+  .wrap{padding:0;max-width:none}
+  .blok,.samenvatting{break-inside:avoid;border-color:#bbb}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+
+/* Jos bar + footer */
+.jw-bar{display:flex;align-items:center;justify-content:space-between;max-width:var(--maxw);margin:0 auto;padding:20px 20px 0}
+.jw-bar img{display:block;height:37px;width:auto}
+.jw-bar a{color:var(--ink-soft);font-size:14px;text-decoration:none}
+.jw-bar a:hover{color:var(--ink)}
+h1{line-height:1.12}
+.jw-foot{max-width:var(--maxw);margin:0 auto;padding:0 20px 40px;font-size:13px;color:var(--ink-soft)}
+.jw-foot a{color:inherit}
+@media print{.jw-bar,.jw-foot{display:none}}
+</style>
+</head>
+<body>
+<header class="jw-bar">
+  <a href="/gratis-aanbod/" aria-label="Jos: naar alle gratis tools"><img src="/content/themes/josworld/images/logo.png" alt="Jos" width="56" height="37"></a>
+  <a href="/gratis-aanbod/">&larr; Alle gratis tools</a>
+</header>
+<div class="wrap">
+
+  <!-- ============ START ============ -->
+  <section class="step on" id="start">
+    <p class="eyebrow">Gratis tool van Jos</p>
+    <h1>Hoe begin je aan een campagne die mensen in beweging brengt?</h1>
+    <div class="lead mt">
+      <p>Je krijgt de vraag om een sensibiliseringscampagne te maken rond klimaat, mobiliteit, onderwijs, zorg of een ander maatschappelijk thema. Vaak begint het bij een beleidsdoel: een ambitie uit het meerjarenplan, een nieuw initiatief dat je bekend wil maken of iets waarvoor je mensen wil informeren, sensibiliseren of in actie krijgen.</p>
+      <p>Zodra het woord ‘campagne’ valt, vliegen de eerste ideeën over tafel: van slogans en filmpjes tot social posts, al dan niet met een beetje hulp van AI.</p>
+      <p>Alleen: voor je ideeën begint uit te werken, moet de basis goed zitten. Wat wil je bereiken? Wie wil je bereiken? En wat wil je dat die mensen concreet gaan doen?</p>
+      <p>Deze tool helpt je om die vragen stap voor stap scherp te krijgen. Zodat je campagne vertrekt van wat je wil veranderen, en niet van het eerste leuke idee.</p>
+    </div>
+    <ul class="pills">
+      <li class="pill">6 korte delen</li>
+      <li class="pill">5 à 10 minuten</li>
+      <li class="pill">je hoeft nog niet alles te weten</li>
+      <li class="pill">je krijgt een overzicht mee</li>
+    </ul>
+    <div class="nav">
+      <button class="btn" id="go-start">Zet de basis voor je campagne</button>
+      <button class="btn btn-ghost" id="go-voorbeeld">Bekijk een ingevuld voorbeeld</button>
+    </div>
+    <p class="small mt"><strong>Reken op 5 à 10 minuten.</strong> Gebruik de tool om even je gedachten te ordenen. Je hoeft nog niet alle antwoorden te hebben. Zo krijg je een leidraad om verder te werken, zonder van een wit blad te starten.</p>
+    <p class="small">Er wordt niets bewaard. Je mailadres vragen we pas op het einde, en alleen als je je campagne-overzicht wil ontvangen.</p>
+  </section>
+
+  <!-- ============ VRAAGSCHERMEN ============ -->
+  <section class="step" id="vraag">
+    <div class="stappen" id="stappen" role="group" aria-label="Ga naar een deel"></div>
+    <div class="progress-label"><span id="deel-label"></span><span id="scherm-label"></span></div>
+    <div id="scherm"></div>
+    <div class="nav">
+      <button class="btn btn-ghost" id="prev">Vorige</button>
+      <button class="btn" id="next">Volgende</button>
+      <span class="hint" id="hint"></span>
+    </div>
+  </section>
+
+  <!-- ============ OVERZICHT ============ -->
+  <section class="step" id="overzicht">
+    <p class="eyebrow">Je campagnebasis</p>
+    <h1 id="ov-titel">Dit is de basis voor je campagne</h1>
+    <div class="lead mt"><p id="ov-lead"></p><p id="ov-lead2">Neem dit overzicht erbij als je verder aan je campagne werkt, met je team of een externe partner. Zo weet iedereen waar je naartoe wil en voor wie je het doet. Een idee? Leg het er even naast. Past het bij je doelgroep? Helpt het je doel vooruit? En houdt het rekening met wat mensen helpt of tegenhoudt?</p></div>
+    <div class="melding" id="ov-melding" hidden></div>
+    <div class="samenvatting" id="ov-samenvatting"></div>
+    <div id="ov-blokken"></div>
+
+    <div class="cta-band">
+      <div>
+        <strong>Loop je ergens vast of wil je even aftoetsen?</strong>
+        <p>Plan gerust een halfuurtje met Jos. We bekijken samen wat er al staat en geven je een paar eerste inzichten mee. Vanuit campagnes rond bijvoorbeeld klimaat, zorg, mobiliteit en onderwijs kunnen we vaak snel voorbeelden of vragen meegeven die je verder helpen.</p>
+      </div>
+      <button class="btn" id="contact">Plan een halfuurtje met Jos</button>
+    </div>
+
+    <div class="capture">
+      <h3>Ontvang de basis van je campagne op één A4</h3>
+      <p>We sturen je twee versies: je ingevulde overzicht én een blanco canvas om met je collega's verder te werken.</p>
+      <form id="lead">
+        <input type="email" id="email" required aria-label="E-mailadres" placeholder="jouw@organisatie.be">
+        <button class="btn" type="submit">Stuur me mijn overzicht</button>
+      </form>
+      <p class="consent">Eén mail met je overzicht, daarna hoogstens onze nieuwsbrief. Uitschrijven kan met één klik.</p>
+    </div>
+
+    <div class="nav">
+      <button class="btn btn-ghost" id="print">Bewaar als pdf</button>
+      <button class="btn btn-ghost" id="print-blanco">Print een blanco canvas</button>
+      <button class="btn btn-ghost" id="restart">Opnieuw beginnen</button>
+    </div>
+  </section>
+
+  <!-- ============ BLANCO CANVAS (enkel bij afdrukken) ============ -->
+  <section id="blanco" aria-hidden="true"></section>
+
+</div>
+
+<footer class="jw-foot">Een gratis tool van Jos &middot; <a href="/">jos.agency</a></footer>
+<script>
+/* ============================================================
+   1. DE INHOUD
+   Elk scherm is één object. Teksten aanpassen kan hier,
+   zonder aan de logica te komen.
+   ============================================================ */
+
+const RESULTAATOPTIES = [
+  { id:"gebruik",  label:"Meer mensen gebruiken ons aanbod of onze diensten",
+    vb:["120 gezinnen halen hun pakket af in het buurtpunt."] },
+  { id:"info",     label:"Meer mensen vragen informatie of advies",
+    vb:["200 bewoners vragen een gratis energiescan aan."] },
+  { id:"deelname", label:"Meer mensen schrijven zich in of nemen deel",
+    vb:["80 jongeren schrijven zich in voor de zomerwerking."] },
+  { id:"engage",   label:"Meer mensen doneren, investeren of engageren zich",
+    vb:["300 buurtbewoners kopen een aandeel in het windpark."] },
+  { id:"gedrag",   label:"Mensen veranderen een gewoonte of gedrag",
+    vb:["Een op de vier bezoekers neemt de trap in plaats van de lift."] },
+  { id:"anders",   label:"Iets anders", invul:true, vb:[] }
+];
+
+const SCHERMEN = [
+{
+  deel:1, deelTitel:"Waarvoor gaan we?",
+  titel:"Waarvoor ga je?",
+  body:["Begin bij het grotere doel waar je campagne aan moet bijdragen. <strong>Wat wil je uiteindelijk anders zien?</strong>",
+        "Denk aan wat je meer of minder wil zien, wat je wil versterken, makkelijker maken of veranderen."],
+  veld:{ type:"tekstlang", key:"doel", label:"Waarvoor we gaan",
+         sub:"Eén zin volstaat.",
+         placeholder:"Wij willen dat ...",
+         hint:"Hou het kort. Zeg wat je wil veranderen, niet wat je gaat maken." },
+  voorbeelden:["<strong>Waterland</strong><br><em>Gezond water en waterpret terug naar de stad brengen.</em>",
+               "<strong>Onze Energie</strong><br><em>100 miljoen euro ophalen voor het grootste windpark in burgerhanden.</em>"]
+},
+{
+  deel:2, deelTitel:"Wanneer is het geslaagd?",
+  titel:"Wanneer is je campagne geslaagd?",
+  body:["Je weet nu waarvoor je gaat. Nu maken we dat concreter. <strong>Wat is het belangrijkste dat je campagne moet opleveren?</strong>"],
+  veld:{ type:"keuze", key:"resultaatType", label:"Duid het belangrijkste resultaat aan",
+         sub:"Eén keuze. De rest mag later volgen." }
+},
+{
+  deel:2, deelTitel:"Wanneer is het geslaagd?",
+  titel:"Maak het concreet",
+  body:["<strong>Wat wil je precies zien gebeuren?</strong> Probeer er een cijfer op te plakken als dat kan.",
+        "Niet alles is te tellen. Wil je weten of mensen je kennen, begrijpen of vertrouwen? Ook dat kun je meten met een korte bevraging."],
+  veld:{ type:"tekstlang", key:"resultaat", label:"Waaraan we het zullen merken",
+         placeholder:"Bijvoorbeeld: 100 Leuvenaars vragen een premie voor een gevelplant aan.",
+         hint:"Noteer een aantal, een periode of het teken waaraan je het gaat zien." },
+  voorbeelden:["<em>100 Leuvenaars vragen een premie voor een gevelplant aan.</em>",
+               "<em>50 restaurants in Leuven en Gent testen herbruikbare verpakkingen.</em>"]
+},
+{
+  deel:3, deelTitel:"Wat heb je te bieden?",
+  titel:"Wat heb je te bieden?",
+  body:["Een campagne vraagt iets van mensen. <strong>Maar wat krijgen ze ervoor terug?</strong> Beschrijf kort het aanbod dat je in de kijker wil zetten.",
+        "Dat kan een dienst of activiteit zijn, maar ook informatie, advies, ondersteuning, een premie of een hulpmiddel."],
+  veld:{ type:"lijst3", key:"aanbod", label:"Wat je mensen concreet aanbiedt",
+         sub:"Maximaal drie dingen.",
+         placeholders:["Bijvoorbeeld: een premie voor een gevelplant","Bijvoorbeeld: gratis advies over energie besparen","Bijvoorbeeld: duidelijke informatie over waar je hulp kunt krijgen"] }
+},
+{
+  deel:3, deelTitel:"Wat heb je te bieden?",
+  titel:"Wat maakt je aanbod interessant?",
+  body:["<strong>Waarom zouden mensen hiervoor kiezen?</strong> Noteer drie sterke punten van je aanbod.",
+        "Kan je een sterk punt staven met een concreet voorbeeld of bewijs? Nog beter."],
+  veld:{ type:"lijst3", key:"sterktes", label:"De sterke punten",
+         placeholders:["Bijvoorbeeld: Al meer dan 106.000 burgers investeerden mee.","Bijvoorbeeld: Een onafhankelijke expert begeleidt je bij elke stap.","Bijvoorbeeld: Je potentieel en levenservaring tellen, niet alleen je diploma."] }
+},
+{
+  deel:4, deelTitel:"Wie wil je bereiken?",
+  titel:"Wie wil je bereiken?",
+  body:["Een campagne voor iedereen is een campagne voor niemand. <strong>Kies maximaal drie groepen die er voor dit doel echt toe doen.</strong>",
+        "Beschrijf mensen, geen categorieën. Dus niet alle inwoners of moeilijk bereikbare groepen, maar wie het zijn en wat ze gemeen hebben."],
+  veld:{ type:"doelgroepen", key:"doelgroepen", label:"Je doelgroepen",
+         sub:"Duid aan met wie je het grootste verschil kan maken. Daar werken we in de volgende delen mee verder." },
+  voorbeelden:["<strong>Bezoekers van lokale evenementen die af en toe alcohol drinken</strong><br><em>25 tot 75 jaar, bezoeken bijvoorbeeld een buurtfeest, braderie of stadsfeest en hebben geen problematische relatie met alcohol.</em>",
+               "<strong>Bewoners met plannen om hun woning energiezuiniger te maken</strong><br><em>Hebben vragen over isolatie, zonnepanelen of een warmtepomp en zoeken betrouwbaar advies over wat voor hen haalbaar is.</em>"]
+},
+{
+  deel:5, deelTitel:"Wat wil je dat zij doen?",
+  titel:"Wat wil je dat zij doen?",
+  body:["Bij Jos stellen we altijd dezelfde vraag: <strong>wie moet wat doen?</strong> Maak voor elke groep concreet welk gedrag je wil zien.",
+        "Doe daarna de fototest. Van bewuster omgaan met alcohol kan je geen foto maken. Van een alcoholvrij drankje bestellen tussen twee pintjes door wel."],
+  veld:{ type:"gedrag", key:"gedrag", label:"Het gedrag dat je wil zien",
+         sub:"Eén handeling per groep. Begin met een werkwoord." },
+  voorbeelden:["<em>Niet: meer aandacht voor gevelgroen.</em><br><strong>Wel: een gevelplant aanvragen via het formulier van de stad.</strong>"]
+},
+{
+  deel:6, deelTitel:"Wat hebben zij nodig?",
+  titel:"Wat hebben zij nodig om dat te doen?",
+  body:["Weten wat je wil dat mensen doen, is één ding. Begrijpen wat ze nodig hebben en wat hen tegenhoudt, is minstens zo belangrijk. Kijk daarom naar hun motivaties én drempels. Dat kan bijvoorbeeld gaan over tijd, moeite, geld, kennis, vertrouwen, gewoonte of wat anderen doen.",
+        "<strong>Wat hebben ze nodig om het gewenste gedrag te stellen? En wat houdt hen tegen?</strong>"],
+  veld:{ type:"helpdrempel", key:"helpt", label:"Wat helpt je doelgroep? En wat houdt hen tegen?",
+         chips:["tijd","moeite","geld","kennis","vertrouwen","gewoonte","wat anderen doen","toegang","taal","schaamte"] }
+}
+];
+
+/* Het ingevulde voorbeeld achter de knop op het startscherm. */
+const VOORBEELD = {
+  doel:"Meer gezinnen in de oudste wijken hun woning laten isoleren, zodat hun factuur daalt en de wijk sneller klimaatneutraal wordt.",
+  resultaatType:"info",
+  resultaatAnders:"",
+  resultaat:"200 bewoners vragen dit jaar een gratis energiescan aan, waarvan minstens de helft uit de wijken met de oudste woningen.",
+  aanbod:["Een gratis energiescan bij je thuis","Een premie die een deel van de isolatiewerken dekt","Een lijst met aannemers die in de buurt al werkten"],
+  sterktes:["Een onafhankelijke adviseur komt langs, zonder iets te verkopen","De premie dekt ongeveer een derde van de factuur","Je weet binnen twee weken wat het kost en wat het oplevert"],
+  doelgroepen:[
+    {wie:"Bewoners met plannen om hun woning energiezuiniger te maken", kenmerk:"Hebben vragen over isolatie, zonnepanelen of een warmtepomp en zoeken betrouwbaar advies over wat voor hen haalbaar is."},
+    {wie:"Eigenaars van een rijhuis van voor 1970 in de stationsbuurt", kenmerk:"Weten dat hun dak warmte lekt, maar stellen het uit omdat ze niet weten bij wie ze moeten beginnen."},
+    {wie:"", kenmerk:""}
+  ],
+  belangrijkste:0,
+  gedrag:["Een gratis energiescan aanvragen via het formulier of aan het loket","Op het buurtmoment een afspraak vastleggen met de energieadviseur",""],
+  fototest:[1,1,null],
+  helpt:"Een buur die het al liet doen en vertelt wat het opleverde, een adviseur die langskomt in plaats van een formulier dat je zelf moet uitzoeken, en een premie die meteen duidelijk is.",
+  tegen:"Schrik voor een hoge factuur en maandenlang werken in huis, twijfel of het mag bij een huurwoning, en het idee dat je eerst drie offertes moet verzamelen."
+};
+
+/* ============================================================
+   2. DE LOGICA
+   ============================================================ */
+
+const leegState = () => ({
+  doel:"", resultaatType:"", resultaatAnders:"", resultaat:"",
+  aanbod:["","",""], sterktes:["","",""],
+  doelgroepen:[{wie:"",kenmerk:""},{wie:"",kenmerk:""},{wie:"",kenmerk:""}],
+  belangrijkste:0, gedrag:["","",""], fototest:[null,null,null],
+  helpt:"", tegen:""
+});
+
+let s = leegState();
+let i = 0;             // huidig scherm
+let voorbeeldModus = false;
+
+const $  = q => document.querySelector(q);
+const $$ = q => Array.from(document.querySelectorAll(q));
+const esc = t => String(t||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const DELEN = [...new Set(SCHERMEN.map(x=>x.deel))].length;
+
+function toon(id){
+  $$(".step").forEach(x=>x.classList.toggle("on", x.id===id));
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ---------- veldrenderers ---------- */
+function veldHtml(sc){
+  const v = sc.veld;
+  if(v.type==="tekstlang")
+    return '<textarea id="f" placeholder="'+esc(v.placeholder||"")+'">'+esc(s[v.key])+'</textarea>' +
+           (v.hint?'<p class="hintje">'+esc(v.hint)+'</p>':"");
+
+  if(v.type==="lijst3")
+    return s[v.key].map((val,n)=>
+      '<div class="rij"><input type="text" data-n="'+n+'" class="f-lijst" placeholder="'+esc(v.placeholders[n]||"")+'" value="'+esc(val)+'"></div>').join("");
+
+  if(v.type==="keuze")
+    return '<div class="keuze">' + RESULTAATOPTIES.map(o =>
+      '<button data-id="'+o.id+'" aria-pressed="'+(s.resultaatType===o.id)+'">'+esc(o.label)+'</button>').join("") +
+      '</div><div id="anders-veld" '+(s.resultaatType==="anders"?"":"hidden")+' style="margin-top:10px">' +
+      '<input type="text" id="f-anders" placeholder="Vul zelf aan" value="'+esc(s.resultaatAnders)+'"></div>';
+
+  if(v.type==="doelgroepen")
+    return s.doelgroepen.map((d,n)=>
+      '<div class="groep">' +
+        '<div class="groep-kop"><span class="nr">GROEP '+(n+1)+'</span>' +
+          '<button class="mark-belangrijk" data-n="'+n+'" aria-pressed="'+(s.belangrijkste===n)+'">' +
+            (s.belangrijkste===n?"belangrijkste groep":"maak dit de belangrijkste")+'</button></div>' +
+        '<div class="rij"><input type="text" class="f-wie" data-n="'+n+'" placeholder="Wie zijn het?" value="'+esc(d.wie)+'"></div>' +
+        '<div class="rij"><input type="text" class="f-kenmerk" data-n="'+n+'" placeholder="Wat typeert hen of wat hebben ze gemeen?" value="'+esc(d.kenmerk)+'"></div>' +
+      '</div>').join("");
+
+  if(v.type==="gedrag"){
+    const groepen = s.doelgroepen.map((d,n)=>({d,n})).filter(x=>x.d.wie.trim());
+    if(!groepen.length)
+      return '<p class="small" style="margin-bottom:12px">Je hebt nog geen doelgroep ingevuld. Schrijf hier alvast op wat je wil dat mensen doen, dan vul je de groep later aan.</p>' +
+             '<textarea id="f-gedrag-0" placeholder="Begin met een werkwoord: aanvragen, inschrijven, meebrengen, bellen ...">'+esc(s.gedrag[0])+'</textarea>';
+    return groepen.map(({d,n})=>
+      '<div class="groep">' +
+        '<div class="groep-kop"><span class="nr">'+esc(d.wie)+(s.belangrijkste===n?' · belangrijkste':'')+'</span></div>' +
+        '<textarea class="f-gedrag" data-n="'+n+'" placeholder="Begin met een werkwoord: aanvragen, inschrijven, meebrengen, bellen ...">'+esc(s.gedrag[n])+'</textarea>' +
+        '<div class="foto"><span class="vraag">Fototest: kan je er een foto van maken?</span>' +
+          '<button class="f-foto" data-n="'+n+'" data-ja="1" aria-pressed="'+(s.fototest[n]===1)+'">Ja, dat kan je zien</button>' +
+          '<button class="f-foto" data-n="'+n+'" data-ja="0" aria-pressed="'+(s.fototest[n]===0)+'">Nog niet</button>' +
+        '</div>' +
+      '</div>').join("");
+  }
+
+  if(v.type==="helpdrempel"){
+    const naam = (s.doelgroepen[s.belangrijkste]||{}).wie;
+    const chips = v.chips.map(c=>'<button class="chip" data-chip="'+esc(c)+'">'+esc(c)+'</button>').join("");
+    return (naam ? '<p class="small" style="margin:-4px 0 14px">Je kijkt nu naar: <strong>'+esc(naam)+'</strong></p>' : "") +
+      '<p class="veld-label" style="font-size:15px">Wat hebben ze nodig om dit te doen?</p>' +
+      '<textarea id="f-helpt" placeholder="Wat zou hen helpen? Wat maakt het makkelijker? Wat moeten ze weten of kunnen?">'+esc(s.helpt)+'</textarea>' +
+      '<p class="veld-label" style="font-size:15px;margin-top:20px">Wat houdt hen tegen om dit te doen?</p>' +
+      '<textarea id="f-tegen" placeholder="Wat maakt het moeilijk? Waar twijfelen ze over? Wat kost te veel tijd, moeite of geld?">'+esc(s.tegen)+'</textarea>' +
+      '<div class="chips">'+chips+'</div>' +
+      '<p class="hintje">Klik een woord aan om het bij het onderste veld te zetten.</p>';
+  }
+  return "";
+}
+
+function renderScherm(){
+  const sc = SCHERMEN[i];
+  const vb = sc.voorbeelden && sc.voorbeelden.length
+    ? '<div class="voorbeeld"><h4>Voorbeeld</h4>'+sc.voorbeelden.map(x=>'<p>'+x+'</p>').join("")+'</div>' : "";
+
+  $("#scherm").innerHTML =
+    '<span class="deel-num">DEEL '+sc.deel+" VAN "+DELEN+" · "+esc(sc.deelTitel).toUpperCase()+'</span>' +
+    '<h1>'+esc(sc.titel)+'</h1>' +
+    '<div class="body-tekst">'+sc.body.map(b=>'<p>'+b+'</p>').join("")+'</div>' +
+    '<div class="veld"><p class="veld-label">'+esc(sc.veld.label)+
+      (sc.veld.sub?'<span>'+esc(sc.veld.sub)+'</span>':"")+'</p>'+veldHtml(sc)+'</div>' + vb;
+
+  koppelVelden(sc);
+  renderStappen(sc.deel);
+  $("#deel-label").textContent = "Deel "+sc.deel+" van "+DELEN+": "+sc.deelTitel;
+  $("#scherm-label").textContent = "Scherm "+(i+1)+" van "+SCHERMEN.length;
+  $("#prev").textContent = i===0 ? "Terug naar het begin" : "Vorige";
+  $("#next").textContent = i===SCHERMEN.length-1 ? "Bekijk je campagnebasis" : "Volgende";
+  $("#hint").textContent = "Niets invullen mag ook. Het komt als werkpunt op je overzicht.";
+}
+
+/* De stappenbalk is ook de navigatie: elk deel is aanklikbaar,
+   ook de delen die nog moeten komen. Niets is verplicht. */
+function renderStappen(huidig){
+  const delen = [...new Set(SCHERMEN.map(x=>x.deel))];
+  $("#stappen").innerHTML = delen.map(nr=>{
+    const titel = SCHERMEN.find(x=>x.deel===nr).deelTitel;
+    const staat = nr===huidig ? "hier" : (nr<huidig ? "gedaan" : "open");
+    return '<button data-deel="'+nr+'" data-staat="'+staat+'" title="Deel '+nr+': '+esc(titel)+'" ' +
+           'aria-label="Ga naar deel '+nr+': '+esc(titel)+'"'+(nr===huidig?' aria-current="step"':'')+'><i></i></button>';
+  }).join("");
+  $$("#stappen button").forEach(b=>{
+    b.onclick = () => {
+      const nr = Number(b.dataset.deel);
+      if(nr === huidig) return;
+      i = SCHERMEN.findIndex(x=>x.deel===nr);
+      renderScherm();
+      window.scrollTo({top:0,behavior:"smooth"});
+    };
+  });
+}
+
+function koppelVelden(sc){
+  const v = sc.veld;
+  const el = q => document.querySelector(q);
+
+  if(v.type==="tekstlang") el("#f").oninput = e => { s[v.key] = e.target.value; };
+
+  if(v.type==="lijst3") $$(".f-lijst").forEach(inp=>{
+    inp.oninput = e => { s[v.key][Number(e.target.dataset.n)] = e.target.value; };
+  });
+
+  if(v.type==="keuze"){
+    $$("#scherm .keuze button").forEach(b=>{
+      b.onclick = () => {
+        s.resultaatType = b.dataset.id;
+        $$("#scherm .keuze button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+        el("#anders-veld").hidden = s.resultaatType!=="anders";
+        if(s.resultaatType==="anders") el("#f-anders").focus();
+      };
+    });
+    if(el("#f-anders")) el("#f-anders").oninput = e => { s.resultaatAnders = e.target.value; };
+  }
+
+  if(v.type==="doelgroepen"){
+    $$(".f-wie").forEach(inp=>{ inp.oninput = e => { s.doelgroepen[Number(e.target.dataset.n)].wie = e.target.value; }; });
+    $$(".f-kenmerk").forEach(inp=>{ inp.oninput = e => { s.doelgroepen[Number(e.target.dataset.n)].kenmerk = e.target.value; }; });
+    $$(".mark-belangrijk").forEach(b=>{
+      b.onclick = () => { s.belangrijkste = Number(b.dataset.n); renderScherm(); };
+    });
+  }
+
+  if(v.type==="gedrag"){
+    if(el("#f-gedrag-0")) el("#f-gedrag-0").oninput = e => { s.gedrag[0] = e.target.value; };
+    $$(".f-gedrag").forEach(t=>{ t.oninput = e => { s.gedrag[Number(e.target.dataset.n)] = e.target.value; }; });
+    $$(".f-foto").forEach(b=>{
+      b.onclick = () => {
+        const n = Number(b.dataset.n);
+        s.fototest[n] = Number(b.dataset.ja);
+        $$('.f-foto[data-n="'+n+'"]').forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+      };
+    });
+  }
+
+  if(v.type==="helpdrempel"){
+    el("#f-helpt").oninput = e => { s.helpt = e.target.value; };
+    el("#f-tegen").oninput = e => { s.tegen = e.target.value; };
+    $$(".chip").forEach(c=>{
+      c.onclick = () => {
+        const t = el("#f-tegen");
+        t.value = (t.value.trim() ? t.value.replace(/\s*$/,"") + ", " : "") + c.dataset.chip;
+        s.tegen = t.value; t.focus();
+      };
+    });
+  }
+}
+
+$("#prev").onclick = () => {
+  if(i>0){ i--; renderScherm(); window.scrollTo({top:0,behavior:"smooth"}); }
+  else { toon("start"); }
+};
+$("#next").onclick = () => {
+  if(i < SCHERMEN.length-1){ i++; renderScherm(); window.scrollTo({top:0,behavior:"smooth"}); }
+  else { maakOverzicht(); }
+};
+$("#go-start").onclick = () => { voorbeeldModus=false; s=leegState(); i=0; renderScherm(); toon("vraag"); };
+$("#go-voorbeeld").onclick = () => { voorbeeldModus=true; s=JSON.parse(JSON.stringify(VOORBEELD)); maakOverzicht(); };
+$("#restart").onclick = () => { voorbeeldModus=false; s=leegState(); i=0; toon("start"); };
+$("#print").onclick = () => window.print();
+
+/* Blanco canvas om met collega's in te vullen. Wordt opgebouwd uit
+   dezelfde schermen, zodat papier en tool nooit uit elkaar lopen. */
+const BLANCO_LIJNEN = { 1:3, 2:3, 3:5, 4:6, 5:5, 6:6 };
+function bouwBlanco(){
+  const perDeel = {};
+  SCHERMEN.forEach(sc => {
+    perDeel[sc.deel] = perDeel[sc.deel] || { titel:sc.deelTitel, vragen:[] };
+    perDeel[sc.deel].vragen.push({ titel:sc.titel, sub:sc.veld.label });
+  });
+  $("#blanco").innerHTML =
+    '<p class="eyebrow">Campagnebasis van Jos</p>' +
+    '<h2>Zet de basis voor je campagne</h2>' +
+    '<p class="small" style="margin-bottom:18px">Zes vragen om samen met je collega\'s te beantwoorden. De ingevulde versie maak je op jos.agency.</p>' +
+    Object.keys(perDeel).map(nr => {
+      const d = perDeel[nr];
+      return '<div class="vak"><h3>'+nr+'. '+esc(d.titel)+'</h3>' +
+        '<p class="sub">'+d.vragen.map(v=>esc(v.titel)).join("  &middot;  ")+'</p>' +
+        Array.from({length:BLANCO_LIJNEN[nr]||4}, ()=>'<div class="lijn"></div>').join("") +
+      '</div>';
+    }).join("");
+}
+$("#print-blanco").onclick = () => {
+  bouwBlanco();
+  document.body.classList.add("print-blanco");
+  window.print();
+  setTimeout(()=>document.body.classList.remove("print-blanco"), 500);
+};
+window.addEventListener("afterprint", ()=>document.body.classList.remove("print-blanco"));
+$("#contact").onclick = () => { window.location.href = "/contact"; };
+
+/* ---------- 3. Het overzicht en de markeringen ---------- */
+const VAAG_GROEP = ["iedereen","alle inwoners","alle burgers","de burger","brede publiek","grote publiek","moeilijk bereikbare","jong en oud","de bevolking"];
+const VAAG_DOEL  = ["sensibiliseren","bewustmaken","bewust maken","bewustzijn","draagvlak","informeren","in de kijker","warm maken","aandacht vragen","communiceren"];
+const VAAG_GEDRAG= ["weten","beseffen","begrijpen","bewust","kennen","aandacht","nadenken","ervaren","voelen"];
+const bevat = (t,l) => l.some(w => String(t).toLowerCase().includes(w));
+const woorden = t => String(t).trim().split(/\s+/).filter(Boolean).length;
+
+function beoordeel(){
+  const r = [];
+
+  // Deel 1
+  if(!s.doel.trim()) r.push({st:"leeg", reden:"Zonder dit deel weet niemand waarvoor de campagne dient. Begin hier."});
+  else if(bevat(s.doel, VAAG_DOEL) && !bevat(s.doel, ["zodat","minder","meer","sneller","veiliger"]))
+    r.push({st:"bijna", reden:"Dit leest als een communicatiedoel. Zeg liever wat er in de straat, de school of het gezin verandert."});
+  else if(woorden(s.doel) > 35) r.push({st:"bijna", reden:"Kort het in tot één zin. Wat blijft er staan als je de helft schrapt?"});
+  else r.push({st:"ok", reden:""});
+
+  // Deel 2
+  const res = s.resultaat.trim();
+  if(!s.resultaatType && !res) r.push({st:"leeg", reden:"Spreek vooraf af wat je geslaagd noemt. Anders wordt elke uitkomst achteraf een succes of een mislukking, afhankelijk van wie erover praat."});
+  else if(!res) r.push({st:"bijna", reden:"Je weet welk soort resultaat je wil. Maak het nu concreet, met een aantal of een duidelijk teken."});
+  else if(!/\d/.test(res)) r.push({st:"bijna", reden:"Er staat nog geen cijfer in. Lukt dat niet, noteer dan aan wie je het gaat vragen om te weten of het werkte."});
+  else r.push({st:"ok", reden:""});
+
+  // Deel 3
+  const aanbod = s.aanbod.filter(x=>x.trim()).length;
+  const sterk  = s.sterktes.filter(x=>x.trim()).length;
+  if(!aanbod) r.push({st:"leeg", reden:"Een campagne vraagt iets van mensen. Zet op papier wat ze ervoor terugkrijgen."});
+  else if(!sterk) r.push({st:"bijna", reden:"Je aanbod staat er, de reden om ervoor te kiezen nog niet. Noteer drie sterke punten."});
+  else r.push({st:"ok", reden:""});
+
+  // Deel 4
+  const groepen = s.doelgroepen.filter(d=>d.wie.trim());
+  if(!groepen.length) r.push({st:"leeg", reden:"Zolang dit leeg blijft, schrijf je voor iedereen. Dat leest niemand als voor zichzelf bedoeld."});
+  else if(groepen.some(d=>bevat(d.wie, VAAG_GROEP))) r.push({st:"bijna", reden:"Een van je groepen is nog heel breed. Wie zit daar concreet in, en wat hebben die mensen gemeen?"});
+  else if(groepen.every(d=>!d.kenmerk.trim())) r.push({st:"bijna", reden:"Je hebt de groepen benoemd, maar nog niet wat hen typeert. Dat tweede deel bepaalt je toon en je kanaal."});
+  else r.push({st:"ok", reden:""});
+
+  // Deel 5
+  const gedrag = s.gedrag.filter(x=>x.trim());
+  if(!gedrag.length) r.push({st:"leeg", reden:"Wie moet wat doen? Zonder antwoord daarop blijft het bij een boodschap."});
+  else if(s.fototest.some((f,n)=> f===0 && s.gedrag[n] && s.gedrag[n].trim()) || gedrag.some(g=>bevat(g, VAAG_GEDRAG)))
+    r.push({st:"bijna", reden:"Van dit gedrag kan je nog geen foto maken. Zoek de handeling die je zou zien als je erbij stond."});
+  else r.push({st:"ok", reden:""});
+
+  // Deel 6
+  if(!s.helpt.trim() && !s.tegen.trim()) r.push({st:"leeg", reden:"Wat mensen tegenhoudt, bepaalt je hele campagne. Vul minstens één van de twee in."});
+  else if(!s.helpt.trim() || !s.tegen.trim()) r.push({st:"bijna", reden:"Je hebt één kant ingevuld. De andere kant levert meestal de scherpste ideeën op."});
+  else r.push({st:"ok", reden:""});
+
+  return r;
+}
+
+function lijstHtml(arr){
+  const gevuld = arr.filter(x=>x.trim());
+  return gevuld.length ? '<ul>'+gevuld.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul>' : "";
+}
+
+function inhoudVan(n){
+  if(n===0) return s.doel.trim() ? '<p class="inhoud">'+esc(s.doel)+'</p>' : "";
+  if(n===1){
+    const o = RESULTAATOPTIES.find(x=>x.id===s.resultaatType);
+    const soort = o ? (o.id==="anders" ? (s.resultaatAnders||"Iets anders") : o.label) : "";
+    return (soort ? '<p class="inhoud"><strong>'+esc(soort)+'</strong></p>' : "") +
+           (s.resultaat.trim() ? '<p class="inhoud">'+esc(s.resultaat)+'</p>' : "");
+  }
+  if(n===2) return lijstHtml(s.aanbod) + (s.sterktes.filter(x=>x.trim()).length
+      ? '<p class="inhoud" style="margin-top:10px"><strong>Sterke punten</strong></p>'+lijstHtml(s.sterktes) : "");
+  if(n===3) return s.doelgroepen.filter(d=>d.wie.trim()).map((d,idx)=>{
+      const echteIndex = s.doelgroepen.findIndex(x=>x===d);
+      return '<p class="inhoud"><strong>'+esc(d.wie)+'</strong>'+(echteIndex===s.belangrijkste?' <span class="merk ok">belangrijkste</span>':'')+
+             (d.kenmerk.trim()?'<br>'+esc(d.kenmerk):'')+'</p>'; }).join("");
+  if(n===4) return s.gedrag.map((g,idx)=>{
+      if(!g.trim()) return "";
+      const naam = (s.doelgroepen[idx]||{}).wie;
+      return '<p class="inhoud">'+(naam?'<strong>'+esc(naam)+'</strong><br>':'')+esc(g)+
+             (s.fototest[idx]===0?' <em class="small">(fototest nog niet gehaald)</em>':'')+'</p>'; }).join("");
+  if(n===5) return (s.helpt.trim()?'<p class="inhoud"><strong>Wat helpt</strong><br>'+esc(s.helpt)+'</p>':"") +
+                   (s.tegen.trim()?'<p class="inhoud"><strong>Wat tegenhoudt</strong><br>'+esc(s.tegen)+'</p>':"");
+  return "";
+}
+
+const BLOKTITELS = ["Waarvoor je gaat","Wanneer het geslaagd is","Wat je te bieden hebt","Wie je wil bereiken","Wat zij gaan doen","Wat zij nodig hebben"];
+const MERKTEKST  = { ok:"scherp", bijna:"kan scherper", leeg:"nog in te vullen" };
+
+function maakOverzicht(){
+  const r = beoordeel();
+  const scherp = r.filter(x=>x.st==="ok").length;
+  const werk   = r.filter(x=>x.st!=="ok").length;
+
+  $("#ov-melding").hidden = !voorbeeldModus;
+  if(voorbeeldModus) $("#ov-melding").textContent = "Dit is een ingevuld voorbeeld. Klik onderaan op Opnieuw beginnen om je eigen campagne uit te werken.";
+
+  const telwoord = ["geen","één","twee","drie","vier","vijf","zes"];
+  const hoofd = w => w.charAt(0).toUpperCase()+w.slice(1);
+  $("#ov-lead").textContent = scherp === 6
+    ? "Op één pagina zie je waar je campagne om draait: wat je wil bereiken, wie je wil bereiken en wat je wil dat zij doen."
+    : scherp === 0
+      ? "Je bent begonnen, en dat is het moeilijkste. Hieronder staat per bouwsteen wat er nog moet gebeuren."
+      : hoofd(telwoord[scherp])+" van de zes bouwstenen "+(scherp===1?"is":"zijn")+" helder. "+hoofd(telwoord[werk])+" kan je nog concreter maken.";
+  $("#ov-lead2").hidden = scherp === 0;
+
+  const sam = [
+    ["Wie", (s.doelgroepen[s.belangrijkste]||{}).wie, "je belangrijkste doelgroep ontbreekt nog"],
+    ["Doet wat", s.gedrag[s.belangrijkste], "het gedrag dat je wil zien ontbreekt nog"],
+    ["Waarvoor", s.doel, "het doel van je campagne ontbreekt nog"]
+  ];
+  $("#ov-samenvatting").innerHTML =
+    '<h3 style="margin-bottom:12px">Wie moet wat doen?</h3>' +
+    sam.map(([label,waarde,leeg]) =>
+      '<p class="inhoud" style="margin-bottom:8px"><span class="small" style="display:block">'+label+'</span>' +
+      (waarde && waarde.trim() ? '<strong>'+esc(waarde.replace(/\.$/,""))+'</strong>' : '<span class="leeg-tekst">'+leeg+'</span>') +
+      '</p>').join("") +
+    '<p class="small" style="margin:12px 0 0">Dit is de vraag die wij bij elke campagne stellen. Staan deze drie regels er scherp, dan heb je een campagne. Zo niet, dan heb je een boodschap.</p>';
+
+  $("#ov-blokken").innerHTML = r.map((res,n)=>{
+    const inhoud = inhoudVan(n);
+    return '<div class="blok">' +
+      '<div class="blok-kop"><h3>'+(n+1)+". "+esc(BLOKTITELS[n])+'</h3><span class="merk '+res.st+'">'+MERKTEKST[res.st]+'</span></div>' +
+      (inhoud || '<p class="inhoud leeg-tekst">Nog niet ingevuld.</p>') +
+      (res.reden ? '<p class="reden">'+esc(res.reden)+'</p>' : "") +
+      '<button class="bewerk" data-n="'+n+'">Dit deel aanvullen</button>' +
+    '</div>';
+  }).join("");
+
+  $$("#ov-blokken .bewerk").forEach(b=>{
+    b.onclick = () => {
+      const deel = Number(b.dataset.n)+1;
+      i = SCHERMEN.findIndex(x=>x.deel===deel);
+      voorbeeldModus = false;
+      renderScherm(); toon("vraag");
+    };
+  });
+
+  toon("overzicht");
+}
+
+/* ---------- 4. Lead capture ----------
+   Koppel hier je Mailchimp, Brevo of CRM endpoint aan.
+   Beschikbaar om mee te sturen: het mailadres, alle ingevulde
+   velden uit s, en de markeringen uit beoordeel().           */
+$("#lead").addEventListener("submit", e=>{
+  e.preventDefault();
+  const email = $("#email").value.trim();
+  if(!email) return;
+  /* TODO Jos: POST naar Mailchimp met email + s + beoordeel() */
+  const form = e.target;
+  form.style.display = "none";
+  const msg = document.createElement("p");
+  msg.className = "done-msg";
+  msg.textContent = "Onderweg naar "+email+". Check ook je spamfolder, voor de zekerheid.";
+  form.parentNode.insertBefore(msg, form.nextSibling);
+});
+</script>
+</body>
+</html>
