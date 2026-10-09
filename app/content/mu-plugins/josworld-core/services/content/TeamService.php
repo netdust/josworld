@@ -102,6 +102,10 @@ final class TeamService
             'show_in_menu' => true,
             'query_var' => 'team',
             'has_archive' => true,
+            'description' => __(
+                'Maak kennis met het team van Jos: strategen, creatievelingen en makers.',
+                JOSWORLD_CORE_TEXTDOMAIN
+            ),
             'hierarchical' => false,
             'supports' => ['title', 'editor', 'thumbnail'],
             'menu_icon' => 'dashicons-groups',

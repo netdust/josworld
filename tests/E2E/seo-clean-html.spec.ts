@@ -87,3 +87,51 @@ test.describe('served HTML: other pages @e2e', () => {
     expect(meta(post, 'property', 'og:type')).toBe('article');
   });
 });
+
+const LISTINGS = ['/ons-werk/', '/team/', '/jobs-stages/', '/gratis-aanbod/', '/blog-nieuws/'];
+
+test.describe('served HTML: listings, icons and share images @e2e', () => {
+  for (const path of LISTINGS) {
+    test(`${path} has one canonical, its own description and a matching og:title`, async ({ request, baseURL }) => {
+      const html = await (await request.get(path)).text();
+      expect(html.match(/rel=["']canonical["']/g), 'canonical').toHaveLength(1);
+      expect(html.match(/rel=["']canonical["'] href=["']([^"']*)/)?.[1]).toBe(new URL(path, baseURL).toString());
+      expect((meta(html, 'name', 'description') ?? '').length, 'description').toBeGreaterThan(40);
+      expect(meta(html, 'property', 'og:url')).toBe(new URL(path, baseURL).toString());
+      expect(meta(html, 'property', 'og:title')).not.toBe('Jos');
+      expect(meta(html, 'property', 'og:locale')).toBe('nl_BE');
+    });
+  }
+
+  test('the front page is titled by the site, not by its page title', async ({ request }) => {
+    expect(meta(await (await request.get('/')).text(), 'property', 'og:title')).toBe('Jos');
+  });
+
+  test('the share image has real dimensions', async ({ request }) => {
+    const html = await (await request.get('/')).text();
+    expect(meta(html, 'property', 'og:image:width')).toBe('1200');
+    expect(meta(html, 'property', 'og:image:height')).toBe('630');
+  });
+
+  test('a case and a team member describe themselves, not the template', async ({ request }) => {
+    for (const path of ['/ons-werk/onze-energie/', '/team/goele-van-dam/']) {
+      const description = meta(await (await request.get(path)).text(), 'name', 'description') ?? '';
+      expect(description, path).not.toMatch(/Page title over two lines|Lorem ipsum|Intro paragraph/);
+      expect(description.length, path).toBeGreaterThan(40);
+    }
+  });
+
+  test('the icon set and the manifest are served', async ({ request }) => {
+    const html = await (await request.get('/')).text();
+    expect(html).toMatch(/rel=["']icon["'] href=["'][^"']*favicon\.ico["']/);
+    expect(html).toMatch(/rel=["']manifest["'] href=["'][^"']*site\.webmanifest["']/);
+    expect(meta(html, 'name', 'theme-color')).toBe('#FFF794');
+
+    for (const file of ['favicon.ico', 'icon-192.png', 'icon-512.png', 'touchicon.png', 'site.webmanifest']) {
+      const res = await request.get(`/content/themes/josworld/images/${file}`);
+      expect(res.status(), file).toBe(200);
+    }
+    const manifest = await (await request.get('/content/themes/josworld/images/site.webmanifest')).json();
+    expect(manifest.icons).toHaveLength(2);
+  });
+});

@@ -263,6 +263,10 @@ final class CaseService
             'show_in_menu' => true,
             'query_var' => true,
             'has_archive' => true,
+            'description' => __(
+                'Ons werk: campagnes, content en strategie voor overheden, social profit en ondernemers.',
+                JOSWORLD_CORE_TEXTDOMAIN
+            ),
             'hierarchical' => false,
             'supports' => ['title', 'editor', 'thumbnail', 'excerpt'],
             'menu_icon' => 'dashicons-portfolio',

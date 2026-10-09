@@ -38,6 +38,8 @@ final class SiteMetaServiceTest extends TestCase
         $filters = [
             'pre_option_blog_public',
             'body_class',
+            'wp_sitemaps_posts_query_args',
+            'wp_sitemaps_taxonomies',
             'ntdst/baseline/schema/config',
             'ntdst/baseline/seo/config',
             'ntdst/baseline/head_cleanup/config',
@@ -46,7 +48,7 @@ final class SiteMetaServiceTest extends TestCase
         foreach ($filters as $hook) {
             Filters\expectAdded($hook)->once();
         }
-        foreach (['wp_default_scripts', 'init'] as $hook) {
+        foreach (['wp_default_scripts', 'init', 'wp_head'] as $hook) {
             Actions\expectAdded($hook)->once();
         }
 
@@ -124,6 +126,53 @@ final class SiteMetaServiceTest extends TestCase
             $config['og_image_fallback'],
         );
         $this->assertTrue($config['og_tags']);
+    }
+
+    public function test_the_share_image_is_the_1200_by_630_card_in_every_size_baseline_asks_for(): void
+    {
+        $config = $this->service()->seoConfig([]);
+
+        $this->assertSame([1200, 630], $config['og_image_fallback_size']);
+        $this->assertSame(['width' => 1200, 'height' => 630], $config['og_image_crop']);
+    }
+
+    public function test_the_head_carries_the_icon_set_the_manifest_and_the_theme_colour(): void
+    {
+        Functions\when('esc_url')->returnArg();
+        Functions\when('esc_attr')->returnArg();
+
+        ob_start();
+        $this->service()->printIconTags();
+        $head = (string) ob_get_clean();
+
+        $images = 'https://jos.test/content/themes/josworld/images';
+        $this->assertStringContainsString('<link rel="icon" href="' . $images . '/favicon.ico" sizes="48x48">', $head);
+        $this->assertStringContainsString('href="' . $images . '/icon-192.png" sizes="192x192"', $head);
+        $this->assertStringContainsString('<link rel="manifest" href="' . $images . '/site.webmanifest">', $head);
+        $this->assertStringContainsString('<meta name="theme-color" content="#FFF794">', $head);
+    }
+
+    public function test_the_sitemap_lists_domains_and_diensten_only(): void
+    {
+        $all = ['category' => 1, 'post_tag' => 1, 'domain' => 1, 'dienst' => 1, 'doelgroep' => 1];
+
+        $this->assertSame(['domain', 'dienst'], array_keys($this->service()->sitemapTaxonomies($all)));
+    }
+
+    public function test_the_icon_files_the_head_points_at_exist(): void
+    {
+        $images = __DIR__ . '/../../app/content/themes/josworld/images/';
+        $manifest = json_decode((string) file_get_contents($images . 'site.webmanifest'), true);
+
+        foreach (['favicon.ico', 'icon-192.png', 'icon-512.png', 'og-default.png'] as $file) {
+            $this->assertFileExists($images . $file);
+        }
+        foreach ($manifest['icons'] as $icon) {
+            $this->assertFileExists($images . $icon['src']);
+            [$w] = getimagesize($images . $icon['src']);
+            $this->assertSame((int) $icon['sizes'], $w);
+        }
+        $this->assertSame([1200, 630], array_slice(getimagesize($images . 'og-default.png'), 0, 2));
     }
 
     public function test_the_block_editor_styles_are_dropped(): void

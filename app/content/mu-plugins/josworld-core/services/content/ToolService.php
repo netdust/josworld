@@ -157,6 +157,10 @@ final class ToolService
             "show_in_menu" => true,
             "query_var" => true,
             "has_archive" => "gratis-aanbod",   // the listing at the design URL; singles stay under /tools/
+            "description" => __(
+                'Gratis tools, canvassen en checklists van Jos voor communicatie die werkt.',
+                JOSWORLD_CORE_TEXTDOMAIN
+            ),
             "hierarchical" => false,
             "supports" => ["title", "editor", "thumbnail"],
             "menu_icon" => "dashicons-download",

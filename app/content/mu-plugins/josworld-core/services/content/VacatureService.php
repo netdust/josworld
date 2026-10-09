@@ -109,6 +109,10 @@ final class VacatureService
             'show_in_menu' => true,
             'query_var' => true,
             'has_archive' => true,
+            'description' => __(
+                'Vacatures en stageplekken bij Jos: werk mee aan communicatie die dichter bij de mensen staat.',
+                JOSWORLD_CORE_TEXTDOMAIN
+            ),
             'hierarchical' => false,
             'supports' => ['title', 'editor'],
             'menu_icon' => 'dashicons-businessman',

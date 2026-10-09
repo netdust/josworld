@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7de65ec5df99db3340f3efa7b0535a68",
+    "content-hash": "d49780a62dd23a67bf34ccd97b367484",
     "packages": [
         {
             "name": "composer/installers",
@@ -216,16 +216,16 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.15.1",
+            "version": "v2.16.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/netdust/ntdst-baseline.git",
-                "reference": "d7a75f87113cc79d2b60e6b80cdc085a0610874a"
+                "url": "git@github.com:netdust/ntdst-baseline.git",
+                "reference": "8e66ba0b9418611197d2fba5da1b409a8a847576"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/d7a75f87113cc79d2b60e6b80cdc085a0610874a",
-                "reference": "d7a75f87113cc79d2b60e6b80cdc085a0610874a",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/8e66ba0b9418611197d2fba5da1b409a8a847576",
+                "reference": "8e66ba0b9418611197d2fba5da1b409a8a847576",
                 "shasum": ""
             },
             "require": {
@@ -265,10 +265,10 @@
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
             "support": {
-                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.15.1",
+                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.16.0",
                 "issues": "https://github.com/netdust/ntdst-baseline/issues"
             },
-            "time": "2026-10-05T16:17:37+00:00"
+            "time": "2026-10-09T11:26:40+00:00"
         },
         {
             "name": "netdust/ntdst-core",
@@ -765,5 +765,5 @@
         "php": ">=8.1"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }
