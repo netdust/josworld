@@ -9,14 +9,15 @@
  *
  * A tool is a downloadable file OR a link to an external page (`delivery`,
  * default `file` so tools saved before the choice stay as they were); the
- * editor shows only the field of the chosen kind. `targetUrl()` is the one
- * place that turns a tool into where the visitor goes — the download form
- * and the builder's `target` field both ask it.
+ * editor shows only the field of the chosen kind. `target()` is the one
+ * place that turns a tool into where the visitor goes (and whether that is a
+ * link or a file) — the download form and the builder's `target` field both
+ * ask it.
  *
  * The file is the framework's native `file` type: the media picker, one
  * attachment id stored and re-read as an int. A standard WP media attachment,
- * no bespoke upload handler for this project to build and secure. The link is
- * http(s) only: anything else is no target.
+ * no bespoke upload handler for this project to build and secure. The link must
+ * be http(s) with a host: anything else is no target.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -42,19 +43,36 @@ final class ToolService
         add_action('after_setup_theme', [$this, 'attachTargetField'], 20);
     }
 
-    /** Where the visitor goes for this tool: its file's URL or its link; '' when it has neither. */
-    public static function targetUrl(int $toolId): string
+    /**
+     * Where the visitor goes for this tool, and whether that is a link or a file: the ONE answer the download
+     * form and the builder share. `url` is '' when the tool has neither a usable file nor a safe link.
+     * Read status 'any': whether a visitor may see an unpublished tool is the caller's gate, not this lookup's.
+     *
+     * @return array{url: string, isLink: bool}
+     */
+    public function target(int $toolId): array
     {
-        $model = ntdst_data()->get('tool');
+        $model = $this->dataManager->get('tool');
 
-        if ($model->getMeta($toolId, 'delivery', 'file') === 'url') {
-            return esc_url_raw((string) $model->getMeta($toolId, 'url', ''), ['http', 'https']);
+        if ($model->getMeta($toolId, 'delivery', 'file', 'any') === 'url') {
+            return ['url' => self::safeLink((string) $model->getMeta($toolId, 'url', '', 'any')), 'isLink' => true];
         }
 
-        $fileId = absint($model->getMeta($toolId, 'file', 0));
+        $fileId = absint($model->getMeta($toolId, 'file', 0, 'any'));
         $url = $fileId > 0 ? wp_get_attachment_url($fileId) : false;
 
-        return is_string($url) ? $url : '';
+        return ['url' => is_string($url) ? $url : '', 'isLink' => false];
+    }
+
+    /** http(s) with a host. WordPress's own protocol list still lets `//host`, `/path` and `http:host` through. */
+    private static function safeLink(string $raw): string
+    {
+        $url = esc_url_raw($raw, ['http', 'https']);
+        $parts = wp_parse_url($url);
+
+        return is_array($parts) && in_array($parts['scheme'] ?? '', ['http', 'https'], true) && ! empty($parts['host'])
+            ? $url
+            : '';
     }
 
     /** The builder binds a button to `target` instead of choosing between file.url and url. */
@@ -158,7 +176,7 @@ final class ToolService
 function resolve_tool_target(mixed $post): ?string
 {
     $toolId = is_object($post) && isset($post->ID) ? (int) $post->ID : 0;
-    $url = $toolId > 0 ? ToolService::targetUrl($toolId) : '';
+    $url = $toolId > 0 ? ntdst_get(ToolService::class)->target($toolId)['url'] : '';
 
     return $url !== '' ? $url : null;
 }

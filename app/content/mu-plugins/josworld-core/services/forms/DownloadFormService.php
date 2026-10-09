@@ -28,7 +28,7 @@ final class DownloadFormService
     public const TITLE_TOKEN = '{tool_title}';
     public const ACTION_TOKEN = '{tool_action}';
 
-    public function __construct()
+    public function __construct(private readonly ToolService $tools)
     {
         $this->init();
     }
@@ -65,16 +65,19 @@ final class DownloadFormService
             return $this->withoutDownload($returnData);
         }
 
-        $url = ToolService::targetUrl($toolId);
+        $target = $this->tools->target($toolId);
 
-        if ($url === '') {
+        if ($target['url'] === '') {
             return $this->withoutDownload($returnData);
         }
 
-        $isLink = ntdst_data()->get('tool')->getMeta($toolId, 'delivery', 'file') === 'url';
+        // A link is opened, not saved: the stored message's `download` attribute would save a same-site page as a file.
+        if ($target['isLink']) {
+            $message = (string) preg_replace('/(<a\b[^>]*?)\sdownload(?:="[^"]*")?(?=[\s>])/i', '$1', $message);
+        }
         $returnData['message'] = str_replace(
             [self::FILE_URL_TOKEN, self::TITLE_TOKEN, self::ACTION_TOKEN],
-            [esc_url($url), esc_html(get_the_title($tool)), $isLink ? 'openen' : 'downloaden'],
+            [esc_url($target['url']), esc_html(get_the_title($tool)), $target['isLink'] ? 'openen' : 'downloaden'],
             $message,
         );
 

@@ -16,8 +16,12 @@ trusted, so only what a session must not re-derive lands here.
   seeded from `specs/cpt-builder-singles/layouts/` (gitignored — the DB is the artifact;
   re-seed after a DB refresh). A relation that moved into the builder is a grid whose
   items bind one manually selected post through the singular `custom<Type>` query.
-- **The ntdst-baseline `yootheme` module is the only builder bridge.** josworld-core opts
-  in by assignment on `ntdst/baseline/modules`; no per-project source code exists. A
+- **The ntdst-baseline `yootheme` module is the main builder bridge.** josworld-core opts
+  in by assignment on `ntdst/baseline/modules`. The one exception is a COMPUTED builder
+  field baseline has no seam for: `CaseService` (`labels`) and `ToolService` (`target`) each
+  hook YOOtheme's `source.init` themselves (priority -5, a by-name resolver function in the
+  service file — never the `Service@method` form, which would construct a second service).
+  Take a third one upstream to baseline instead of copying the pattern. A
   `relation` to `attachment` resolves empty through it — media fields use `file`,
   `image`, `gallery`.
 - **Every layout write goes through `.yoo-tools/yoo-content.php` as an admin.** KSES

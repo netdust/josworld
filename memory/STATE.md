@@ -11,9 +11,16 @@
   `tools.singleTool → target` both ask it. A non-http(s) link is no target (the visitor gets the plain thank-you).
 - **DB steps per environment (not carried by a deploy; the staging→production copy carries them):** (1) form 3's
   confirmation message uses `{tool_title} {tool_action}` instead of `{tool_title} downloaden`
-  (`.yoo-tools/form3-action.php`, idempotent, prints the old text), (2) the `single-tool` template's button binds `target`
+  (`scripts/once/2026-10-09-form3-tool-action.php`, tracked, idempotent, prints the old text), (2) the `single-tool` template's button binds `target`
   instead of `file.url`. Done on local; on staging do both AFTER the deploy (before it `{tool_action}` would show literally and
   the `target` field does not exist yet).
+- **Review fix pass (2026-10-09):** `ToolService::target()` now returns the target AND whether it is a link (one answer;
+  `DownloadFormService` takes `ToolService` by constructor injection, no second read of `delivery`), a link must be
+  http(s) WITH a host (`esc_url_raw` alone passes `//host`, `/path`, `http:host`), unpublished tools resolve (status 'any';
+  the visitor gate stays in `DownloadFormService`), and a link tool's confirmation drops the `download` attribute so a
+  same-site page is opened, not saved. **Core limitation, not fixed here:** ntdst-core's metabox derives a field's label from
+  its KEY (`MetaboxGenerator.php:780`) and ignores `label` — the editor shows "Delivery", "File", "Url" (and for cases "Client",
+  "Hover Image"); a gap to take to ntdst-core. `rel="noopener noreferrer"` on an external tool button: not done.
 - Still open (copy, Stefan's): the confirmation sentence "Je download staat klaar:" and the button "Download" say download
   also for a link tool.
 
