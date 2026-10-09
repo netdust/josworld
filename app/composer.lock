@@ -216,16 +216,16 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.14.0",
+            "version": "v2.15.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/netdust/ntdst-baseline.git",
-                "reference": "d884568b9ee0d57aab8bf35172cd10308183b65c"
+                "reference": "d7a75f87113cc79d2b60e6b80cdc085a0610874a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/d884568b9ee0d57aab8bf35172cd10308183b65c",
-                "reference": "d884568b9ee0d57aab8bf35172cd10308183b65c",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/d7a75f87113cc79d2b60e6b80cdc085a0610874a",
+                "reference": "d7a75f87113cc79d2b60e6b80cdc085a0610874a",
                 "shasum": ""
             },
             "require": {
@@ -239,7 +239,7 @@
             "type": "wordpress-muplugin",
             "scripts": {
                 "lint": [
-                    "find . -name '*.php' -not -path './vendor/*' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 php -l"
+                    "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l"
                 ],
                 "guard": [
                     "bash bin/guard.sh"
@@ -251,8 +251,7 @@
                     "@lint",
                     "@test",
                     "@guard",
-                    "bash bin/check-invariants.sh",
-                    "bash bin/check-app-build.sh"
+                    "bash bin/check-invariants.sh"
                 ]
             },
             "license": [
@@ -266,10 +265,10 @@
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
             "support": {
-                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.14.0",
+                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.15.1",
                 "issues": "https://github.com/netdust/ntdst-baseline/issues"
             },
-            "time": "2026-10-02T22:20:13+00:00"
+            "time": "2026-10-05T16:17:37+00:00"
         },
         {
             "name": "netdust/ntdst-core",

@@ -2,6 +2,25 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Duplicate pages, posts and CPTs (2026-10-05, branch feature/duplicate-pages)
+
+- **ntdst-baseline v2.15.0** (new `duplicate` module, off by default; built in ~/Sites/ntdst-baseline,
+  branch `feature/duplicate`, tagged v2.15.0 off `origin/main` v2.12.0 — it does NOT carry the `views`
+  module, which josworld never used and Stefan does not want in baseline). josworld-core opts in
+  (`modules['duplicate'] = true`) and sets Dutch labels: link "Dupliceren", title suffix "(kopie)".
+- A "Dupliceren" row action on every list screen + the classic edit screen's Publish box. The door
+  needs `edit_post` on the source, the type's `create_posts` AND `unfiltered_html` (kses would mangle
+  the YOOtheme layout comment — proven in `tests/Integration/DuplicateRoundTripTest.php`, which runs
+  as an administrator for that reason). The copy is a draft: content/layout, ALL meta (relations keep
+  pointing at the same records), terms, same Polylang language, NOT linked into the translation group.
+  Children of a page are not copied.
+- Proof: `DuplicateRoundTripTest` (byte-identical layout + backslash/nested-array/multi-row meta, case
+  terms, the Dutch link); the Polylang case is skipped there (Polylang is not loaded in wptests) and
+  was checked by hand on the local site: the copy kept `nl` and `pll_get_post_translations` showed
+  only itself. The real click-through redirects to the copy's edit screen for a page and a case.
+- Gotcha for tests that seed meta: `update_post_meta` UNSLASHES — seed with `wp_slash()` or the
+  source never held the backslash.
+
 ## Matomo (self-hosted, in WordPress) — go-live checklist (2026-09-30, branch feature/staging-review-edits)
 
 - **Plugin**: "Matomo Analytics" (`matomo` 5.13.1, the in-WordPress one — NOT `wp-piwik`/Connect
