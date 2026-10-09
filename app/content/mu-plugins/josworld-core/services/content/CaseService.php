@@ -32,6 +32,17 @@ defined('ABSPATH') || exit;
 
 final class CaseService
 {
+    /** At most one domain, three diensten and one doelgroep per case (client spec). */
+    public const LIMITS = ['domain' => 1, 'dienst' => 3, 'doelgroep' => 1];
+
+    /** Editors tick terms from the list; only administrators add or change the list itself. */
+    private const PICK_FROM_THE_LIST = [
+        'manage_terms' => 'manage_options',
+        'edit_terms' => 'manage_options',
+        'delete_terms' => 'manage_options',
+        'assign_terms' => 'edit_posts',
+    ];
+
     public function __construct(private readonly NTDST_Data_Manager $dataManager)
     {
         $this->init();
@@ -42,6 +53,154 @@ final class CaseService
         $this->registerDataModel();
         $this->registerAdminColumns();
         add_action('after_setup_theme', [$this, 'attachLabelsField'], 20);
+        add_action('pre_get_posts', [$this, 'showWholeTermOnOnePage']);
+        add_action('set_object_terms', [$this, 'clampTerms'], 10, 5);
+        add_filter('request', [$this, 'resolveOnsWerkSlug']);
+        // After baseline's shared-slug filter (Polylang), so a domain's slug stays the overview's.
+        add_filter('wp_unique_post_slug', [$this, 'keepDomainSlugsFree'], 20, 4);
+        add_filter('pre_insert_term', [$this, 'refuseTheSlugOfACase'], 10, 3);
+    }
+
+    /**
+     * The case's own terms obey the limits whatever wrote them (classic screen, REST, CLI): the first ones win.
+     *
+     * @param array<int, int|string> $ttIds
+     */
+    public function clampTerms(int $objectId, mixed $terms, array $ttIds, string $taxonomy, bool $append): void
+    {
+        $limit = self::LIMITS[$taxonomy] ?? null;
+        if ($limit === null || get_post_type($objectId) !== 'case') {
+            return;
+        }
+
+        $given = array_map('intval', $ttIds);
+        // On append WordPress hands over only the NEW terms: the case's earlier ones come first.
+        $earlier = $append
+            ? array_diff(array_map('intval', wp_get_object_terms($objectId, $taxonomy, ['fields' => 'tt_ids'])), $given)
+            : [];
+        $ordered = array_values(array_unique([...$earlier, ...$given]));
+        if (count($ordered) <= $limit) {
+            return;
+        }
+
+        $keep = [];
+        foreach (array_slice($ordered, 0, $limit) as $ttId) {
+            $term = get_term_by('term_taxonomy_id', $ttId, $taxonomy);
+            if ($term instanceof \WP_Term) {
+                $keep[] = $term->term_id;
+            }
+        }
+
+        remove_action('set_object_terms', [$this, 'clampTerms'], 10);
+        $result = wp_set_object_terms($objectId, $keep, $taxonomy);
+        add_action('set_object_terms', [$this, 'clampTerms'], 10, 5);
+
+        if (is_wp_error($result)) {
+            wp_trigger_error(
+                __METHOD__,
+                "Could not keep case {$objectId} within its {$taxonomy} limit: " . $result->get_error_message()
+            );
+        }
+    }
+
+    /**
+     * A domain overview and a case share /ons-werk/<slug>: a domain term wins its slug, any other slug is a case.
+     *
+     * @param array<string, mixed> $vars
+     * @return array<string, mixed>
+     */
+    public function resolveOnsWerkSlug(array $vars): array
+    {
+        $slug = (string) ($vars['domain'] ?? $vars['case'] ?? '');
+        if ($slug === '') {
+            return $vars;
+        }
+
+        if (get_term_by('slug', $slug, 'domain')) {
+            unset($vars['case'], $vars['name'], $vars['post_type']);
+            $vars['domain'] = $slug;
+
+            return $vars;
+        }
+
+        if (isset($vars['domain'])) {
+            unset($vars['domain']);
+            $vars = [...$vars, 'post_type' => 'case', 'case' => $slug, 'name' => $slug];
+        }
+
+        return $vars;
+    }
+
+    /** A case never takes the slug of a domain: that URL belongs to the overview. */
+    public function keepDomainSlugsFree(string $slug, int $postId, string $status, string $type): string
+    {
+        if ($type !== 'case') {
+            return $slug;
+        }
+
+        $candidate = $slug;
+        for ($n = 2; $this->slugIsTaken($candidate, $postId, $candidate !== $slug); $n++) {
+            $candidate = $slug . '-' . $n;
+        }
+
+        return $candidate;
+    }
+
+    /** A domain owns its slug; a suffixed candidate must also be free among the cases (core never saw it). */
+    private function slugIsTaken(string $slug, int $postId, bool $checkCases): bool
+    {
+        if (get_term_by('slug', $slug, 'domain')) {
+            return true;
+        }
+
+        return $checkCases && $this->caseExists($slug, $postId);
+    }
+
+    private function caseExists(string $slug, int $exceptId = 0): bool
+    {
+        return get_posts([
+            'name' => $slug,
+            'post_type' => 'case',
+            'post_status' => ['publish', 'draft', 'pending', 'private', 'future'],
+            'post__not_in' => [$exceptId],
+            'numberposts' => 1,
+            'fields' => 'ids',
+            'suppress_filters' => true,
+        ]) !== [];
+    }
+
+    /**
+     * A domain whose slug is a case's would take that case's URL: the term wins /ons-werk/<slug>.
+     *
+     * @param array<string, mixed> $args
+     */
+    public function refuseTheSlugOfACase(mixed $term, string $taxonomy, array $args = []): mixed
+    {
+        if ($taxonomy !== 'domain' || is_wp_error($term)) {
+            return $term;
+        }
+
+        $slug = sanitize_title((string) ($args['slug'] ?? $term));
+        if ($slug === '' || ! $this->caseExists($slug)) {
+            return $term;
+        }
+
+        return new \WP_Error(
+            'jw_domain_slug_is_a_case',
+            sprintf(
+                /* translators: %s: the slug */
+                __('Er bestaat al een case op /ons-werk/%s/: kies een andere naam.', JOSWORLD_CORE_TEXTDOMAIN),
+                $slug
+            )
+        );
+    }
+
+    /** A `domain` / `dienst` archive is Ons werk filtered: the builder template lists the main query, all of it. */
+    public function showWholeTermOnOnePage(\WP_Query $query): void
+    {
+        if ($query->is_main_query() && ! is_admin() && $query->is_tax(['domain', 'dienst'])) {
+            $query->set('posts_per_page', -1);
+        }
     }
 
     public function attachLabelsField(): void
@@ -120,7 +279,8 @@ final class CaseService
             // docblock (no direct register_taxonomy() call).
             'taxonomies' => [
                 'domain' => [
-                    'hierarchical' => false,
+                    'hierarchical' => true,
+                    'capabilities' => self::PICK_FROM_THE_LIST,
                     'labels' => [
                         'name' => __('Domeinen', JOSWORLD_CORE_TEXTDOMAIN),
                         'singular_name' => __('Domein', JOSWORLD_CORE_TEXTDOMAIN),
@@ -134,10 +294,11 @@ final class CaseService
                     ],
                     'show_admin_column' => true,
                     'show_in_rest' => true,
-                    'rewrite' => ['slug' => 'domein'],
+                    'rewrite' => ['slug' => 'ons-werk', 'with_front' => false],
                 ],
                 'dienst' => [
-                    'hierarchical' => false,
+                    'hierarchical' => true,
+                    'capabilities' => self::PICK_FROM_THE_LIST,
                     'labels' => [
                         'name' => __('Diensten', JOSWORLD_CORE_TEXTDOMAIN),
                         'singular_name' => __('Dienst', JOSWORLD_CORE_TEXTDOMAIN),
@@ -152,6 +313,28 @@ final class CaseService
                     'show_admin_column' => true,
                     'show_in_rest' => true,
                     'rewrite' => ['slug' => 'dienst'],
+                ],
+                // "Voor publieke sector" or "Voor social profit & ondernemers": one per case, no overview of its own.
+                'doelgroep' => [
+                    'hierarchical' => true,
+                    'capabilities' => self::PICK_FROM_THE_LIST,
+                    'labels' => [
+                        'name' => __('Doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'singular_name' => __('Doelgroep', JOSWORLD_CORE_TEXTDOMAIN),
+                        'search_items' => __('Doelgroepen zoeken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'all_items' => __('Alle doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'edit_item' => __('Doelgroep bewerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'update_item' => __('Doelgroep bijwerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'add_new_item' => __('Nieuwe doelgroep toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'new_item_name' => __('Nieuwe doelgroepnaam', JOSWORLD_CORE_TEXTDOMAIN),
+                        'menu_name' => __('Doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                    ],
+                    'public' => true,
+                    'publicly_queryable' => false,
+                    'query_var' => false,
+                    'show_admin_column' => true,
+                    'show_in_rest' => true,
+                    'rewrite' => false,
                 ],
             ],
         ]);
@@ -230,7 +413,8 @@ function resolve_case_labels(mixed $post): ?string
     }
 
     if (is_array($diensten) && $diensten !== []) {
-        $names = array_map(static fn ($term) => esc_html($term->name), $diensten);
+        $shown = array_slice($diensten, 0, CaseService::LIMITS['dienst']);
+        $names = array_map(static fn ($term) => esc_html($term->name), $shown);
         $last = array_pop($names);
         $text = $names === [] ? $last : implode(', ', $names) . ' &amp; ' . $last;
         $html .= '<span class="jw-diensten">' . $text . '</span>';

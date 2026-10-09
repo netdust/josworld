@@ -2,6 +2,57 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Taxonomy archives = Ons werk, filtered (2026-10-09, branch feature/taxonomy-archives)
+
+- **Client spec (2026-10-09):** a case has at most ONE domain (clickable → Ons werk filtered, URL `/ons-werk/<domain>`) and at
+  most THREE diensten (plain text "A, B & C", not clickable), chosen from a fixed list. Built so: the `domain` taxonomy's
+  rewrite slug is `ons-werk` (was `domein`; `/domein/…` is gone) — a domain and a case now share `/ons-werk/<slug>`, so
+  `CaseService::resolveOnsWerkSlug` (the `request` filter) lets a domain term win its slug and sends any other slug to the
+  case, and `keepDomainSlugsFree` stops a case taking a domain's slug (`CaseDomainUrlTest`); `clampTerms` keeps the first 1
+  domain / 3 diensten on EVERY write path (`CaseTermLimitsTest`); both taxonomies are hierarchical (checkbox lists) with
+  `assign_terms = edit_posts` and `edit_terms = manage_options`, so editors pick from the list and only administrators change
+  it; `case-term-limits.js` stops over-ticking on the edit screen (`tests/js/case-term-limits.behavior.test.js`);
+  `resolve_case_labels` shows at most 3 diensten. **After deploy run `wp rewrite flush --hard` on each environment** (the
+  rules live in the DB; the staging→production copy carries them once staging is flushed).
+- **Review fix pass (2026-10-09, `specs/taxonomy-archives/review.md`):** the case slug guard now delegates to a real
+  uniqueness check (two cases no longer share `klimaat-2`) and runs at priority 20, AFTER baseline's Polylang
+  `SharedSlugs`; a domain term whose slug is a case's is refused (`pre_insert_term`); `clampTerms` skips terms that no
+  longer exist and logs a failed corrective write; `AdminAppService` derives its taxonomy list from the registry (no hand-kept
+  copy); the label cap reads `CaseService::LIMITS`; the admin scripts are versioned by file mtime. **Open, baseline's:**
+  `ntdst-baseline` `SharedSlugs::repair()` can restore a case's original slug on language assignment and so take a domain's
+  URL once nl/en/fr exist (latent today: one language) — a premise defect to file against baseline, not patched here.
+  Staging domain slugs vs case slugs: no clash (18 cases, 6 domains).
+- **Rounded last band (2026-10-09):** the closing yellow "A14 · Maak kennis met Jos" band of the Ons werk archive and both
+  taxonomy templates lacked `jw-band-round-bottom` (every other page's last yellow band has it). Added to
+  `archive-case`, `taxonomy-domain`, `taxonomy-dienst` and the library section `c6a026fc` on local + staging
+  (`.yoo-tools/round-last-band.py`, `scan-last-band.php`). A template regenerated from `archive-case` inherits it.
+- **Doelgroep (2026-10-09):** a case is in EITHER "Voor publieke sector" OR "Voor social profit & ondernemers" — a third
+  case taxonomy `doelgroep` (hierarchical pick-list, limit 1, no public URL: `public` but not `publicly_queryable`,
+  `rewrite => false`; `CaseDoelgroepTest`). The two TERMS are data: created on local; on staging/production create them
+  after the deploy (`wp term create doelgroep "Voor publieke sector"` and `"Voor social profit & ondernemers"`) — the staging→
+  production copy carries them. Nothing displays the doelgroep yet (no card label, no page filter): assigning only, as asked.
+- **Cases are edited in the BLOCK editor**, not the classic screen: taxonomy panels there are React, so
+  `assets/js/case-term-limits.js` works on the `core/editor` store (`getEditedPostAttribute(<taxonomy>)` / `editPost`),
+  not on `tax_input[]` checkboxes (the first version did, and did nothing). Limits reach it as strings
+  (`wp_localize_script`). Verified by hand in the editor: a second doelgroep replaces the first, a fourth dienst is refused.
+- **Old markup swept 2026-10-09** (local + staging): library "H8 · Header — case" (2409a7bb) and "C0 · Template case"
+  (e3c3Njg8), the single-case template's "Meer werk" cards (TNp2BdnU, `dienstString`), local test page 64 and draft case 48 —
+  all now on the `labels` field. `.yoo-tools/labels-sweep.py` does it for any layout; `.yoo-tools/scan-old-nodes.php` and
+  `scan-labels.php` find leftovers (both come back clean on both environments). The staging data already has the team's 6 domains
+  and 5 diensten (Dagelijkse communicatie, Design, Gedragsverandering, Identiteit, Strategie): TBD list, placeholders.
+- `/domein/<term>/` (and `/dienst/<term>/`) had NO template, so YOOtheme fell back to the default and printed every
+  case's full content (a 42,000px page). YOOtheme matches templates of type `taxonomy-<taxonomy>`; two were added from
+  the Ons werk (`archive-case`) layout — header "Ons werk" + the TERM NAME as heading, the featured case, the card grid
+  (offset 1…), the closing CTA. Sources are the taxonomy archive's own fields, nested under the taxonomy's query field:
+  `domains.taxonomyDomain` (the term), `domains.domainCaseSingle`, `domains.domainCase` (same for `diensts.…`) — NOT bare
+  `domainCase`. They list the MAIN query's posts, so `CaseService::showWholeTermOnOnePage` sets `posts_per_page = -1`
+  on those archives (`CaseTaxonomyArchiveTest`).
+- The templates are DB, not code: applied on local (`n63dkMld`, `UtlzOGyF`) and staging (`1_1RvEJr`, `PGLd__Rm`),
+  generated from each environment's own `archive-case` template by `.yoo-tools/taxonomy-template.py` (local-only tool),
+  so they travel with the staging→production database copy. After flushing: `wp rewrite flush --hard` if the `domein`
+  URLs 404 on a fresh environment. `tests/E2E/taxonomy-archive.spec.ts` (`@e2e`) follows the first domain pill on Ons werk.
+- A term with one case shows only the featured tile (the grid is empty); the big-tile/grid alternation of Ons werk is not repeated.
+
 ## Duplicate pages, posts and CPTs (2026-10-05, branch feature/duplicate-pages)
 
 - **ntdst-baseline v2.15.0** (new `duplicate` module, off by default; built in ~/Sites/ntdst-baseline,

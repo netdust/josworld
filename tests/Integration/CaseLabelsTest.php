@@ -66,7 +66,7 @@ final class CaseLabelsTest extends WP_UnitTestCase
         );
 
         $this->assertMatchesRegularExpression(
-            '#^<a rel="tag" href="[^"]*(?:/domein/|domain=)overheid/?">Overheid</a>'
+            '#^<a rel="tag" href="[^"]*(?:/ons-werk/|domain=)overheid/?">Overheid</a>'
             . '<span class="jw-diensten">Campagne, Digitaal &amp; Strategie</span>$#',
             $html
         );
@@ -82,5 +82,23 @@ final class CaseLabelsTest extends WP_UnitTestCase
     public function test_labels_are_null_without_terms(): void
     {
         $this->assertNull(\josworld\services\content\resolve_case_labels($this->caseWith([], [])));
+    }
+
+    public function test_labels_show_at_most_three_diensten(): void
+    {
+        $post = $this->caseWith(['Overheid'], []);
+        // Written around the limit on purpose (a legacy case): the label still stops at three.
+        global $wpdb;
+        foreach (['A', 'B', 'C', 'D'] as $name) {
+            $term = wp_insert_term($name, 'dienst');
+            $row = ['object_id' => $post->ID, 'term_taxonomy_id' => $term['term_taxonomy_id']];
+            $wpdb->insert($wpdb->term_relationships, $row); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+        }
+        clean_object_term_cache($post->ID, 'case');
+
+        $html = \josworld\services\content\resolve_case_labels($post);
+
+        $this->assertStringContainsString('<span class="jw-diensten">A, B &amp; C</span>', (string) $html);
+        $this->assertStringNotContainsString('D', (string) $html);
     }
 }
