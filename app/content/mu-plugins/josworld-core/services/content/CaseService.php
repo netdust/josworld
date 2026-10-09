@@ -32,8 +32,8 @@ defined('ABSPATH') || exit;
 
 final class CaseService
 {
-    /** At most one domain and three diensten per case (client spec). */
-    public const LIMITS = ['domain' => 1, 'dienst' => 3];
+    /** At most one domain, three diensten and one doelgroep per case (client spec). */
+    public const LIMITS = ['domain' => 1, 'dienst' => 3, 'doelgroep' => 1];
 
     /** Editors tick terms from the list; only administrators add or change the list itself. */
     private const PICK_FROM_THE_LIST = [
@@ -250,6 +250,28 @@ final class CaseService
                     'show_admin_column' => true,
                     'show_in_rest' => true,
                     'rewrite' => ['slug' => 'dienst'],
+                ],
+                // "Voor publieke sector" or "Voor social profit & ondernemers": one per case, no overview of its own.
+                'doelgroep' => [
+                    'hierarchical' => true,
+                    'capabilities' => self::PICK_FROM_THE_LIST,
+                    'labels' => [
+                        'name' => __('Doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'singular_name' => __('Doelgroep', JOSWORLD_CORE_TEXTDOMAIN),
+                        'search_items' => __('Doelgroepen zoeken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'all_items' => __('Alle doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'edit_item' => __('Doelgroep bewerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'update_item' => __('Doelgroep bijwerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'add_new_item' => __('Nieuwe doelgroep toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'new_item_name' => __('Nieuwe doelgroepnaam', JOSWORLD_CORE_TEXTDOMAIN),
+                        'menu_name' => __('Doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                    ],
+                    'public' => true,
+                    'publicly_queryable' => false,
+                    'query_var' => false,
+                    'show_admin_column' => true,
+                    'show_in_rest' => true,
+                    'rewrite' => false,
                 ],
             ],
         ]);

@@ -14,6 +14,15 @@
   it; `case-term-limits.js` stops over-ticking on the edit screen (`tests/js/case-term-limits.behavior.test.js`);
   `resolve_case_labels` shows at most 3 diensten. **After deploy run `wp rewrite flush --hard` on each environment** (the
   rules live in the DB; the staging→production copy carries them once staging is flushed).
+- **Doelgroep (2026-10-09):** a case is in EITHER "Voor publieke sector" OR "Voor social profit & ondernemers" — a third
+  case taxonomy `doelgroep` (hierarchical pick-list, limit 1, no public URL: `public` but not `publicly_queryable`,
+  `rewrite => false`; `CaseDoelgroepTest`). The two TERMS are data: created on local; on staging/production create them
+  after the deploy (`wp term create doelgroep "Voor publieke sector"` and `"Voor social profit & ondernemers"`) — the staging→
+  production copy carries them. Nothing displays the doelgroep yet (no card label, no page filter): assigning only, as asked.
+- **Cases are edited in the BLOCK editor**, not the classic screen: taxonomy panels there are React, so
+  `assets/js/case-term-limits.js` works on the `core/editor` store (`getEditedPostAttribute(<taxonomy>)` / `editPost`),
+  not on `tax_input[]` checkboxes (the first version did, and did nothing). Limits reach it as strings
+  (`wp_localize_script`). Verified by hand in the editor: a second doelgroep replaces the first, a fourth dienst is refused.
 - **Old markup swept 2026-10-09** (local + staging): library "H8 · Header — case" (2409a7bb) and "C0 · Template case"
   (e3c3Njg8), the single-case template's "Meer werk" cards (TNp2BdnU, `dienstString`), local test page 64 and draft case 48 —
   all now on the `labels` field. `.yoo-tools/labels-sweep.py` does it for any layout; `.yoo-tools/scan-old-nodes.php` and

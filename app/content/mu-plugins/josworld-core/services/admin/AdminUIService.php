@@ -70,13 +70,13 @@ final class AdminUIService
         }
     }
 
-    /** The edit screen stops ticking past the limits the server enforces on save. */
+    /** The block editor stops accepting a tick past the limits the server enforces on save. */
     private function enqueueCaseTermLimits(): void
     {
         wp_enqueue_script(
             'josworld-case-term-limits',
             plugins_url('assets/js/case-term-limits.js', dirname(__DIR__, 2) . '/josworld-core.php'),
-            [],
+            ['wp-data', 'wp-editor'],
             null,
             true,
         );

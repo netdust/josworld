@@ -46,7 +46,9 @@ final class AdminAppService
     ];
 
     /** Taxonomies that must follow their post type into the menu. */
-    private const TAXONOMIES = ['case' => ['domain' => 'Domeinen', 'dienst' => 'Diensten']];
+    private const TAXONOMIES = [
+        'case' => ['domain' => 'Domeinen', 'dienst' => 'Diensten', 'doelgroep' => 'Doelgroepen'],
+    ];
 
     private ?ActivitySource $bookings = null;
     private ?ActivitySource $submissions = null;

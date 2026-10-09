@@ -167,6 +167,9 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
         $limits = (string) $wp_scripts->get_data('josworld-case-term-limits', 'data');
         $this->assertStringContainsString('"domain":"1"', $limits);
         $this->assertStringContainsString('"dienst":"3"', $limits);
+        $this->assertStringContainsString('"doelgroep":"1"', $limits);
+        $deps = $wp_scripts->registered['josworld-case-term-limits']->deps;
+        $this->assertContains('wp-data', $deps, 'the block editor store');
         wp_dequeue_script('josworld-case-term-limits');
         wp_deregister_script('josworld-case-term-limits');
 
