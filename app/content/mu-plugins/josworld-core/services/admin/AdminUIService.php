@@ -64,6 +64,25 @@ final class AdminUIService
         }
 
         $this->enqueueConditionalFieldScript($screen->post_type);
+
+        if ($screen->post_type === 'case') {
+            $this->enqueueCaseTermLimits();
+        }
+    }
+
+    /** The edit screen stops ticking past the limits the server enforces on save. */
+    private function enqueueCaseTermLimits(): void
+    {
+        wp_enqueue_script(
+            'josworld-case-term-limits',
+            plugins_url('assets/js/case-term-limits.js', dirname(__DIR__, 2) . '/josworld-core.php'),
+            [],
+            null,
+            true,
+        );
+
+        $limits = \josworld\services\content\CaseService::LIMITS;
+        wp_localize_script('josworld-case-term-limits', 'josworldTermLimits', $limits);
     }
 
     /**

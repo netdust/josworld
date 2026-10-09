@@ -156,4 +156,23 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
         wp_dequeue_script('josworld-metabox-conditional');
         wp_deregister_script('josworld-metabox-conditional');
     }
+
+    public function test_the_case_screen_gets_the_term_limits_script_and_other_screens_do_not(): void
+    {
+        set_current_screen('case');
+        (new AdminUIService())->enqueueConditionalFieldScripts('post.php');
+
+        $this->assertTrue(wp_script_is('josworld-case-term-limits', 'enqueued'));
+        global $wp_scripts;
+        $limits = (string) $wp_scripts->get_data('josworld-case-term-limits', 'data');
+        $this->assertStringContainsString('"domain":"1"', $limits);
+        $this->assertStringContainsString('"dienst":"3"', $limits);
+        wp_dequeue_script('josworld-case-term-limits');
+        wp_deregister_script('josworld-case-term-limits');
+
+        set_current_screen('team');
+        (new AdminUIService())->enqueueConditionalFieldScripts('post.php');
+
+        $this->assertFalse(wp_script_is('josworld-case-term-limits', 'enqueued'));
+    }
 }
