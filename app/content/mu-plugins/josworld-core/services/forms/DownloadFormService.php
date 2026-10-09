@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 namespace josworld\services\forms;
 
+use josworld\services\content\ToolService;
+
 defined('ABSPATH') || exit;
 
 final class DownloadFormService
@@ -24,6 +26,7 @@ final class DownloadFormService
     public const TOOL_ID_FIELD = 'tool_id';
     public const FILE_URL_TOKEN = '{tool_file_url}';
     public const TITLE_TOKEN = '{tool_title}';
+    public const ACTION_TOKEN = '{tool_action}';
 
     public function __construct()
     {
@@ -62,16 +65,16 @@ final class DownloadFormService
             return $this->withoutDownload($returnData);
         }
 
-        $fileId = absint(ntdst_data()->get('tool')->getMeta($toolId, 'file', 0));
-        $url = $fileId > 0 ? wp_get_attachment_url($fileId) : false;
+        $url = ToolService::targetUrl($toolId);
 
-        if (! is_string($url) || $url === '') {
+        if ($url === '') {
             return $this->withoutDownload($returnData);
         }
 
+        $isLink = ntdst_data()->get('tool')->getMeta($toolId, 'delivery', 'file') === 'url';
         $returnData['message'] = str_replace(
-            [self::FILE_URL_TOKEN, self::TITLE_TOKEN],
-            [esc_url($url), esc_html(get_the_title($tool))],
+            [self::FILE_URL_TOKEN, self::TITLE_TOKEN, self::ACTION_TOKEN],
+            [esc_url($url), esc_html(get_the_title($tool)), $isLink ? 'openen' : 'downloaden'],
             $message,
         );
 

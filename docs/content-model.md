@@ -137,13 +137,17 @@ exists for something WP's own content column already models.
 Source: `app/content/mu-plugins/josworld-core/services/content/ToolService.php`
 
 `public`, `has_archive`, slug `tools`, REST base `tools`. The card is
-`subtitle` and the downloadable `file` — benefits and related tools are
-built per tool in the YOOtheme builder.
+`subtitle`, plus what the tool IS: a downloadable `file` or a `url` to an external
+page (`delivery` chooses; the editor shows only the matching field) — benefits and
+related tools are built per tool in the YOOtheme builder. `ToolService::targetUrl()`
+turns a tool into where the visitor goes; the builder reads it as the `target` field.
 
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|
 | `subtitle` | `_jw_subtitle` | text | |
-| `file` | `_jw_file` | file | optional downloadable file; native `file` field type, stores the attachment id directly (no relation) |
+| `delivery` | `_jw_delivery` | select | `file` (default, so older tools stay files) or `url` |
+| `file` | `_jw_file` | file | optional downloadable file, shown when `delivery` = `file`; native `file` field type, stores the attachment id directly (no relation) |
+| `url` | `_jw_url` | url | external link, shown when `delivery` = `url`; http(s) only — anything else is no target |
 
 ## Taxonomy: `dienst`
 
@@ -186,7 +190,9 @@ singular `custom<Type>` query — not a stored meta value.
 | team | phone | _jw_phone |
 | vacature | employment_type | _jw_employment_type |
 | tool | subtitle | _jw_subtitle |
+| tool | delivery | _jw_delivery |
 | tool | file | _jw_file |
+| tool | url | _jw_url |
 <!-- META-KEY-TABLE:END -->
 
 ### Keeping this doc honest

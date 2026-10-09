@@ -2,6 +2,21 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## A tool is a file OR a link (2026-10-09, branch feature/tool-url)
+
+- `tool` gets `delivery` (select `file` | `url`, default `file` so existing tools stay files) and `url` (http(s) only);
+  the editor shows only the field of the chosen kind (the `condition` option + `metabox-conditional.js`).
+  `ToolService::targetUrl($toolId)` is the ONE place that turns a tool into where the visitor goes; the download form's
+  confirmation (`DownloadFormService`, new token `{tool_action}` = downloaden | openen) and the builder's new source field
+  `tools.singleTool → target` both ask it. A non-http(s) link is no target (the visitor gets the plain thank-you).
+- **DB steps per environment (not carried by a deploy; the staging→production copy carries them):** (1) form 3's
+  confirmation message uses `{tool_title} {tool_action}` instead of `{tool_title} downloaden`
+  (`.yoo-tools/form3-action.php`, idempotent, prints the old text), (2) the `single-tool` template's button binds `target`
+  instead of `file.url`. Done on local; on staging do both AFTER the deploy (before it `{tool_action}` would show literally and
+  the `target` field does not exist yet).
+- Still open (copy, Stefan's): the confirmation sentence "Je download staat klaar:" and the button "Download" say download
+  also for a link tool.
+
 ## Taxonomy archives = Ons werk, filtered (2026-10-09, branch feature/taxonomy-archives)
 
 - **Client spec (2026-10-09):** a case has at most ONE domain (clickable → Ons werk filtered, URL `/ons-werk/<domain>`) and at

@@ -22,7 +22,7 @@ final class CardFieldsModelTest extends WP_UnitTestCase
     /** @var array<string, list<string>> */
     private const CARD_FIELDS = [
         'case' => ['client', 'hover_image'],
-        'tool' => ['subtitle', 'file'],
+        'tool' => ['subtitle', 'delivery', 'file', 'url'],
         'team' => ['role', 'bio', 'email', 'phone'],
         'vacature' => ['employment_type'],
     ];

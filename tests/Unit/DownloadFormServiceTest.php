@@ -23,6 +23,7 @@ final class DownloadFormServiceTest extends TestCase
         parent::setUp();
 
         require_once __DIR__ . '/../Support/WpPostStub.php';
+        require_once __DIR__ . '/../../app/content/mu-plugins/josworld-core/services/content/ToolService.php';
         require_once __DIR__
             . '/../../app/content/mu-plugins/josworld-core/services/forms/DownloadFormService.php';
 
@@ -33,6 +34,9 @@ final class DownloadFormServiceTest extends TestCase
         Functions\when('add_filter')->justReturn(true);
         Functions\when('absint')->alias(static fn ($v): int => abs((int) $v));
         Functions\when('esc_url')->returnArg();
+        Functions\when('esc_url_raw')->alias(
+            static fn (string $url, ?array $protocols = null): string => preg_match('#^https?://#i', $url) ? $url : ''
+        );
         Functions\when('esc_html')->returnArg();
         Functions\when('esc_html__')->returnArg();
         Functions\when('get_the_title')->alias(static fn ($post) => $post->post_title);
@@ -52,7 +56,7 @@ final class DownloadFormServiceTest extends TestCase
         $tool = new WpPostStub();
         Functions\when('get_post')->justReturn($tool);
         Functions\when('wp_get_attachment_url')->justReturn('https://josworld.test/content/uploads/checklist.pdf');
-        $this->modelReturningFile(219);
+        $this->modelReturning(['file' => 219]);
 
         $out = (new DownloadFormService())->injectToolDownload(
             ['message' => self::MESSAGE],
@@ -108,7 +112,7 @@ final class DownloadFormServiceTest extends TestCase
     {
         Functions\when('get_post')->justReturn(new WpPostStub());
         Functions\when('wp_get_attachment_url')->justReturn(false);
-        $this->modelReturningFile(0);
+        $this->modelReturning(['file' => 0]);
 
         $out = (new DownloadFormService())
             ->injectToolDownload(['message' => self::MESSAGE], null, null, 1, ['tool_id' => '163']);
@@ -117,12 +121,87 @@ final class DownloadFormServiceTest extends TestCase
         $this->assertStringNotContainsString('{tool_file_url}', $out['message']);
     }
 
-    private function modelReturningFile(int $fileId): void
+    /** @param array<string, mixed> $meta */
+    private function modelReturning(array $meta): void
     {
-        $model = Mockery::mock();
-        $model->shouldReceive('getMeta')->andReturn($fileId);
-        $manager = Mockery::mock();
-        $manager->shouldReceive('get')->andReturn($model);
+        $model = new class ($meta) {
+            /** @param array<string, mixed> $meta */
+            public function __construct(private array $meta)
+            {
+            }
+
+            public function getMeta(int $id, string $key, mixed $default = null): mixed
+            {
+                return $this->meta[$key] ?? $default;
+            }
+        };
+        $manager = new class ($model) {
+            public function __construct(private object $model)
+            {
+            }
+
+            public function get(string $type): object
+            {
+                return $this->model;
+            }
+        };
         Functions\when('ntdst_data')->justReturn($manager);
+    }
+
+    public function test_a_link_tool_sends_the_visitor_to_its_url(): void
+    {
+        Functions\when('get_post')->justReturn(new WpPostStub());
+        $this->modelReturning(['delivery' => 'url', 'url' => 'https://example.org/tool', 'file' => 219]);
+
+        $out = (new DownloadFormService())->injectToolDownload(
+            ['message' => '<a href="{tool_file_url}">{tool_title} {tool_action}</a>'],
+            null,
+            null,
+            1,
+            ['tool_id' => '163'],
+        );
+
+        $this->assertSame('<a href="https://example.org/tool">Checklist openen</a>', $out['message']);
+    }
+
+    public function test_a_file_tool_says_downloaden(): void
+    {
+        Functions\when('get_post')->justReturn(new WpPostStub());
+        Functions\when('wp_get_attachment_url')->justReturn('https://josworld.test/f.pdf');
+        $this->modelReturning(['file' => 219]);
+
+        $out = (new DownloadFormService())->injectToolDownload(
+            ['message' => '<a href="{tool_file_url}">{tool_title} {tool_action}</a>'],
+            null,
+            null,
+            1,
+            ['tool_id' => '163'],
+        );
+
+        $this->assertSame('<a href="https://josworld.test/f.pdf">Checklist downloaden</a>', $out['message']);
+    }
+
+    /** @dataProvider hostileOrEmptyUrls */
+    public function test_a_link_tool_without_a_safe_url_degrades_to_the_plain_thank_you(string $url): void
+    {
+        Functions\when('get_post')->justReturn(new WpPostStub());
+        $this->modelReturning(['delivery' => 'url', 'url' => $url]);
+
+        $out = (new DownloadFormService())
+            ->injectToolDownload(['message' => self::MESSAGE], null, null, 1, ['tool_id' => '163']);
+
+        $this->assertStringContainsString('nog niet beschikbaar', $out['message']);
+        $this->assertStringNotContainsString('javascript', $out['message']);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function hostileOrEmptyUrls(): array
+    {
+        return [
+            'empty' => [''],
+            'javascript' => ['javascript:alert(1)'],
+            'data' => ['data:text/html;base64,PHNjcmlwdD4='],
+            'no scheme' => ['example.org/tool'],
+        ];
     }
 }

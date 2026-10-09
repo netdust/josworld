@@ -7,10 +7,16 @@
  * fields another page needs to show a tool. The rest is built in the
  * YOOtheme builder.
  *
- * The downloadable file is the framework's native `file` type: the
- * media picker, one attachment id stored and re-read as an int. A
- * standard WP media attachment, no bespoke upload handler for this
- * project to build and secure.
+ * A tool is a downloadable file OR a link to an external page (`delivery`,
+ * default `file` so tools saved before the choice stay as they were); the
+ * editor shows only the field of the chosen kind. `targetUrl()` is the one
+ * place that turns a tool into where the visitor goes — the download form
+ * and the builder's `target` field both ask it.
+ *
+ * The file is the framework's native `file` type: the media picker, one
+ * attachment id stored and re-read as an int. A standard WP media attachment,
+ * no bespoke upload handler for this project to build and secure. The link is
+ * http(s) only: anything else is no target.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -33,6 +39,43 @@ final class ToolService
     private function init(): void
     {
         $this->registerDataModel();
+        add_action('after_setup_theme', [$this, 'attachTargetField'], 20);
+    }
+
+    /** Where the visitor goes for this tool: its file's URL or its link; '' when it has neither. */
+    public static function targetUrl(int $toolId): string
+    {
+        $model = ntdst_data()->get('tool');
+
+        if ($model->getMeta($toolId, 'delivery', 'file') === 'url') {
+            return esc_url_raw((string) $model->getMeta($toolId, 'url', ''), ['http', 'https']);
+        }
+
+        $fileId = absint($model->getMeta($toolId, 'file', 0));
+        $url = $fileId > 0 ? wp_get_attachment_url($fileId) : false;
+
+        return is_string($url) ? $url : '';
+    }
+
+    /** The builder binds a button to `target` instead of choosing between file.url and url. */
+    public function attachTargetField(): void
+    {
+        if (! function_exists('YOOtheme\\app')) {
+            return;
+        }
+
+        $field = [
+            'type' => 'String',
+            'metadata' => ['label' => __('Doel (bestand of link)', JOSWORLD_CORE_TEXTDOMAIN)],
+            'extensions' => ['call' => __NAMESPACE__ . '\\resolve_tool_target'],
+        ];
+
+        // The licensed parent theme is not installed in the gate.
+        \YOOtheme\Event::on( // @phpstan-ignore class.notFound
+            'source.init',
+            static fn ($source) => $source->objectType('Tool', ['fields' => ['target' => $field]]),
+            -5
+        );
     }
 
     /**
@@ -46,11 +89,28 @@ final class ToolService
                 "label" => __("Subtitel", JOSWORLD_CORE_TEXTDOMAIN),
             ],
 
-            // DOWNLOADABLE FILE (see class docblock). Optional: no
-            // `required`, so a tool with no file still saves.
+            "delivery" => [
+                "type" => "select",
+                "label" => __("Wat is deze tool?", JOSWORLD_CORE_TEXTDOMAIN),
+                "options" => [
+                    "file" => __("Een bestand om te downloaden", JOSWORLD_CORE_TEXTDOMAIN),
+                    "url" => __("Een link naar een pagina", JOSWORLD_CORE_TEXTDOMAIN),
+                ],
+                "default" => "file",
+            ],
+
+            // Optional: no `required`, so a tool with no file or link still saves.
             "file" => [
                 "type" => "file",
                 "label" => __("Bestand", JOSWORLD_CORE_TEXTDOMAIN),
+                "condition" => ["delivery" => "file"],
+            ],
+
+            "url" => [
+                "type" => "url",
+                "label" => __("Link", JOSWORLD_CORE_TEXTDOMAIN),
+                "description" => __("Een volledige link, beginnend met https://", JOSWORLD_CORE_TEXTDOMAIN),
+                "condition" => ["delivery" => "url"],
             ],
         ];
     }
@@ -92,4 +152,13 @@ final class ToolService
             "metabox_title" => __("Tool-gegevens", JOSWORLD_CORE_TEXTDOMAIN),
         ]);
     }
+}
+
+/** YOOtheme calls this by name for the tool `target` field. */
+function resolve_tool_target(mixed $post): ?string
+{
+    $toolId = is_object($post) && isset($post->ID) ? (int) $post->ID : 0;
+    $url = $toolId > 0 ? ToolService::targetUrl($toolId) : '';
+
+    return $url !== '' ? $url : null;
 }
