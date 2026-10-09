@@ -135,12 +135,23 @@ final class SiteMetaService
             return $args;
         }
 
-        $ids = array_filter(array_map(
-            static fn (string $path): int => (int) get_page_by_path($path)?->ID,
-            self::NOT_IN_SITEMAP,
-        ));
+        $ids = [];
+        foreach (self::NOT_IN_SITEMAP as $path) {
+            $page = get_page_by_path($path);
+            if ($page) {
+                $ids = [...$ids, ...$this->withTranslations($page->ID)];
+            }
+        }
 
         return $ids === [] ? $args : array_merge($args, ['post__not_in' => $ids]);
+    }
+
+    /** @return list<int> */
+    private function withTranslations(int $id): array
+    {
+        $translations = function_exists('pll_get_post_translations') ? pll_get_post_translations($id) : [];
+
+        return array_values(array_unique(array_map('intval', [$id, ...array_values($translations)])));
     }
 
     /**
@@ -156,7 +167,7 @@ final class SiteMetaService
     public function printIconTags(): void
     {
         printf(
-            '<link rel="icon" href="%s" sizes="48x48">' . "\n"
+            '<link rel="icon" href="%s" sizes="16x16 32x32 48x48">' . "\n"
             . '<link rel="icon" type="image/png" href="%s" sizes="192x192">' . "\n"
             . '<link rel="manifest" href="%s">' . "\n"
             . '<meta name="theme-color" content="%s">' . "\n",

@@ -146,7 +146,10 @@ final class SiteMetaServiceTest extends TestCase
         $head = (string) ob_get_clean();
 
         $images = 'https://jos.test/content/themes/josworld/images';
-        $this->assertStringContainsString('<link rel="icon" href="' . $images . '/favicon.ico" sizes="48x48">', $head);
+        $this->assertStringContainsString(
+            '<link rel="icon" href="' . $images . '/favicon.ico" sizes="16x16 32x32 48x48">',
+            $head,
+        );
         $this->assertStringContainsString('href="' . $images . '/icon-192.png" sizes="192x192"', $head);
         $this->assertStringContainsString('<link rel="manifest" href="' . $images . '/site.webmanifest">', $head);
         $this->assertStringContainsString('<meta name="theme-color" content="#FFF794">', $head);
@@ -157,6 +160,18 @@ final class SiteMetaServiceTest extends TestCase
         $all = ['category' => 1, 'post_tag' => 1, 'domain' => 1, 'dienst' => 1, 'doelgroep' => 1];
 
         $this->assertSame(['domain', 'dienst'], array_keys($this->service()->sitemapTaxonomies($all)));
+    }
+
+    public function test_the_form_page_and_every_translation_of_it_stay_out_of_the_sitemap(): void
+    {
+        Functions\when('get_page_by_path')->justReturn((object) ['ID' => 5]);
+        Functions\when('pll_get_post_translations')->justReturn(['nl' => 5, 'en' => 9, 'fr' => 12]);
+
+        $args = $this->service()->leaveOutOfSitemap(['orderby' => 'ID'], 'page');
+
+        $this->assertSame([5, 9, 12], $args['post__not_in']);
+        $this->assertSame('ID', $args['orderby']);
+        $this->assertSame(['x' => 1], $this->service()->leaveOutOfSitemap(['x' => 1], 'case'));
     }
 
     public function test_the_icon_files_the_head_points_at_exist(): void
