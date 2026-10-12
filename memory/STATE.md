@@ -18,6 +18,18 @@
 - **Seen on staging (and likely production): a YOOtheme cookie banner in English** ("We use cookies … Accept / Reject / Manage Settings") on a cookieless site. Not yet decided.
 - Local DB tool posts have no file/url, so the download confirmation says "Dit bestand is nog niet beschikbaar" locally; staging/production tools carry the file/link — their delivery is still to be proven by a human.
 
+## Performance: the hero photo was the whole mobile LCP (2026-10-12, branch feature/hero-preload)
+
+- PageSpeed mobile 73 on jos.agency (LCP 5.9 s, FCP 2.4 s, TBT 0, CLS 0). Lighthouse (local run, `npx lighthouse@12`, Playwright's chromium via `CHROME_PATH`, mobile, simulated slow 4G) reproduced it:
+  the LCP element is the hero section's **UIkit background** (`data-sources` + `uk-img`) — the image itself loads in ~0.2 s but is only requested and painted after the
+  render-blocking `uikit.min.js` has run (load delay 4.5 s + render delay 0.9 s).
+- Also: a cold YOOtheme image cache makes the first visitor generate each resized image through PHP (`index.php?yootheme=cache/…`). After a deploy or an uploads copy, warm it (the
+  crawl at 5 viewports × all sitemap URLs took ~16 min; it is a Playwright loop with `sec-ch-ua` set to Google Chrome, because the host answers 429 to the HeadlessChrome client hint).
+- **`HeroImageService`** (josworld-core): an output-buffer filter that turns the first plain cover background in view (not fixed/parallax/blended) into a real `<picture>` under the section's
+  content (cover, same focal point, `fetchpriority=high`) plus a preload in the head with the same candidates. Only the first `data-sources` within 40 KB of the body, only on the front end.
+  Local Lighthouse mobile: 70 → 85 (LCP 6.4 → 4.1 s). Visual diff against the UIkit version on the home page at phone and desktop: identical apart from the typewriter animation frame.
+- Not done: deferring `uikit.min.js`/`uikit-icons.min.js`/`theme.js` (YOOtheme prints them in the head; ~450 ms render-blocking), a portrait crop for phones (the 3:1 hero forces a ~2000 px wide file on a phone), the English cookie banner.
+
 ## Matomo tracking needs a wpload_dir file (2026-10-12)
 
 - **`content/plugins/matomo.wpload_dir.php`** (outside the Matomo folder, so plugin updates keep it; plugins are not in git — create it by hand per environment):
