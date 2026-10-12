@@ -2,6 +2,22 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Tracking and CRM proven end to end on local; production set up (2026-10-12)
+
+- **Proven with real browser submissions on local** (test contacts/bookings deleted after): the footer newsletter → Matomo `Form|Submit|newsletter` + FluentCRM contact on `nieuwsbrief`
+  with tags `nieuwsbrief-optin`, `lang-nl`; the download form → `Form|Submit|download: <h1>` + contact on `leads`+`nieuwsbrief` with `tool-download`, `tool-<id>`, `lang-nl`;
+  a real FluentBooking booking → `Booking|Booked|sparmoment` + contact on `leads` with `afspraak`, `lang-nl` (the booking→CRM path was "configured but never exercised" until now).
+  Every event also becomes a Matomo goal conversion (checked: a Booking hit → `matomo_log_conversion` 0→1).
+- **Production CRM config matches the 2026-09-05 plan** (read-only check): lists Leads + Nieuwsbrief, 7 tags, feeds on forms 2/3/4 (two per lead form, the newsletter one conditional),
+  booking feed with `event_trigger: after_booking_scheduled`, sender `Jos <jos@jos.agency>`, `filtered_only` (only Nieuwsbrief public), wizard flag set, 0 contacts. **Open: FluentSMTP has no connection**
+  (nothing sends) and form 1 "Contact Form Demo" has no feed (unused).
+- **Matomo on production**: Auto, cookieless, `HeadlessChrome` excluded, IP anonymised, JS errors tracked, EUR/Europe-Brussels, 5 goals (Afspraak ingepland, Nieuwsbrief-inschrijving, Tool opgevraagd,
+  Stageaanvraag, Contactklik) — all from `scripts/once/2026-10-12-matomo-go-live.php apply`. A hit with a normal UA is recorded; the tracker needed `content/plugins/matomo.wpload_dir.php` (below).
+- **New theme events (branch feature/matomo-events, NOT deployed):** `Scroll|Depth|25/50/75/100%` and `CTA|Click|<button label> → <path>` in `src/analytics.js` (vitest + a real-browser check on local).
+  Needs the normal promote → staging → ship path (or a manual copy of `themes/josworld/dist` + `src` to production).
+- **Seen on staging (and likely production): a YOOtheme cookie banner in English** ("We use cookies … Accept / Reject / Manage Settings") on a cookieless site. Not yet decided.
+- Local DB tool posts have no file/url, so the download confirmation says "Dit bestand is nog niet beschikbaar" locally; staging/production tools carry the file/link — their delivery is still to be proven by a human.
+
 ## Matomo tracking needs a wpload_dir file (2026-10-12)
 
 - **`content/plugins/matomo.wpload_dir.php`** (outside the Matomo folder, so plugin updates keep it; plugins are not in git — create it by hand per environment):
