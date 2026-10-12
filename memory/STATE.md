@@ -2,6 +2,16 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Matomo tracking needs a wpload_dir file (2026-10-12)
+
+- **`content/plugins/matomo.wpload_dir.php`** (outside the Matomo folder, so plugin updates keep it; plugins are not in git — create it by hand per environment):
+  `<?php exit;` then a line with the absolute path of the folder holding `wp-load.php` (here the `wp/` folder: production `/data/sites/web/josagency/www/wp`).
+  Without it `matomo.php` (the tracker, and the archiving) answers "Could not find wp-load" because the content dir is `content/`, not `wp-content/`: pageviews
+  are **silently not recorded** while the tag looks fine. Proof on local: with the file a hit returns the GIF and `matomo_log_visit` grows; a HeadlessChrome UA is excluded.
+- **`scripts/once/2026-10-12-matomo-go-live.php [apply]`** (`wp --user=1 eval-file`): prints, then sets, the tracking mode (Auto), cookieless, the HeadlessChrome exclusion in the
+  plugin option AND Matomo's own global setting, IP anonymisation (2 bytes), site currency EUR and timezone Europe/Brussels (WP-Matomo owns the site record: the timezone is WordPress's
+  `timezone_string`, the currency the plugin setting). Do-Not-Track is left off (Stefan's call). Goals are Matomo UI work.
+
 ## Old-domain redirects (2026-10-12, branch feature/legacy-redirects)
 
 - `docs/Jos-redirectlijst-2026-10-12.xlsx` (282 old josworld.org URLs, tab Regels = the pattern rules) → `scripts/once/2026-10-12-redirects.py` generates
