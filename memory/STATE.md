@@ -2,6 +2,15 @@
 
 ## Current Phase: CPT singles are builder pages; models are their cards (2026-09-03); next: build the remaining singles in the builder from the library starters
 
+## Old-domain redirects (2026-10-12, branch feature/legacy-redirects)
+
+- `docs/Jos-redirectlijst-2026-10-12.xlsx` (282 old josworld.org URLs, tab Regels = the pattern rules) → `scripts/once/2026-10-12-redirects.py` generates
+  `josworld-core/config/legacy-redirects.php` (277 exact paths, 221 old WP-IDs); `LegacyRedirectService` applies the Regels in priority order at `init`, **only on the
+  hosts josworld.org / www.josworld.org**, 301 to fixed jos.agency addresses (nothing from the request ends up in Location). Unmatched = a real 404 (rule 110).
+  All 282 rows resolve exactly as the list says (checked by path and by WP-ID); `jos.agency` and staging are untouched.
+- **It only works when josworld.org is served by this site.** josworld.org resolves to 83.217.71.26 (the old server), jos.agency to 185.86.18.199. Either point
+  josworld.org (+ www) at this box and add it as a domain alias with TLS on the jos.agency site, or implement the list on the old server's own config.
+
 ## Production is built next to the live webroot (2026-10-10)
 
 - `jos.agency` still serves Combell's placeholder from `/data/sites/web/josagency/www`. The real site is in **`www-next`** (same box): staging's files,

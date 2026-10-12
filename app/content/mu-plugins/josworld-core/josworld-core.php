@@ -86,6 +86,7 @@ add_action('plugins_loaded', function (): void {
     require_once $dir . '/forms/CrmContactLanguageService.php';
     require_once $dir . '/forms/CrmDownloadedToolService.php';
     require_once $dir . '/site/SiteMetaService.php';
+    require_once $dir . '/site/LegacyRedirectService.php';
 
     // Forms: the tool download confirmation.
     require_once $dir . '/forms/DownloadFormService.php';
@@ -119,6 +120,7 @@ add_action('plugins_loaded', function (): void {
         // josworld's values for ntdst-baseline and the front-end tidying; must be attached
         // before baseline boots its modules (both hang on after_setup_theme:5).
         ntdst_get(\josworld\services\site\SiteMetaService::class);
+        ntdst_get(\josworld\services\site\LegacyRedirectService::class);
 
         // The download form's confirmation runs on a front-end submission.
         ntdst_get(\josworld\services\forms\DownloadFormService::class);
