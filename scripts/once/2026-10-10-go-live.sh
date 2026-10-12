@@ -25,11 +25,10 @@ prepare() {
 
   echo "== code and uploads: staging -> www-next (the .env, the Matomo config and the mail block stay)"
   rsync -a --delete \
-    --exclude=/content/uploads/matomo/config --exclude=/content/uploads/matomo/tmp \
-    --exclude=/content/cache --exclude=/content/debug.log --exclude=/content/logs \
-    --exclude=/content/upgrade --exclude=/content/upgrade-temp-backup \
-    --exclude=/.env --exclude=00-block-outgoing-mail.php --exclude='/yoo-*backup*' \
-    --exclude=/content/uploads/matomo/misc \
+    --exclude=/uploads/matomo/config --exclude=/uploads/matomo/tmp \
+    --exclude=/cache --exclude=/debug.log --exclude=/logs \
+    --exclude=/upgrade --exclude=/upgrade-temp-backup \
+    --exclude=00-block-outgoing-mail.php \
     "$S"/content/ "$N"/content/
   rsync -a "$S"/composer.json "$S"/composer.lock "$N"/
 

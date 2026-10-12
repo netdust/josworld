@@ -11,7 +11,8 @@
  *  - the site record: timezone and currency are the defaults (UTC, USD); the site is Belgian (Europe/Brussels, EUR). The
  *    timezone is WordPress's own setting, so the site's dates follow it too;
  *  - headless browsers (the smoke check) are excluded from the reports, in the plugin option AND in Matomo's own setting;
- *  - IP anonymisation (2 bytes) is switched on explicitly rather than left to a default.
+ *  - IP anonymisation (2 bytes) is switched on explicitly rather than left to a default;
+ *  - JavaScript errors on the site are reported as events, and the goals below exist (the events of src/analytics.js).
  * Idempotent. Not touched: goals (they live in Matomo's UI), Do-Not-Track (a choice for Stefan, off by default).
  */
 \WpMatomo\Bootstrap::do_bootstrap();
@@ -22,6 +23,15 @@ use Piwik\Plugins\SitesManager\API as SitesApi;
 
 const SITE_ID = 1;
 const USER_AGENTS = ['HeadlessChrome'];
+
+/** The events theme src/analytics.js sends (Category | Action | Name), as goals: name => [attribute, pattern, type]. */
+const GOALS = [
+    'Afspraak ingepland' => ['event_category', 'Booking', 'exact'],
+    'Nieuwsbrief-inschrijving' => ['event_name', 'newsletter', 'exact'],
+    'Tool opgevraagd' => ['event_name', 'download', 'contains'],
+    'Stageaanvraag' => ['event_name', 'stage', 'exact'],
+    'Contactklik (mail of telefoon)' => ['event_category', 'Contact', 'exact'],
+];
 
 $settings = new \WpMatomo\Settings();
 $asSuperUser = static fn (callable $do): mixed => Access::doAsSuperUser($do);
@@ -40,6 +50,11 @@ function state(\WpMatomo\Settings $settings, callable $asSuperUser): void
     $privacy = new PrivacyConfig();
     $line('ip anonymiser / mask bytes', [$privacy->ipAnonymizerEnabled, $privacy->ipAddressMaskLength]);
     $line('do-not-track respected', $privacy->doNotTrackEnabled);
+    $line('javascript errors tracked', $settings->get_global_option('track_jserrors'));
+    $line('goals', array_map(
+        static fn (array $goal): string => $goal['name'] . ' (' . $goal['match_attribute'] . ' ' . $goal['pattern_type'] . ' ' . $goal['pattern'] . ')',
+        array_values($asSuperUser(static fn () => \Piwik\Plugins\Goals\API::getInstance()->getGoals(SITE_ID)))
+    ));
     $line('archive cron scheduled', wp_next_scheduled('matomo_scheduled_archive') ? 'yes' : 'NO');
 }
 
@@ -50,7 +65,7 @@ if (($args[0] ?? '') !== 'apply') {
     exit("\nnothing changed (add `apply` to set it)\n");
 }
 
-$settings->apply_tracking_related_changes(['track_mode' => 'default', 'disable_cookies' => true]);
+$settings->apply_tracking_related_changes(['track_mode' => 'default', 'disable_cookies' => true, 'track_jserrors' => true]);
 
 $asSuperUser(static function () use ($settings): void {
     $settings->set_global_user_agent_exclusions(
@@ -68,6 +83,16 @@ $asSuperUser(static function (): void {
 update_option('timezone_string', 'Europe/Brussels');
 $settings->set_global_option(\WpMatomo\Settings::SITE_CURRENCY, 'EUR');
 (new \WpMatomo\Site\Sync($settings))->sync_current_site();
+
+$asSuperUser(static function (): void {
+    $api = \Piwik\Plugins\Goals\API::getInstance();
+    $existing = array_column($api->getGoals(SITE_ID), 'name');
+    foreach (GOALS as $name => [$attribute, $pattern, $type]) {
+        if (! in_array($name, $existing, true)) {
+            $api->addGoal(SITE_ID, $name, $attribute, $pattern, $type, false, 0, false);
+        }
+    }
+});
 
 $privacy = new PrivacyConfig();
 $privacy->ipAnonymizerEnabled = true;
