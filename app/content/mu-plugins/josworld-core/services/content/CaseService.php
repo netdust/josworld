@@ -408,12 +408,9 @@ function resolve_case_labels(mixed $post): ?string
     $diensten = $postId > 0 ? get_the_terms($postId, 'dienst') : false;
     $html = '';
 
-    if (is_array($domain) && $domain !== []) {
-        $html .= sprintf(
-            '<a rel="tag" href="%s">%s</a>',
-            esc_url((string) get_term_link($domain[0])),
-            esc_html($domain[0]->name)
-        );
+    $domainLink = is_array($domain) && $domain !== [] ? get_term_link($domain[0]) : null;
+    if (is_string($domainLink)) {
+        $html .= sprintf('<a rel="tag" href="%s">%s</a>', esc_url($domainLink), esc_html($domain[0]->name));
     }
 
     if (is_array($diensten) && $diensten !== []) {

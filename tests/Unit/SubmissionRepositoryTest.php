@@ -141,7 +141,8 @@ final class SubmissionRepositoryTest extends TestCase
         $url = (new SubmissionRepository())->latest()[0]['url'];
 
         $this->assertStringContainsString('route=entries&form_id=3#/entries/27', $url, 'form_id=0 is "No form found"');
-        $this->assertStringContainsString('form_id', (string) $this->wpdb->preparedSql);
+        $selected = (string) preg_replace('/\s+FROM\b.*$/s', '', (string) $this->wpdb->preparedSql);
+        $this->assertStringContainsString('s.form_id', $selected, 'the query must hand back each entry\'s own form id');
     }
 
     public function test_it_returns_at_most_the_limit_newest_first(): void

@@ -48,7 +48,7 @@ final class SiteMetaService
 
         add_filter('wp_sitemaps_posts_query_args', [$this, 'leaveOutOfSitemap'], 10, 2);
         add_filter('wp_sitemaps_taxonomies', [$this, 'sitemapTaxonomies']);
-        add_action('wp_head', [$this, 'printIconTags'], 3);
+        add_filter('ntdst/baseline/seo/meta', [$this, 'iconTags']);
 
         add_filter('ntdst/baseline/schema/config', [$this, 'schemaConfig']);
         add_filter('ntdst/baseline/seo/config', [$this, 'seoConfig']);
@@ -164,17 +164,20 @@ final class SiteMetaService
         return array_intersect_key($taxonomies, array_flip(self::SITEMAP_TAXONOMIES));
     }
 
-    /** Baseline's site_icon prints the PNG sizes; the .ico, the manifest and the colour are ours. */
-    public function printIconTags(): void
+    /**
+     * Baseline's site_icon prints the PNG sizes; the .ico, the manifest and the colour join its own head tags.
+     *
+     * @param list<string> $tags
+     * @return list<string>
+     */
+    public function iconTags(array $tags): array
     {
-        printf(
-            '<link rel="icon" href="%s" sizes="16x16 32x32 48x48">' . "\n"
-            . '<link rel="manifest" href="%s">' . "\n"
-            . '<meta name="theme-color" content="%s">' . "\n",
-            esc_url($this->imageUrl('favicon.ico')),
-            esc_url($this->imageUrl('site.webmanifest')),
-            esc_attr(self::THEME_COLOR),
-        );
+        return [
+            ...$tags,
+            '<link rel="icon" href="' . esc_url($this->imageUrl('favicon.ico')) . '" sizes="16x16 32x32 48x48">',
+            '<link rel="manifest" href="' . esc_url($this->imageUrl('site.webmanifest')) . '">',
+            '<meta name="theme-color" content="' . esc_attr(self::THEME_COLOR) . '">',
+        ];
     }
 
     /**

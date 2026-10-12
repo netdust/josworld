@@ -40,6 +40,7 @@ final class SiteMetaServiceTest extends TestCase
             'body_class',
             'wp_sitemaps_posts_query_args',
             'wp_sitemaps_taxonomies',
+            'ntdst/baseline/seo/meta',
             'ntdst/baseline/schema/config',
             'ntdst/baseline/seo/config',
             'ntdst/baseline/head_cleanup/config',
@@ -48,7 +49,7 @@ final class SiteMetaServiceTest extends TestCase
         foreach ($filters as $hook) {
             Filters\expectAdded($hook)->once();
         }
-        foreach (['wp_default_scripts', 'init', 'wp_head'] as $hook) {
+        foreach (['wp_default_scripts', 'init'] as $hook) {
             Actions\expectAdded($hook)->once();
         }
 
@@ -137,22 +138,23 @@ final class SiteMetaServiceTest extends TestCase
         $this->assertSame('https://jos.test/content/themes/josworld/images/icon', $config['site_icon']);
     }
 
-    public function test_the_head_carries_the_ico_the_manifest_and_the_theme_colour(): void
+    public function test_the_ico_the_manifest_and_the_theme_colour_join_baselines_head_tags(): void
     {
         Functions\when('esc_url')->returnArg();
         Functions\when('esc_attr')->returnArg();
 
-        ob_start();
-        $this->service()->printIconTags();
-        $head = (string) ob_get_clean();
+        $tags = $this->service()->iconTags(['<meta name="description" content="x">']);
 
         $images = 'https://jos.test/content/themes/josworld/images';
-        $this->assertStringContainsString(
-            '<link rel="icon" href="' . $images . '/favicon.ico" sizes="16x16 32x32 48x48">',
-            $head,
+        $this->assertSame('<meta name="description" content="x">', $tags[0], 'baseline\'s own tags stay first');
+        $this->assertSame(
+            [
+                '<link rel="icon" href="' . $images . '/favicon.ico" sizes="16x16 32x32 48x48">',
+                '<link rel="manifest" href="' . $images . '/site.webmanifest">',
+                '<meta name="theme-color" content="#FFF794">',
+            ],
+            array_slice($tags, 1),
         );
-        $this->assertStringContainsString('<link rel="manifest" href="' . $images . '/site.webmanifest">', $head);
-        $this->assertStringContainsString('<meta name="theme-color" content="#FFF794">', $head);
     }
 
     public function test_the_sitemap_lists_domains_and_diensten_only(): void

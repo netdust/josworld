@@ -134,6 +134,37 @@ final class HeroImageServiceTest extends TestCase
         $this->assertStringNotContainsString('onload="y"', $html);
     }
 
+    public function test_a_hero_only_some_screens_show_is_skipped_for_the_next_one(): void
+    {
+        $desktopOnly = $this->hero('uk-background-cover uk-section uk-visible@m', self::SOURCES);
+        $everyScreen = str_replace('hero-', 'phone-', $this->hero(self::CLASSES));
+
+        $html = HeroImageService::withHeroImage($this->page($desktopOnly . '</div>' . $everyScreen . '</div>'));
+
+        $this->assertStringContainsString('data-sources', $desktopOnly);
+        $this->assertSame(1, substr_count($html, '<picture>'));
+        $this->assertSame(1, substr_count($html, 'class="uk-background-cover uk-section uk-visible@m" data-sources='), 'left to UIkit');
+        $this->assertStringContainsString('rel="preload"', $html);
+    }
+
+    public function test_only_a_section_background_is_swapped_not_an_image_in_a_dropdown(): void
+    {
+        $page = $this->page($this->hero('uk-background-cover uk-navbar-dropdown') . '</div>');
+
+        $this->assertSame($page, HeroImageService::withHeroImage($page));
+    }
+
+    public function test_a_style_that_already_holds_an_entity_is_not_escaped_twice(): void
+    {
+        $tag = '<div class="' . self::CLASSES . '" data-sources="' . htmlspecialchars(self::SOURCES, ENT_QUOTES)
+            . '" data-src="/h.jpg" uk-img style="background-image: url(&quot;x.png&quot;); min-height: 65vh">';
+
+        $html = HeroImageService::withHeroImage($this->page($tag . '</div>'));
+
+        $this->assertStringContainsString('style="background-image: url(&quot;x.png&quot;); min-height: 65vh;position:relative', $html);
+        $this->assertStringNotContainsString('&amp;quot;', $html);
+    }
+
     public function test_only_the_first_hero_is_swapped(): void
     {
         $html = HeroImageService::withHeroImage($this->page($this->hero() . '</div>' . $this->hero() . '</div>'));

@@ -59,7 +59,10 @@ $stored = get_option('yootheme');
 $isJson = is_string($stored);
 $option = $isJson ? json_decode($stored, true) : $stored;
 if (is_array($option)) {
-    $dir = is_writable('/data/sites/web/josagency/tmp/backups') ? '/data/sites/web/josagency/tmp/backups' : sys_get_temp_dir();
+    $dir = '/data/sites/web/josagency/tmp/backups';
+    if (! is_writable($dir)) {
+        exit("$dir is not writable: the backup holds the YOOtheme key and must not land in a temp folder.\n");
+    }
     $backup = $dir . '/yootheme-option-' . date('Ymd-His') . '.json';
     file_put_contents($backup, $isJson ? $stored : wp_json_encode($option));
 

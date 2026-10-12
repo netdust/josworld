@@ -8,7 +8,8 @@
  * hands the visitor there. The slug is looked up in the folder's file list, never turned into a path, so
  * nothing outside `tools/*.html` can be served. The pages are `noindex`: the form is the way in.
  *
- * The route is a rewrite rule: run `wp rewrite flush --hard` once per environment after the deploy.
+ * The route is ntdst-core's page router: it flushes the rewrite rules itself when its rule set changes, so a deploy
+ * needs no hand-run flush.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -21,18 +22,14 @@ defined('ABSPATH') || exit;
 
 final class ToolAppService
 {
-    public const QUERY_VAR = 'jw_tool_app';
-
     public function __construct()
     {
-        add_action('init', [$this, 'addRoute']);
-        add_filter('query_vars', static fn (array $vars): array => [...$vars, self::QUERY_VAR]);
-        add_action('template_redirect', [$this, 'serve']);
+        add_action('init', [$this, 'register']);
     }
 
-    public function addRoute(): void
+    public function register(): void
     {
-        add_rewrite_rule('^tool-app/([a-z0-9-]+)/?$', 'index.php?' . self::QUERY_VAR . '=$matches[1]', 'top');
+        ntdst_pages()->path('/tool-app/:slug', [$this, 'serve']);
     }
 
     /** Where a link-kind tool points. */
@@ -49,28 +46,26 @@ final class ToolAppService
         return is_string($html) ? $html : null;
     }
 
-    public function serve(): void
+    /**
+     * The page route's callback: the page itself, or false for WordPress's own 404.
+     *
+     * @param array<string, string> $params
+     */
+    public function serve(array $params): ?bool
     {
-        $slug = (string) get_query_var(self::QUERY_VAR);
-        if ($slug === '') {
-            return;
-        }
-
-        $html = $this->render($slug);
+        $html = $this->render($params['slug'] ?? '');
         if ($html === null) {
-            global $wp_query;
-            $wp_query->set_404();
-            status_header(404);
-            nocache_headers();
-
-            return;
+            return false;
         }
 
-        header('Content-Type: text/html; charset=utf-8');
-        header('X-Robots-Tag: noindex');
-        header('Cache-Control: public, max-age=3600');
+        if (! headers_sent()) {
+            header('Content-Type: text/html; charset=utf-8');
+            header('X-Robots-Tag: noindex');
+            header('Cache-Control: public, max-age=3600');
+        }
         echo $html; // phpcs:ignore WordPress.Security.EscapeOutput -- a theme file, not user input
-        exit;
+
+        return null;
     }
 
     /** @return list<string> the tool apps that exist */

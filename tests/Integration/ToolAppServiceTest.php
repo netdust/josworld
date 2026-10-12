@@ -10,7 +10,7 @@ use WP_UnitTestCase;
 /**
  * The interactive tools (campagnestart, faire-aanbestedingsscan) are standalone pages in the theme's
  * tools/ folder, served at /tool-app/<slug>/. Only a file that exists there can be served: the slug is
- * a whitelist lookup, never a path.
+ * a whitelist lookup, never a path. The route is ntdst-core's page router.
  */
 final class ToolAppServiceTest extends WP_UnitTestCase
 {
@@ -24,7 +24,7 @@ final class ToolAppServiceTest extends WP_UnitTestCase
         parent::setUp();
 
         $this->set_permalink_structure('/%postname%/');
-        $this->service()->addRoute();
+        $this->service()->register();
         flush_rewrite_rules();
     }
 
@@ -34,7 +34,21 @@ final class ToolAppServiceTest extends WP_UnitTestCase
 
         $this->go_to(home_url('/tool-app/faire-aanbestedingsscan/'));
 
-        $this->assertSame('faire-aanbestedingsscan', get_query_var(ToolAppService::QUERY_VAR));
+        $claimed = (string) get_query_var('ntdst_page');
+        $this->assertMatchesRegularExpression('/^\d+$/', $claimed, 'the page router claims the URL');
+        $this->assertSame('faire-aanbestedingsscan', get_query_var('ntdst_p_slug'));
+    }
+
+    public function test_a_known_tool_is_served_and_an_unknown_one_is_a_404(): void
+    {
+        ob_start();
+        $served = $this->service()->serve(['slug' => 'campagnestart']);
+        $page = (string) ob_get_clean();
+
+        $this->assertNull($served, 'null: the callback answered, the router ends the request');
+        $this->assertStringContainsString('Zet de basis voor je campagne', $page);
+        $this->assertFalse($this->service()->serve(['slug' => 'bestaat-niet']), 'false is the router\'s own 404');
+        $this->assertFalse($this->service()->serve([]));
     }
 
     public function test_a_tool_page_is_the_themed_page_not_a_wordpress_template(): void
@@ -66,15 +80,5 @@ final class ToolAppServiceTest extends WP_UnitTestCase
             'uppercase' => ['CAMPAGNESTART'],
             'with extension' => ['campagnestart.html'],
         ];
-    }
-
-    public function test_the_route_rewrites_only_simple_slugs(): void
-    {
-        $rules = get_option('rewrite_rules');
-        $pattern = array_search('index.php?' . ToolAppService::QUERY_VAR . '=$matches[1]', $rules, true);
-
-        $this->assertNotFalse($pattern);
-        $this->assertSame(1, preg_match('#' . $pattern . '#', 'tool-app/campagnestart/'));
-        $this->assertSame(0, preg_match('#' . $pattern . '#', 'tool-app/../x/'));
     }
 }

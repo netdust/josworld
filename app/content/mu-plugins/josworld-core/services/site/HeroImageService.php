@@ -24,8 +24,8 @@ final class HeroImageService
     /** Bytes of body markup counted as "in view": further down, an eager image would only take bandwidth. */
     private const ABOVE_THE_FOLD = 40000;
 
-    /** Backgrounds that need UIkit to move or blend them. */
-    private const NEEDS_UIKIT = '/uk-background-(?:fixed|contain|blend)|uk-blend|uk-parallax'
+    /** Backgrounds that need UIkit to move or blend them, and ones only some screens show (one preload fits one). */
+    private const NEEDS_UIKIT = '/uk-background-(?:fixed|contain|blend)|uk-blend|uk-parallax|uk-(?:hidden|visible)@'
         . '|uk-background-(?:\w+-)?(?:repeat|attachment)/';
 
     public function __construct()
@@ -51,21 +51,31 @@ final class HeroImageService
             return $html;
         }
 
-        $window = substr($html, $body, self::ABOVE_THE_FOLD);
-        if (preg_match('/<div\b[^>]*\sdata-sources="[^"]*"[^>]*>/', $window, $found, PREG_OFFSET_CAPTURE) !== 1) {
-            return $html;
-        }
-
-        [$tag, $offset] = $found[0];
-        $replacement = self::replacement($tag);
         $head = stripos($html, '</head>');
-        if ($replacement === null || $head === false || $head > $body) {
+        $window = substr($html, $body, self::ABOVE_THE_FOLD);
+        $hero = $head === false || $head > $body ? null : self::firstSwappable($window);
+        if ($hero === null) {
             return $html;
         }
 
-        $html = substr_replace($html, $replacement['markup'], $body + $offset, strlen($tag));
+        $html = substr_replace($html, $hero['markup'], $body + $hero['offset'], $hero['length']);
 
-        return substr($html, 0, $head) . $replacement['preload'] . substr($html, $head);
+        return substr($html, 0, $head) . $hero['preload'] . substr($html, $head);
+    }
+
+    /** @return array{offset: int, length: int, markup: string, preload: string}|null */
+    private static function firstSwappable(string $window): ?array
+    {
+        preg_match_all('/<div\b[^>]*\sdata-sources="[^"]*"[^>]*>/', $window, $found, PREG_OFFSET_CAPTURE);
+
+        foreach ($found[0] as [$tag, $offset]) {
+            $replacement = self::replacement($tag);
+            if ($replacement !== null) {
+                return ['offset' => $offset, 'length' => strlen($tag)] + $replacement;
+            }
+        }
+
+        return null;
     }
 
     /** @return array{markup: string, preload: string}|null */
@@ -76,7 +86,8 @@ final class HeroImageService
         $fallback = self::decode(self::attribute($tag, 'data-src'));
 
         if (
-            ! str_contains($class, 'uk-background-cover') || preg_match(self::NEEDS_UIKIT, $class) === 1
+            ! str_contains($class, 'uk-section') || ! str_contains($class, 'uk-background-cover')
+            || preg_match(self::NEEDS_UIKIT, $class) === 1
             || ! is_array($sources) || $sources === [] || $fallback === ''
         ) {
             return null;
@@ -100,7 +111,7 @@ final class HeroImageService
                 . ' fetchpriority="high">' . "\n";
         }
 
-        $style = trim(self::attribute($tag, 'style') ?? '', "; \t")
+        $style = trim(self::decode(self::attribute($tag, 'style')), "; \t")
             . ';position:relative;isolation:isolate;overflow:hidden';
         $opening = preg_replace('/\s(?:data-sources|data-src|loading|style|uk-img)(?:="[^"]*")?/', '', $tag) ?? $tag;
         $opening = substr($opening, 0, -1) . ' style="' . self::escape(ltrim($style, ';')) . '">';

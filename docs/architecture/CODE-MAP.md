@@ -52,7 +52,7 @@ trusted, so only what a session must not re-derive lands here.
   every French and English contact is silently tagged Dutch.
 - **FluentCRM and Polylang are both gitignored**, so "neither is installed" is the
   default state of a fresh clone. Every call out of `CrmContactLanguageService` is
-  guarded for that reason — it is the last josworld-owned code that touches Polylang.
+  guarded for that reason — with `SiteMetaService`'s sitemap rule (it also lists a page's translations through `pll_get_post_translations`) it is one of two josworld-owned places that touch Polylang.
   The multilingual layer itself is ntdst-baseline's `polylang` module (opted into in
   `josworld-core.php`), which carries the same absence contract in the package.
 
