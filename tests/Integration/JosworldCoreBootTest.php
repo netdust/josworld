@@ -207,6 +207,9 @@ final class JosworldCoreBootTest extends WP_UnitTestCase
             function add_action(string \$hook, callable \$cb, int \$priority = 10): void {
                 \$GLOBALS['__hooks'][\$hook][\$priority][] = \$cb;
             }
+            function add_filter(string \$hook, callable \$cb, int \$priority = 10): void {
+                add_action(\$hook, \$cb, \$priority);
+            }
             function do_action(string \$hook): void {
                 if (!isset(\$GLOBALS['__hooks'][\$hook])) {
                     return;

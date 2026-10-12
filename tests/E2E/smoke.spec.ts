@@ -57,20 +57,19 @@ test.describe('smoke', () => {
     await expect(page.getByText('Seeded by bin/e2e.sh via wp-cli.')).toBeVisible();
   });
 
-  test('a team single 301s to the team archive', async ({ request }) => {
-    // TeamService::closeSingleView() — the ONLY automated cover for the
-    // 301 (review finding I1 on the 5.0 migration): the redirect fires
-    // inside a template filter and exits, so the integration tier cannot
-    // observe it; only the real wire can. The slug comes from WP's own
-    // REST collection (team is show_in_rest), so the spec carries no
-    // seeded-name coupling (I6).
+  test('a team single answers 200 as a builder page', async ({ request }) => {
+    // T02 (specs/cpt-builder-singles): the single is now a public builder
+    // page, not a 301 to the archive — the ONLY automated cover for this
+    // on the real wire, since a redirect inside a template filter exits
+    // and the integration tier cannot observe it either way. The slug
+    // comes from WP's own REST collection (team is show_in_rest), so the
+    // spec carries no seeded-name coupling (I6).
     const collection = await request.get('/wp-json/wp/v2/team?per_page=1');
     expect(collection.ok()).toBeTruthy();
     const [member] = await collection.json();
     expect(member, 'a published team member must exist in the DDEV DB').toBeDefined();
 
     const single = await request.get(`/team/${member.slug}/`, { maxRedirects: 0 });
-    expect(single.status()).toBe(301);
-    expect(new URL(single.headers()['location']).pathname).toBe('/team/');
+    expect(single.status()).toBe(200);
   });
 });

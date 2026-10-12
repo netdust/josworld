@@ -156,4 +156,42 @@ final class AdminUIServiceEnqueueTest extends WP_UnitTestCase
         wp_dequeue_script('josworld-metabox-conditional');
         wp_deregister_script('josworld-metabox-conditional');
     }
+
+    public function test_the_case_screen_gets_the_term_limits_script_and_other_screens_do_not(): void
+    {
+        set_current_screen('case');
+        (new AdminUIService())->enqueueConditionalFieldScripts('post.php');
+
+        $this->assertTrue(wp_script_is('josworld-case-term-limits', 'enqueued'));
+        global $wp_scripts;
+        $limits = (string) $wp_scripts->get_data('josworld-case-term-limits', 'data');
+        $this->assertStringContainsString('"domain":"1"', $limits);
+        $this->assertStringContainsString('"dienst":"3"', $limits);
+        $this->assertStringContainsString('"doelgroep":"1"', $limits);
+        $deps = $wp_scripts->registered['josworld-case-term-limits']->deps;
+        $this->assertContains('wp-data', $deps, 'the block editor store');
+        wp_dequeue_script('josworld-case-term-limits');
+        wp_deregister_script('josworld-case-term-limits');
+
+        set_current_screen('team');
+        (new AdminUIService())->enqueueConditionalFieldScripts('post.php');
+
+        $this->assertFalse(wp_script_is('josworld-case-term-limits', 'enqueued'));
+    }
+
+    public function test_the_scripts_are_versioned_by_their_file_so_a_deploy_busts_the_cache(): void
+    {
+        set_current_screen('case');
+        (new AdminUIService())->enqueueConditionalFieldScripts('post.php');
+
+        global $wp_scripts;
+        $dir = dirname(__DIR__, 2) . '/app/content/mu-plugins/josworld-core/assets/js/';
+        $scripts = [
+            'josworld-metabox-conditional' => 'metabox-conditional.js',
+            'josworld-case-term-limits' => 'case-term-limits.js',
+        ];
+        foreach ($scripts as $handle => $file) {
+            $this->assertSame((string) filemtime($dir . $file), $wp_scripts->registered[$handle]->ver, $handle);
+        }
+    }
 }

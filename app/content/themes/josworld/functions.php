@@ -42,16 +42,6 @@ if (class_exists('NTDST_Bootstrap')) {
 if (class_exists('NTDST_Theme')) {
     require_once __DIR__ . '/services/frontend/hooks/ViteAssets.php';
 
-    // The YOOtheme dynamic-content bridge. Required explicitly (no
-    // autoloader); `ntdst-cached-meta-accessor.php` is deliberately NOT
-    // required here — FieldResolver requires it lazily so Brain Monkey can
-    // intercept it at the unit tier.
-    require_once __DIR__ . '/services/yootheme/SchemaMapper.php';
-    require_once __DIR__ . '/services/yootheme/FieldResolver.php';
-    require_once __DIR__ . '/services/yootheme/YOOthemeSourcesService.php';
-
-    $josworld_yootheme_sources = new \josworld\services\yootheme\YOOthemeSourcesService();
-
     // Theme setup (title-tag, html5, custom-logo, menus, image sizes,
     // sidebars, excerpt, content width) is driven by theme-config.php.
     $theme = new NTDST_Theme([
@@ -85,18 +75,7 @@ if (class_exists('NTDST_Theme')) {
                 ['yootheme'],
                 file_exists($child_css) ? (string) filemtime($child_css) : JOSWORLD_VERSION,
             );
-        }, 20)
-        // ORDERING CONTRACT (fails SILENTLY if broken): `collect` listens
-        // for `ntdst/model/registered`, which josworld-core fires on
-        // `after_setup_theme` @5. This file runs at top level BEFORE that
-        // hook fires, so attaching here is provably in time; attaching from
-        // bootCore()/bootFeatures() is a race / too late, and the only
-        // symptom is an empty dynamic-content picker. Contract test:
-        // tests/Integration/YOOthemeSourcesBootWiringTest.php.
-        ->on('ntdst/model/registered', [$josworld_yootheme_sources, 'collect'], 10, 2)
-        // On `init` so YOOtheme has declared `YOOtheme\app` by the time
-        // register()'s own guard runs; safe without the licensed parent.
-        ->on('init', [$josworld_yootheme_sources, 'register']);
+        }, 20);
 
     // The Vite pipeline (manifest/dev-server fork + inline config) —
     // runtime-conditional, so a hook class rather than static ->script()

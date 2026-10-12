@@ -1,0 +1,211 @@
+<?php
+
+/**
+ * SiteMetaService — josworld's own values for the ntdst-baseline modules, and the front-end
+ * tidying baseline leaves to the site. Baseline is shared and holds no site value; every fact
+ * here is one the business publishes on its own site.
+ *
+ * phpcs:disable PSR1.Files.SideEffects
+ */
+
+declare(strict_types=1);
+
+namespace josworld\services\site;
+
+defined('ABSPATH') || exit;
+
+final class SiteMetaService
+{
+    private const NAME = 'Jos';
+
+    private const BASELINE = 'We brengen je dichter bij de mensen.';
+
+    private const PROFILES = [
+        'https://www.facebook.com/josworldbrussels/',
+        'https://www.instagram.com/josworld.agency/',
+    ];
+
+    /** Only these ask to be indexed; staging and every local copy must not compete with them. */
+    private const INDEXABLE_HOSTS = ['jos.agency', 'www.jos.agency'];
+
+    /** Reachable and fine to open, but not a page to land on from a search result. */
+    private const NOT_IN_SITEMAP = ['stageformulier'];
+
+    private const SITEMAP_TAXONOMIES = ['domain', 'dienst'];
+
+    private const THEME_COLOR = '#FFF794';
+
+    private const BODY_CLASS_NOISE = '/^(wp-singular|wp-embed-responsive|wp-theme-.+|wp-child-theme-.+|page-id-\d+'
+        . '|postid-\d+|parent-pageid-\d+|page-template.*|single-format-.+|page-parent|page-child)$/';
+
+    public function __construct()
+    {
+        add_filter('pre_option_blog_public', [$this, 'filterBlogPublic']);
+        add_filter('body_class', [$this, 'cleanBodyClasses']);
+        add_action('wp_default_scripts', [$this, 'dropJqueryMigrate']);
+        // The page's excerpt is its meta description: baseline reads it before the content.
+        add_action('init', static fn () => add_post_type_support('page', 'excerpt'));
+
+        add_filter('wp_sitemaps_posts_query_args', [$this, 'leaveOutOfSitemap'], 10, 2);
+        add_filter('wp_sitemaps_taxonomies', [$this, 'sitemapTaxonomies']);
+        add_filter('ntdst/baseline/seo/meta', [$this, 'iconTags']);
+
+        add_filter('ntdst/baseline/schema/config', [$this, 'schemaConfig']);
+        add_filter('ntdst/baseline/seo/config', [$this, 'seoConfig']);
+        add_filter('ntdst/baseline/head_cleanup/config', [$this, 'headCleanupConfig']);
+    }
+
+    /**
+     * Read from home_url, the site's own configured address, not the request's Host header.
+     *
+     * @param mixed $pre the option's stored value passes through on production
+     * @return mixed
+     */
+    public function filterBlogPublic($pre)
+    {
+        $host = (string) wp_parse_url(home_url(), PHP_URL_HOST);
+
+        return $this->isIndexableHost($host) ? $pre : '0';
+    }
+
+    public function isIndexableHost(string $host): bool
+    {
+        return in_array(strtolower($host), self::INDEXABLE_HOSTS, true);
+    }
+
+    /**
+     * @param list<string> $classes
+     * @return list<string>
+     */
+    public function cleanBodyClasses(array $classes): array
+    {
+        return array_values(array_filter(
+            $classes,
+            static fn (string $class): bool => preg_match(self::BODY_CLASS_NOISE, $class) !== 1,
+        ));
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    public function schemaConfig(array $config): array
+    {
+        return array_merge($config, [
+            'type'            => 'localbusiness',
+            'name'            => self::NAME,
+            'description'     => self::BASELINE,
+            'logo'            => $this->imageUrl('logo.png'),
+            'social_profiles' => self::PROFILES,
+            'business'        => [
+                'type'      => 'ProfessionalService',
+                'telephone' => '+32 2 411 20 54',
+                'email'     => 'jos@jos.agency',
+                'address'   => [
+                    'street'      => 'Lakensestraat 99',
+                    'city'        => 'Brussel',
+                    'region'      => 'Brussel-Hoofdstad',
+                    'postal_code' => '1000',
+                    'country'     => 'BE',
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    public function seoConfig(array $config): array
+    {
+        return array_merge($config, [
+            'og_image_fallback'      => $this->imageUrl('og-default.png'),
+            'og_image_fallback_size' => [1200, 630],
+            'og_image_crop'          => ['width' => 1200, 'height' => 630],
+            'site_icon'              => $this->imageUrl('icon'),
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $args
+     * @return array<string, mixed>
+     */
+    public function leaveOutOfSitemap(array $args, string $postType): array
+    {
+        if ($postType !== 'page') {
+            return $args;
+        }
+
+        $ids = [];
+        foreach (self::NOT_IN_SITEMAP as $path) {
+            $page = get_page_by_path($path);
+            if ($page) {
+                $ids = [...$ids, ...$this->withTranslations($page->ID)];
+            }
+        }
+
+        return $ids === [] ? $args : array_merge($args, ['post__not_in' => $ids]);
+    }
+
+    /** @return list<int> */
+    private function withTranslations(int $id): array
+    {
+        $translations = function_exists('pll_get_post_translations') ? pll_get_post_translations($id) : [];
+
+        return array_values(array_unique(array_map('intval', [$id, ...array_values($translations)])));
+    }
+
+    /**
+     * @param array<string, mixed> $taxonomies
+     * @return array<string, mixed>
+     */
+    public function sitemapTaxonomies(array $taxonomies): array
+    {
+        return array_intersect_key($taxonomies, array_flip(self::SITEMAP_TAXONOMIES));
+    }
+
+    /**
+     * Baseline's site_icon prints the PNG sizes; the .ico, the manifest and the colour join its own head tags.
+     *
+     * @param list<string> $tags
+     * @return list<string>
+     */
+    public function iconTags(array $tags): array
+    {
+        return [
+            ...$tags,
+            '<link rel="icon" href="' . esc_url($this->imageUrl('favicon.ico')) . '" sizes="16x16 32x32 48x48">',
+            '<link rel="manifest" href="' . esc_url($this->imageUrl('site.webmanifest')) . '">',
+            '<meta name="theme-color" content="' . esc_attr(self::THEME_COLOR) . '">',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    public function headCleanupConfig(array $config): array
+    {
+        return array_merge($config, ['remove_block_styles' => true]);
+    }
+
+    /**
+     * jQuery itself stays (FluentForms needs it); the back-compat shim for pre-1.9 code does not.
+     *
+     * @param object $scripts WP_Scripts
+     */
+    public function dropJqueryMigrate($scripts): void
+    {
+        if (is_admin() || ! isset($scripts->registered['jquery'])) {
+            return;
+        }
+
+        $jquery = $scripts->registered['jquery'];
+        $jquery->deps = array_values(array_diff((array) $jquery->deps, ['jquery-migrate']));
+    }
+
+    private function imageUrl(string $file): string
+    {
+        return get_stylesheet_directory_uri() . '/images/' . $file;
+    }
+}

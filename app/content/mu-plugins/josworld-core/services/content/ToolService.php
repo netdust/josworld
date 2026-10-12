@@ -3,18 +3,21 @@
 /**
  * Tool Service — registers the `tool` post type.
  *
- * The downloadable file is a `relation` scoped to `attachment`,
- * `multiple => false`: the framework has no single-file/media field type,
- * and `gallery` renders image-specific (wrong fit for a PDF). One
- * attachment post id — a standard WP media attachment, no bespoke upload
- * handler for this project to build and secure.
+ * The model is its card: `subtitle` and the downloadable `file`, the
+ * fields another page needs to show a tool. The rest is built in the
+ * YOOtheme builder.
  *
- * No "list of strings" field type exists either — `benefits` is a
- * one-field-per-entry repeater, the project's established list idiom.
+ * A tool is a downloadable file OR a link to an external page (`delivery`,
+ * default `file` so tools saved before the choice stay as they were); the
+ * editor shows only the field of the chosen kind. `target()` is the one
+ * place that turns a tool into where the visitor goes (and whether that is a
+ * link or a file) — the download form and the builder's `target` field both
+ * ask it.
  *
- * `related_tools` is self-referential by design: the framework does not
- * exclude the current post from its own picker, and no self-exclusion is
- * added here — a deliberate non-decision, not an oversight.
+ * The file is the framework's native `file` type: the media picker, one
+ * attachment id stored and re-read as an int. A standard WP media attachment,
+ * no bespoke upload handler for this project to build and secure. The link must
+ * be http(s) with a host: anything else is no target.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -37,6 +40,60 @@ final class ToolService
     private function init(): void
     {
         $this->registerDataModel();
+        add_action('after_setup_theme', [$this, 'attachTargetField'], 20);
+    }
+
+    /**
+     * Where the visitor goes for this tool, and whether that is a link or a file: the ONE answer the download
+     * form and the builder share. `url` is '' when the tool has neither a usable file nor a safe link.
+     * Read status 'any': whether a visitor may see an unpublished tool is the caller's gate, not this lookup's.
+     *
+     * @return array{url: string, isLink: bool}
+     */
+    public function target(int $toolId): array
+    {
+        $model = $this->dataManager->get('tool');
+
+        if ($model->getMeta($toolId, 'delivery', 'file', 'any') === 'url') {
+            return ['url' => self::safeLink((string) $model->getMeta($toolId, 'url', '', 'any')), 'isLink' => true];
+        }
+
+        $fileId = absint($model->getMeta($toolId, 'file', 0, 'any'));
+        $url = $fileId > 0 ? wp_get_attachment_url($fileId) : false;
+
+        return ['url' => is_string($url) ? $url : '', 'isLink' => false];
+    }
+
+    /** http(s) with a host. WordPress's own protocol list still lets `//host`, `/path` and `http:host` through. */
+    private static function safeLink(string $raw): string
+    {
+        $url = esc_url_raw($raw, ['http', 'https']);
+        $parts = wp_parse_url($url);
+
+        return is_array($parts) && in_array($parts['scheme'] ?? '', ['http', 'https'], true) && ! empty($parts['host'])
+            ? $url
+            : '';
+    }
+
+    /** The builder binds a button to `target` instead of choosing between file.url and url. */
+    public function attachTargetField(): void
+    {
+        if (! function_exists('YOOtheme\\app')) {
+            return;
+        }
+
+        $field = [
+            'type' => 'String',
+            'metadata' => ['label' => __('Doel (bestand of link)', JOSWORLD_CORE_TEXTDOMAIN)],
+            'extensions' => ['call' => __NAMESPACE__ . '\\resolve_tool_target'],
+        ];
+
+        // The licensed parent theme is not installed in the gate.
+        \YOOtheme\Event::on( // @phpstan-ignore class.notFound
+            'source.init',
+            static fn ($source) => $source->objectType('Tool', ['fields' => ['target' => $field]]),
+            -5
+        );
     }
 
     /**
@@ -50,56 +107,28 @@ final class ToolService
                 "label" => __("Subtitel", JOSWORLD_CORE_TEXTDOMAIN),
             ],
 
-            // BENEFIT LIST — one-field-per-entry repeater (see class docblock).
-            "benefits" => [
-                "type" => "repeater",
-                "label" => __("Voordelen", JOSWORLD_CORE_TEXTDOMAIN),
-                "button_text" => __("Voordeel toevoegen", JOSWORLD_CORE_TEXTDOMAIN),
-                "sub_fields" => [
-                    "benefit" => [
-                        "type" => "text",
-                        "label" => __("Voordeel", JOSWORLD_CORE_TEXTDOMAIN),
-                    ],
+            "delivery" => [
+                "type" => "select",
+                "label" => __("Wat is deze tool?", JOSWORLD_CORE_TEXTDOMAIN),
+                "options" => [
+                    "file" => __("Een bestand om te downloaden", JOSWORLD_CORE_TEXTDOMAIN),
+                    "url" => __("Een link naar een pagina", JOSWORLD_CORE_TEXTDOMAIN),
                 ],
+                "default" => "file",
             ],
 
-            // DOWNLOADABLE FILE (see class docblock). Optional: no
-            // `required`, so a tool with no file still saves.
+            // Optional: no `required`, so a tool with no file or link still saves.
             "file" => [
-                "type" => "relation",
+                "type" => "file",
                 "label" => __("Bestand", JOSWORLD_CORE_TEXTDOMAIN),
-                "post_type" => "attachment",
-                "multiple" => false,
+                "condition" => ["delivery" => "file"],
             ],
 
-            // RELATED TOOLS — self-referential by design (see class docblock).
-            "related_tools" => [
-                "type" => "relation",
-                "label" => __("Gerelateerde tools", JOSWORLD_CORE_TEXTDOMAIN),
-                "post_type" => "tool",
-                "multiple" => true,
-                "reverse_label" => __("Gerelateerde tools", JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, array<string, mixed>>
-     */
-    private function getFieldGroups(): array
-    {
-        return [
-            "details" => [
-                "title" => __("Tool-gegevens", JOSWORLD_CORE_TEXTDOMAIN),
-                "fields" => ["subtitle", "benefits", "file"],
-                "context" => "normal",
-                "priority" => "high",
-            ],
-            "related" => [
-                "title" => __("Gerelateerde tools", JOSWORLD_CORE_TEXTDOMAIN),
-                "fields" => ["related_tools"],
-                "context" => "side",
-                "priority" => "default",
+            "url" => [
+                "type" => "url",
+                "label" => __("Link", JOSWORLD_CORE_TEXTDOMAIN),
+                "description" => __("Een volledige link, beginnend met https://", JOSWORLD_CORE_TEXTDOMAIN),
+                "condition" => ["delivery" => "url"],
             ],
         ];
     }
@@ -127,7 +156,11 @@ final class ToolService
             "show_ui" => true,
             "show_in_menu" => true,
             "query_var" => true,
-            "has_archive" => true,
+            "has_archive" => "gratis-aanbod",   // the listing at the design URL; singles stay under /tools/
+            "description" => __(
+                'Gratis tools, canvassen en checklists van Jos voor communicatie die werkt.',
+                JOSWORLD_CORE_TEXTDOMAIN
+            ),
             "hierarchical" => false,
             "supports" => ["title", "editor", "thumbnail"],
             "menu_icon" => "dashicons-download",
@@ -138,11 +171,16 @@ final class ToolService
             "map_meta_cap" => true,
             "fields" => $this->getFields(),
             "meta_prefix" => JOSWORLD_CORE_META_PREFIX,
-            "use_tabs" => true,
-            "tabs_context" => "normal",
-            "tabs_priority" => "high",
             "metabox_title" => __("Tool-gegevens", JOSWORLD_CORE_TEXTDOMAIN),
-            "field_groups" => $this->getFieldGroups(),
         ]);
     }
+}
+
+/** YOOtheme calls this by name for the tool `target` field. */
+function resolve_tool_target(mixed $post): ?string
+{
+    $toolId = is_object($post) && isset($post->ID) ? (int) $post->ID : 0;
+    $url = $toolId > 0 ? ntdst_get(ToolService::class)->target($toolId)['url'] : '';
+
+    return $url !== '' ? $url : null;
 }

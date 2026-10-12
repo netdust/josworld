@@ -233,6 +233,16 @@ deployed to **11 sites**. Facts worth keeping:
   query/sitemap/search. `team` is unauthenticated-readable at
   `/wp-json/wp/v2/team`; email/phone are unexposed **only** because nothing
   calls `register_meta()` with `show_in_rest`.
+- **A host-side env var set in front of `ddev wp …` does not reach the
+  container.** `DRY=1 ddev wp --user=1 eval-file …` sets `DRY` on the HOST
+  shell only — `getenv('DRY')` inside the eval-file script sees nothing, so
+  a dry-run guard silently falls through and becomes a real run. 2026-09-03:
+  the meta-key purge script's dry-run flag never fired this way, harmless
+  only because the run was against throwaway, reseedable data. Fix: pass
+  the var through the exec form instead —
+  `ddev exec 'DRY=1 wp --user=1 eval-file …'`. Every `eval-file` script
+  that reads an env var must document that exec form in its own header
+  comment, not just here.
 
 ## Front-end / YOOtheme
 
@@ -352,3 +362,39 @@ deployed to **11 sites**. Facts worth keeping:
   `composer reinstall netdust/ntdst-core netdust/ntdst-baseline` after
   ANY checkout/merge that crosses 4fd9134/543a267 — and re-run the gate
   on the merge result, never assume a green branch tip proves the merge.
+- A file handed to `ddev wp eval-file … page set <id> <file>` must live INSIDE the project (the container mounts the project only) — a host scratchpad path fails for every post with a bare "Failed to run". Stage JSON under `specs/<feature>/` (gitignored) before a batch write (2026-09-03, 26 writes failed at once).
+
+- **The flow-floor guard reads the WHOLE command string, so verb names quoted
+  inside a commit message trip it.** Two commits were refused for describing
+  the block-mail and deploy verbs in their bodies — the guard saw make verbs on
+  a piped stdin. Write the message to a file and use `git commit -F <file>`;
+  keep verb names out of inline heredocs (2026-09-05).
+- **Chain nothing in a Bash call.** Compound commands (`cmd; echo …; cmd`) were
+  denied repeatedly by the permission classifier while each piece ran fine
+  alone. One purpose per call — it is faster than the retries (2026-09-05).
+- **`cd` persists between Bash calls.** A `cd app/content && tar …` left the
+  shell there and the next `make feature` died with "No rule to make target".
+  Use `git -C <path>` / absolute paths, or `cd` back in the same call
+  (2026-09-05).
+- **Licensed assets are gitignored, not absent.** YOOtheme Pro and
+  FluentBooking Pro live in `app/content/themes/` and `app/content/plugins/` at
+  the versions this site runs; being gitignored and outside `deploy.payload`
+  means they never DEPLOY, not that they are missing. Check the working tree
+  before asking Stefan for a zip — and re-apply both by hand on every new
+  environment, because no verb carries them (2026-09-05).
+
+## 2026-09-10 — a scroll effect is a builder field before it is CSS
+
+Stefan: "you used yootheme settings right? no custom css" — after the footer reveal
+had been built as a sticky footer in `theme.josworld.less`. YOOtheme sections carry
+`sticky: cover | reveal` (Sticky Effect), which IS the footer-reveal pattern, with the
+stacking handled in the parent theme. Rule: for any motion/scroll behaviour, grep
+`packages/builder/elements/<element>/element.php` for the field first; write a rule
+only when the grep proves the field absent, and say so in the report.
+
+### 2026-09-21
+- een CRM-koppeling bewijs je met een echte inzending en het teruggelezen contact, niet door de configuratie of de loader te lezen. De boekingsfeed leek gezond en heeft nooit gelopen.
+
+- **Never write backups into a web root** (2026-10-10): `yoo-*-backup-*.json` (YOOtheme config incl. `yootheme_apikey`) sat in the staging site root and were downloadable. Backups go to `/data/sites/web/josagency/tmp/backups/` (outside `www/` and `subsites/`). Moved 13 files; nginx kept serving the old ones from a cache for a while — recheck, and consider rotating the YOOtheme API key.
+
+- **Matomo with a custom content dir needs `content/plugins/matomo.wpload_dir.php`** (2026-10-12): without it the tracker answers "Could not find wp-load" and no visit is ever recorded, while the tracking tag, the settings screen and the diagnostics all look healthy. Prove tracking with a real hit (`matomo.php?idsite=1&rec=1&url=…` returns a GIF and `matomo_log_visit` grows), never by reading settings.

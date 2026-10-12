@@ -28,8 +28,14 @@ final class BaselineFilterNamespaceTest extends TestCase
     private const ALLOWED_FOREIGN_HOOKS = [
         'ntdst/model/registered' => 'ntdst-core framework hook, not baseline-owned',
         'ntdst/model/registering' => 'ntdst-core framework hook, not baseline-owned',
+        'ntdst/model/updating' => 'ntdst-core data-layer hook baseline subscribes to, not baseline-owned',
+        'ntdst/model/updated' => 'ntdst-core data-layer hook baseline subscribes to, not baseline-owned',
+        'ntdst/model/meta_updated' => 'ntdst-core data-layer hook baseline subscribes to, not baseline-owned',
+        'ntdst/pages/languages' => 'ntdst-core page-route extension point baseline answers, not baseline-owned',
+        'ntdst/pages/current_language' => 'ntdst-core page-route extension point baseline answers, not baseline-owned',
         'ntdst/api_data/' => 'ntdst-core API router vocabulary, not baseline-owned',
         'ntdst/api/' => 'ntdst-core API router vocabulary, not baseline-owned',
+        'ntdst/yootheme/exclude_fields' => 'the yootheme module (2.3.0) kept the name the per-project bridges consumed',
     ];
 
     public function test_every_ntdst_hook_in_the_plugin_uses_the_baseline_namespace(): void

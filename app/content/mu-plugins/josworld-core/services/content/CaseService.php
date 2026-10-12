@@ -8,11 +8,12 @@
  * YOOtheme templates read directly. __() labels are ALWAYS DUTCH admin UI.
  * Never conflate the two.
  *
- * The framework has no `group`/`object` field type, so title+body pairs
- * (uitdaging, resultaat) are two flat fields. Optional blocks (takeaways,
- * interview) are repeaters: the ORM only writes keys present in the
- * payload, so an unused block has NO `_jw_*` row in wp_postmeta at all —
- * absent, not empty-stringed.
+ * The model is its card: the fields a grid or CTA on another page needs
+ * to show a case (client + the tile's hover image). The narrative (uitdaging, resultaat, testimonial, team…)
+ * is built in the YOOtheme builder now, not stored here.
+ *
+ * The card's label row is one builder field, `labels`: the `domain` term as a
+ * pill link, then the `dienst` terms as plain text.
  *
  * The `dienst` taxonomy is declared WITH the model via register()'s
  * `taxonomies` key — no direct register_taxonomy() call anywhere in
@@ -31,6 +32,17 @@ defined('ABSPATH') || exit;
 
 final class CaseService
 {
+    /** At most one domain, three diensten and one doelgroep per case (client spec). */
+    public const LIMITS = ['domain' => 1, 'dienst' => 3, 'doelgroep' => 1];
+
+    /** Editors tick terms from the list; only administrators add or change the list itself. */
+    private const PICK_FROM_THE_LIST = [
+        'manage_terms' => 'manage_options',
+        'edit_terms' => 'manage_options',
+        'delete_terms' => 'manage_options',
+        'assign_terms' => 'edit_posts',
+    ];
+
     public function __construct(private readonly NTDST_Data_Manager $dataManager)
     {
         $this->init();
@@ -40,6 +52,175 @@ final class CaseService
     {
         $this->registerDataModel();
         $this->registerAdminColumns();
+        add_action('after_setup_theme', [$this, 'attachLabelsField'], 20);
+        add_action('pre_get_posts', [$this, 'showWholeTermOnOnePage']);
+        add_action('set_object_terms', [$this, 'clampTerms'], 10, 5);
+        add_filter('request', [$this, 'resolveOnsWerkSlug']);
+        // After baseline's shared-slug filter (Polylang), so a domain's slug stays the overview's.
+        add_filter('wp_unique_post_slug', [$this, 'keepDomainSlugsFree'], 20, 4);
+        add_filter('pre_insert_term', [$this, 'refuseTheSlugOfACase'], 10, 3);
+    }
+
+    /**
+     * The case's own terms obey the limits whatever wrote them (classic screen, REST, CLI): the first ones win.
+     *
+     * @param array<int, int|string> $ttIds
+     */
+    public function clampTerms(int $objectId, mixed $terms, array $ttIds, string $taxonomy, bool $append): void
+    {
+        $limit = self::LIMITS[$taxonomy] ?? null;
+        if ($limit === null || get_post_type($objectId) !== 'case') {
+            return;
+        }
+
+        $given = array_map('intval', $ttIds);
+        // On append WordPress hands over only the NEW terms: the case's earlier ones come first.
+        $earlier = $append
+            ? array_diff(array_map('intval', wp_get_object_terms($objectId, $taxonomy, ['fields' => 'tt_ids'])), $given)
+            : [];
+        $ordered = array_values(array_unique([...$earlier, ...$given]));
+        if (count($ordered) <= $limit) {
+            return;
+        }
+
+        $keep = [];
+        foreach (array_slice($ordered, 0, $limit) as $ttId) {
+            $term = get_term_by('term_taxonomy_id', $ttId, $taxonomy);
+            if ($term instanceof \WP_Term) {
+                $keep[] = $term->term_id;
+            }
+        }
+
+        remove_action('set_object_terms', [$this, 'clampTerms'], 10);
+        $result = wp_set_object_terms($objectId, $keep, $taxonomy);
+        add_action('set_object_terms', [$this, 'clampTerms'], 10, 5);
+
+        if (is_wp_error($result)) {
+            wp_trigger_error(
+                __METHOD__,
+                "Could not keep case {$objectId} within its {$taxonomy} limit: " . $result->get_error_message()
+            );
+        }
+    }
+
+    /**
+     * A domain overview and a case share /ons-werk/<slug>: a domain term wins its slug, any other slug is a case.
+     *
+     * @param array<string, mixed> $vars
+     * @return array<string, mixed>
+     */
+    public function resolveOnsWerkSlug(array $vars): array
+    {
+        $slug = (string) ($vars['domain'] ?? $vars['case'] ?? '');
+        if ($slug === '') {
+            return $vars;
+        }
+
+        if (get_term_by('slug', $slug, 'domain')) {
+            unset($vars['case'], $vars['name'], $vars['post_type']);
+            $vars['domain'] = $slug;
+
+            return $vars;
+        }
+
+        if (isset($vars['domain'])) {
+            unset($vars['domain']);
+            $vars = [...$vars, 'post_type' => 'case', 'case' => $slug, 'name' => $slug];
+        }
+
+        return $vars;
+    }
+
+    /** A case never takes the slug of a domain: that URL belongs to the overview. */
+    public function keepDomainSlugsFree(string $slug, int $postId, string $status, string $type): string
+    {
+        if ($type !== 'case') {
+            return $slug;
+        }
+
+        $candidate = $slug;
+        for ($n = 2; $this->slugIsTaken($candidate, $postId, $candidate !== $slug); $n++) {
+            $candidate = $slug . '-' . $n;
+        }
+
+        return $candidate;
+    }
+
+    /** A domain owns its slug; a suffixed candidate must also be free among the cases (core never saw it). */
+    private function slugIsTaken(string $slug, int $postId, bool $checkCases): bool
+    {
+        if (get_term_by('slug', $slug, 'domain')) {
+            return true;
+        }
+
+        return $checkCases && $this->caseExists($slug, $postId);
+    }
+
+    private function caseExists(string $slug, int $exceptId = 0): bool
+    {
+        return get_posts([
+            'name' => $slug,
+            'post_type' => 'case',
+            'post_status' => ['publish', 'draft', 'pending', 'private', 'future'],
+            'post__not_in' => [$exceptId],
+            'numberposts' => 1,
+            'fields' => 'ids',
+            'suppress_filters' => true,
+        ]) !== [];
+    }
+
+    /**
+     * A domain whose slug is a case's would take that case's URL: the term wins /ons-werk/<slug>.
+     *
+     * @param array<string, mixed> $args
+     */
+    public function refuseTheSlugOfACase(mixed $term, string $taxonomy, array $args = []): mixed
+    {
+        if ($taxonomy !== 'domain' || is_wp_error($term)) {
+            return $term;
+        }
+
+        $slug = sanitize_title((string) ($args['slug'] ?? $term));
+        if ($slug === '' || ! $this->caseExists($slug)) {
+            return $term;
+        }
+
+        return new \WP_Error(
+            'jw_domain_slug_is_a_case',
+            sprintf(
+                /* translators: %s: the slug */
+                __('Er bestaat al een case op /ons-werk/%s/: kies een andere naam.', JOSWORLD_CORE_TEXTDOMAIN),
+                $slug
+            )
+        );
+    }
+
+    /** A `domain` / `dienst` archive is Ons werk filtered: the builder template lists the main query, all of it. */
+    public function showWholeTermOnOnePage(\WP_Query $query): void
+    {
+        if ($query->is_main_query() && ! is_admin() && $query->is_tax(['domain', 'dienst'])) {
+            $query->set('posts_per_page', -1);
+        }
+    }
+
+    public function attachLabelsField(): void
+    {
+        if (! function_exists('YOOtheme\\app')) {
+            return;
+        }
+
+        $field = [
+            'type' => 'String',
+            'metadata' => ['label' => __('Labels (domein + diensten)', JOSWORLD_CORE_TEXTDOMAIN)],
+            'extensions' => ['call' => __NAMESPACE__ . '\\resolve_case_labels'],
+        ];
+
+        // The licensed parent theme is not installed in the gate.
+        \YOOtheme\Event::on( // @phpstan-ignore class.notFound
+            'source.init',
+            static fn ($source) => $source->objectType('Case', ['fields' => ['labels' => $field]]),
+            -5
+        );
     }
 
     /**
@@ -48,187 +229,15 @@ final class CaseService
     private function getFields(): array
     {
         return [
-            // CLIENT / INTRO
             'client' => [
                 'type' => 'text',
                 'label' => __('Klant', JOSWORLD_CORE_TEXTDOMAIN),
                 'required' => true,
             ],
-            'tagline' => [
-                'type' => 'text',
-                'label' => __('Tagline', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-            'what_we_did' => [
-                'type' => 'textarea',
-                'label' => __('Wat we hebben gedaan', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-            'target_audience' => [
-                'type' => 'textarea',
-                'label' => __('Doelgroep', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-
-            // IMPACT — repeating figure + description (e.g. "+7 mio")
-            'impact' => [
-                'type' => 'repeater',
-                'label' => __('Impact', JOSWORLD_CORE_TEXTDOMAIN),
-                'button_text' => __('Impactcijfer toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
-                'sub_fields' => [
-                    'figure' => [
-                        'type' => 'text',
-                        'label' => __('Cijfer', JOSWORLD_CORE_TEXTDOMAIN),
-                    ],
-                    'description' => [
-                        'type' => 'text',
-                        'label' => __('Omschrijving', JOSWORLD_CORE_TEXTDOMAIN),
-                    ],
-                ],
-            ],
-
-            // UITDAGING
-            'challenge_title' => [
-                'type' => 'text',
-                'label' => __('Uitdaging — titel', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-            'challenge_body' => [
-                'type' => 'textarea',
-                'label' => __('Uitdaging — tekst', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-
-            // RESULTAAT
-            'result_title' => [
-                'type' => 'text',
-                'label' => __('Resultaat — titel', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-            'result_body' => [
-                'type' => 'textarea',
-                'label' => __('Resultaat — tekst', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-
-            // TAKEAWAYS — optional. `condition` is PRESENTATION-ONLY: the
-            // repeater's inputs are never removed from the DOM, so a value
-            // entered while hidden still round-trips on save. `has_takeaways`
-            // is a UI toggle, never read by the save path — it decides only
-            // whether the editor SAW the block, not whether values persist.
-            'has_takeaways' => [
-                'type' => 'bool',
-                'label' => __('Heeft take-aways?', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-            'takeaways' => [
-                'type' => 'repeater',
-                'label' => __('Take-aways', JOSWORLD_CORE_TEXTDOMAIN),
-                'button_text' => __('Take-away toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
-                'condition' => ['has_takeaways' => true],
-                'sub_fields' => [
-                    'title' => [
-                        'type' => 'text',
-                        'label' => __('Titel', JOSWORLD_CORE_TEXTDOMAIN),
-                    ],
-                    'body' => [
-                        'type' => 'textarea',
-                        'label' => __('Tekst', JOSWORLD_CORE_TEXTDOMAIN),
-                    ],
-                ],
-            ],
-
-            // TESTIMONIAL (quote / name / role)
-            'testimonial_quote' => [
-                'type' => 'textarea',
-                'label' => __('Testimonial — quote', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-            'testimonial_name' => [
-                'type' => 'text',
-                'label' => __('Testimonial — naam', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-            'testimonial_role' => [
-                'type' => 'text',
-                'label' => __('Testimonial — functie', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-
-            // INTERVIEW — optional; same `condition`/round-trip contract as
-            // takeaways above.
-            'has_interview' => [
-                'type' => 'bool',
-                'label' => __('Heeft interview?', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-            'interview' => [
-                'type' => 'repeater',
-                'label' => __('Interview', JOSWORLD_CORE_TEXTDOMAIN),
-                'button_text' => __('Interviewblok toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
-                'condition' => ['has_interview' => true],
-                'sub_fields' => [
-                    'title' => [
-                        'type' => 'text',
-                        'label' => __('Titel', JOSWORLD_CORE_TEXTDOMAIN),
-                    ],
-                    'body' => [
-                        'type' => 'textarea',
-                        'label' => __('Tekst', JOSWORLD_CORE_TEXTDOMAIN),
-                    ],
-                ],
-            ],
-
-            // TEAM — top-level, not nested in the impact repeater: repeater
-            // sub_fields support only text/textarea/select/number/date/url,
-            // no nested `relation`. `reverse_label` is explicit because the
-            // framework's fallback is hardcoded English ("Featured in …"),
-            // which this Dutch admin forbids.
-            'team' => [
-                'type' => 'relation',
-                'label' => __('Team', JOSWORLD_CORE_TEXTDOMAIN),
-                'post_type' => 'team',
-                'multiple' => true,
-                'reverse_label' => __('Cases', JOSWORLD_CORE_TEXTDOMAIN),
-            ],
-        ];
-    }
-
-    /**
-     * @return array<string, array<string, mixed>>
-     */
-    private function getFieldGroups(): array
-    {
-        return [
-            'intro' => [
-                'title' => __('Klant & intro', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['client', 'tagline', 'what_we_did', 'target_audience'],
-                'context' => 'normal',
-                'priority' => 'high',
-            ],
-            'impact' => [
-                'title' => __('Impact', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['impact'],
-                'context' => 'normal',
-                'priority' => 'high',
-            ],
-            'narrative' => [
-                'title' => __('Uitdaging & resultaat', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['challenge_title', 'challenge_body', 'result_title', 'result_body'],
-                'context' => 'normal',
-                'priority' => 'default',
-            ],
-            'takeaways' => [
-                'title' => __('Take-aways', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['has_takeaways', 'takeaways'],
-                'context' => 'normal',
-                'priority' => 'default',
-            ],
-            'testimonial' => [
-                'title' => __('Testimonial', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['testimonial_quote', 'testimonial_name', 'testimonial_role'],
-                'context' => 'normal',
-                'priority' => 'default',
-            ],
-            'interview' => [
-                'title' => __('Interview', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['has_interview', 'interview'],
-                'context' => 'normal',
-                'priority' => 'default',
-            ],
-            'team' => [
-                'title' => __('Team', JOSWORLD_CORE_TEXTDOMAIN),
-                'fields' => ['team'],
-                'context' => 'side',
-                'priority' => 'default',
+            'hover_image' => [
+                'type' => 'image',
+                'label' => __('Hover-afbeelding', JOSWORLD_CORE_TEXTDOMAIN),
+                'description' => __('Tweede beeld dat een case-tegel toont bij hover.', JOSWORLD_CORE_TEXTDOMAIN),
             ],
         ];
     }
@@ -254,6 +263,10 @@ final class CaseService
             'show_in_menu' => true,
             'query_var' => true,
             'has_archive' => true,
+            'description' => __(
+                'Ons werk: campagnes, content en strategie voor overheden, social profit en ondernemers.',
+                JOSWORLD_CORE_TEXTDOMAIN
+            ),
             'hierarchical' => false,
             'supports' => ['title', 'editor', 'thumbnail', 'excerpt'],
             'menu_icon' => 'dashicons-portfolio',
@@ -264,16 +277,32 @@ final class CaseService
             'map_meta_cap' => true,
             'fields' => $this->getFields(),
             'meta_prefix' => JOSWORLD_CORE_META_PREFIX,
-            'use_tabs' => true,
-            'tabs_context' => 'normal',
-            'tabs_priority' => 'high',
             'metabox_title' => __('Case-gegevens', JOSWORLD_CORE_TEXTDOMAIN),
-            'field_groups' => $this->getFieldGroups(),
+            'metabox_context' => 'side',
             // `dienst`, case-only, declared with the model — see class
             // docblock (no direct register_taxonomy() call).
             'taxonomies' => [
+                'domain' => [
+                    'hierarchical' => true,
+                    'capabilities' => self::PICK_FROM_THE_LIST,
+                    'labels' => [
+                        'name' => __('Domeinen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'singular_name' => __('Domein', JOSWORLD_CORE_TEXTDOMAIN),
+                        'search_items' => __('Domeinen zoeken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'all_items' => __('Alle domeinen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'edit_item' => __('Domein bewerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'update_item' => __('Domein bijwerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'add_new_item' => __('Nieuw domein toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'new_item_name' => __('Nieuwe domeinnaam', JOSWORLD_CORE_TEXTDOMAIN),
+                        'menu_name' => __('Domeinen', JOSWORLD_CORE_TEXTDOMAIN),
+                    ],
+                    'show_admin_column' => true,
+                    'show_in_rest' => true,
+                    'rewrite' => ['slug' => 'ons-werk', 'with_front' => false],
+                ],
                 'dienst' => [
-                    'hierarchical' => false,
+                    'hierarchical' => true,
+                    'capabilities' => self::PICK_FROM_THE_LIST,
                     'labels' => [
                         'name' => __('Diensten', JOSWORLD_CORE_TEXTDOMAIN),
                         'singular_name' => __('Dienst', JOSWORLD_CORE_TEXTDOMAIN),
@@ -288,6 +317,28 @@ final class CaseService
                     'show_admin_column' => true,
                     'show_in_rest' => true,
                     'rewrite' => ['slug' => 'dienst'],
+                ],
+                // "Voor publieke sector" or "Voor social profit & ondernemers": one per case, no overview of its own.
+                'doelgroep' => [
+                    'hierarchical' => true,
+                    'capabilities' => self::PICK_FROM_THE_LIST,
+                    'labels' => [
+                        'name' => __('Doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'singular_name' => __('Doelgroep', JOSWORLD_CORE_TEXTDOMAIN),
+                        'search_items' => __('Doelgroepen zoeken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'all_items' => __('Alle doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'edit_item' => __('Doelgroep bewerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'update_item' => __('Doelgroep bijwerken', JOSWORLD_CORE_TEXTDOMAIN),
+                        'add_new_item' => __('Nieuwe doelgroep toevoegen', JOSWORLD_CORE_TEXTDOMAIN),
+                        'new_item_name' => __('Nieuwe doelgroepnaam', JOSWORLD_CORE_TEXTDOMAIN),
+                        'menu_name' => __('Doelgroepen', JOSWORLD_CORE_TEXTDOMAIN),
+                    ],
+                    'public' => true,
+                    'publicly_queryable' => false,
+                    'query_var' => false,
+                    'show_admin_column' => true,
+                    'show_in_rest' => true,
+                    'rewrite' => false,
                 ],
             ],
         ]);
@@ -320,7 +371,6 @@ final class CaseService
             if ($key === 'title') {
                 $newColumns['jw_client'] = __('Klant', JOSWORLD_CORE_TEXTDOMAIN);
                 $newColumns['jw_diensten'] = __('Diensten', JOSWORLD_CORE_TEXTDOMAIN);
-                $newColumns['jw_impact_count'] = __('Impact', JOSWORLD_CORE_TEXTDOMAIN);
             }
         }
 
@@ -343,14 +393,33 @@ final class CaseService
                 }
                 echo esc_html(implode(', ', array_map(static fn ($term) => $term->name, $terms)));
                 break;
-
-            case 'jw_impact_count':
-                $impact = $this->dataManager->get('case')->getMeta($postId, 'impact', [], 'any');
-                $count = is_array($impact) ? count($impact) : 0;
-                echo $count > 0
-                    ? '<strong>' . esc_html((string) $count) . '</strong>'
-                    : '<span style="color:#999">—</span>';
-                break;
         }
     }
+}
+
+/**
+ * YOOtheme calls this by name for the case `labels` field: the domain as a
+ * pill link, then the diensten as plain text ("A, B & C").
+ */
+function resolve_case_labels(mixed $post): ?string
+{
+    $postId = is_object($post) && isset($post->ID) ? (int) $post->ID : 0;
+    $domain = $postId > 0 ? get_the_terms($postId, 'domain') : false;
+    $diensten = $postId > 0 ? get_the_terms($postId, 'dienst') : false;
+    $html = '';
+
+    $domainLink = is_array($domain) && $domain !== [] ? get_term_link($domain[0]) : null;
+    if (is_string($domainLink)) {
+        $html .= sprintf('<a rel="tag" href="%s">%s</a>', esc_url($domainLink), esc_html($domain[0]->name));
+    }
+
+    if (is_array($diensten) && $diensten !== []) {
+        $shown = array_slice($diensten, 0, CaseService::LIMITS['dienst']);
+        $names = array_map(static fn ($term) => esc_html($term->name), $shown);
+        $last = array_pop($names);
+        $text = $names === [] ? $last : implode(', ', $names) . ' &amp; ' . $last;
+        $html .= '<span class="jw-diensten">' . $text . '</span>';
+    }
+
+    return $html !== '' ? $html : null;
 }

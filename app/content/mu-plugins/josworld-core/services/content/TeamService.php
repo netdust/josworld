@@ -3,13 +3,8 @@
 /**
  * Team Service — registers the `team` post type.
  *
- * Photo is the post thumbnail: the framework has no single-image field
- * type.
- *
- * No public single view, but NOT via registration flags — WP has no
- * "archive yes, singles no" flag, and `public => false` would also hide
- * `team` from YOOtheme's source enumeration. closeSingleView()
- * 301-redirects singles to the /team/ archive instead.
+ * Photo is the post thumbnail by choice (`thumbnail` support); the
+ * framework's `image` field type exists for when a second image is needed.
  *
  * REST tripwire: the public flags do not gate REST. name + photo are
  * readable unauthenticated today; email/phone stay private ONLY because
@@ -38,32 +33,6 @@ final class TeamService
     private function init(): void
     {
         $this->registerDataModel();
-        $this->closeSingleView();
-    }
-
-    /**
-     * Close the per-member single view, keeping the archive open.
-     *
-     * 301 rather than 404: a leaked member URL should land on the archive,
-     * and crawlers should stop asking. wp_safe_redirect() directly —
-     * ntdst-core 5.0 removed Pages::redirect(), and Response::redirect()
-     * carries no status argument, so the 301 needs WordPress's own call.
-     * The target stays host-restricted.
-     */
-    private function closeSingleView(): void
-    {
-        ntdst_pages()->single('team', static function (): void {
-            $archive = get_post_type_archive_link('team');
-
-            // Fall back to the home page rather than returning: returning
-            // would let the single render, which is the one outcome this
-            // method exists to prevent.
-            wp_safe_redirect(
-                is_string($archive) && $archive !== '' ? $archive : home_url('/'),
-                301
-            );
-            exit;
-        });
     }
 
     /**
@@ -78,9 +47,8 @@ final class TeamService
                 'required' => true,
             ],
             // The archive card shows bio; the contact card shows role —
-            // both are needed. A field rather than post content: there is
-            // no editor (`supports`), and fields are what the YOOtheme
-            // bridge exposes as bindable properties.
+            // both are needed. A field rather than post content: fields
+            // are what the YOOtheme bridge exposes as bindable properties.
             'bio' => [
                 'type' => 'textarea',
                 'label' => __('Korte bio', JOSWORLD_CORE_TEXTDOMAIN),
@@ -126,10 +94,7 @@ final class TeamService
                 'not_found' => __('Geen teamleden gevonden', JOSWORLD_CORE_TEXTDOMAIN),
                 'not_found_in_trash' => __('Geen teamleden gevonden in prullenbak', JOSWORLD_CORE_TEXTDOMAIN),
             ],
-            // Public, single view closed by closeSingleView()'s redirect —
-            // `public => false` would hide `team` from YOOtheme's source
-            // enumeration (it filters on `public => true`), and no flag
-            // combination gives "archive yes, singles no".
+            // Public single, built in the YOOtheme builder.
             'public' => true,
             'publicly_queryable' => true,
             'exclude_from_search' => true,
@@ -137,8 +102,12 @@ final class TeamService
             'show_in_menu' => true,
             'query_var' => 'team',
             'has_archive' => true,
+            'description' => __(
+                'Maak kennis met het team van Jos: strategen, creatievelingen en makers.',
+                JOSWORLD_CORE_TEXTDOMAIN
+            ),
             'hierarchical' => false,
-            'supports' => ['title', 'thumbnail'],
+            'supports' => ['title', 'editor', 'thumbnail'],
             'menu_icon' => 'dashicons-groups',
             'rewrite' => ['slug' => 'team', 'with_front' => false],
             'show_in_rest' => true,
