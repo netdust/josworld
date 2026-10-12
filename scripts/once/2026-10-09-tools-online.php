@@ -37,7 +37,10 @@ if ($path === '' || ! is_readable($path)) { echo "#$id Backlashplanner: give the
 require_once ABSPATH . 'wp-admin/includes/file.php';
 require_once ABSPATH . 'wp-admin/includes/media.php';
 require_once ABSPATH . 'wp-admin/includes/image.php';
-$attachmentId = media_handle_sideload(['name' => 'JOS_Backlashplanner.xlsx', 'tmp_name' => $path], $id);
+// Sideloading moves the file it is given: hand it a copy, never the checkout's own.
+$copy = wp_tempnam('JOS_Backlashplanner.xlsx');
+copy($path, $copy);
+$attachmentId = media_handle_sideload(['name' => 'JOS_Backlashplanner.xlsx', 'tmp_name' => $copy], $id);
 if (is_wp_error($attachmentId)) { echo 'upload FAILED: ' . $attachmentId->get_error_message() . "\n"; return; }
 
 update_post_meta($id, '_jw_delivery', 'file');

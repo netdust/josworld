@@ -65,7 +65,7 @@ final class SubmissionRepository implements ActivitySource
         // rows deep — a cache would need invalidating on every write to save one query.
         // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT s.id, s.response, s.created_at, f.title AS form_title
+            "SELECT s.id, s.form_id, s.response, s.created_at, f.title AS form_title
              FROM {$submissions} AS s
              INNER JOIN {$forms} AS f ON f.id = s.form_id
              ORDER BY s.created_at DESC
@@ -92,7 +92,10 @@ final class SubmissionRepository implements ActivitySource
             'form' => (string) ($row->form_title ?? ''),
             'who' => $this->submitter((string) ($row->response ?? '')),
             'when' => (string) ($row->created_at ?? ''),
-            'url' => admin_url('admin.php?page=fluent_forms&route=entries&form_id=0#/entries/' . (int) ($row->id ?? 0)),
+            'url' => admin_url(
+                'admin.php?page=fluent_forms&route=entries&form_id=' . (int) ($row->form_id ?? 0)
+                . '#/entries/' . (int) ($row->id ?? 0)
+            ),
         ];
     }
 

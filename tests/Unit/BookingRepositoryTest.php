@@ -152,6 +152,18 @@ final class BookingRepositoryTest extends TestCase
     }
 
     /** One query for the panel — a per-row event lookup is eleven queries per load. */
+    public function test_a_booking_link_opens_that_booking(): void
+    {
+        $this->stubWordPress(tableExists: true, canRead: true, rows: [
+            (object) ['id' => 41, 'first_name' => 'An', 'last_name' => 'Peeters', 'email' => 'an@example.be',
+                'start_time' => '2026-10-13 09:00:00', 'status' => 'scheduled', 'event_title' => 'Sparmoment'],
+        ]);
+
+        $url = (new BookingRepository())->latest()[0]['url'];
+
+        $this->assertStringEndsWith('page=fluent-booking#/scheduled-events?booking_id=41', $url);
+    }
+
     public function test_the_event_title_arrives_from_one_joined_query(): void
     {
         $this->stubWordPress(tableExists: true, canRead: true, rows: [

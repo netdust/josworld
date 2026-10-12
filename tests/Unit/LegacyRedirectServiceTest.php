@@ -60,6 +60,8 @@ final class LegacyRedirectServiceTest extends TestCase
             '30: a known page id' => ['/?page_id=3675', 'https://jos.agency/samenwerken/'],
             '30: or post id' => ['/?p=5', self::HOME],
             '30: an unknown id is a 404, not home' => ['/?p=999', null],
+            '30: an id that is not a number is no id' => ['/aanpak/?p=abc', 'https://jos.agency/samenwerken/'],
+            '20: an array parameter is ignored' => ['/aanpak/?lang[]=fr', 'https://jos.agency/samenwerken/'],
             '50: an unlisted case: the cases' => ['/work/verwijderd/', 'https://jos.agency/ons-werk/'],
             '50: and the old project overview' => ['/projecten/', 'https://jos.agency/ons-werk/'],
             '60: the blog and its pages' => ['/blog/page/3/', 'https://jos.agency/blog-nieuws/'],
@@ -72,6 +74,14 @@ final class LegacyRedirectServiceTest extends TestCase
             '110: anything else stays a 404' => ['/iets-onbekends/', null],
             'a bare 4-digit slug is not a date archive' => ['/20000-leagues/', null],
         ];
+    }
+
+    public function test_an_old_style_id_address_is_recognised_so_an_unknown_one_can_be_refused(): void
+    {
+        $this->assertTrue($this->service()->namesAnId('/?p=999'));
+        $this->assertTrue($this->service()->namesAnId('/index.php?page_id=7&x=1'));
+        $this->assertFalse($this->service()->namesAnId('/aanpak/'));
+        $this->assertFalse($this->service()->namesAnId('/?p[]=1'));
     }
 
     /** @dataProvider hosts */

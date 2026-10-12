@@ -14,9 +14,8 @@
  *
  * ABSENCE CONTRACT — both FluentCRM and Polylang are git-untracked
  * (`.gitignore:153` ignores `app/content/plugins/*`), so "neither is
- * installed" is the DEFAULT state of a fresh clone or deploy, exactly as
- * MultilingualService documents for Polylang. Every call out of this class
- * is guarded; the site must load with no fatal when both are gone.
+ * installed" is the DEFAULT state of a fresh clone or deploy. Every call out
+ * of this class is guarded; the site must load with no fatal when both are gone.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */

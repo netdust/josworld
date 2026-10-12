@@ -9,8 +9,8 @@
  *    and four library layouts, and in the posts built from them: it now carries the real contact the other templates
  *    already use (Goele Van Dam, Projectmanager, goele@jos.agency, +32 2 411 20 54);
  *  - the "© Voornaam Naam" photo credit (library W3, and the Onze Energie case) is removed;
- *  - the team member whose stored layout comment was broken by an editor save (it printed its JSON on the page) gets
- *    the intact template copy of another team member.
+ *  - a team member whose stored layout comment was broken by an editor save (it printed its JSON on the page) gets
+ *    the intact template copy of another team member; one with no layout comment at all is left alone.
  * Idempotent; a backup of the YOOtheme option is written first. Run with `wp eval-file` only: kses is off there, so
  * the builder layouts survive the saves. Database content, not code: the staging -> production copy carries it.
  */
@@ -90,15 +90,21 @@ foreach ($ids as $id) {
 }
 
 echo "== team layout comments\n";
+$layoutState = static function (string $content): string {
+    if (preg_match('/<!--\s*(\{.*\})\s*-->/s', $content, $m) !== 1) {
+        return 'none';
+    }
+
+    return json_decode($m[1]) !== null ? 'intact' : 'broken';
+};
 $team = get_posts(['post_type' => 'team', 'post_status' => 'any', 'numberposts' => -1, 'orderby' => 'ID']);
 $intact = '';
 foreach ($team as $member) {
-    $ok = preg_match('/<!--\s*(\{.*\})\s*-->/s', $member->post_content, $m) === 1 && json_decode($m[1]) !== null;
-    $intact = $intact === '' && $ok ? $member->post_content : $intact;
+    $intact = $intact === '' && $layoutState($member->post_content) === 'intact' ? $member->post_content : $intact;
 }
 foreach ($team as $member) {
-    $ok = preg_match('/<!--\s*(\{.*\})\s*-->/s', $member->post_content, $m) === 1 && json_decode($m[1]) !== null;
-    if (! $ok && $intact !== '') {
+    // Only a comment an editor save broke is repaired; a member with no layout comment at all is left as it is.
+    if ($intact !== '' && $layoutState($member->post_content) === 'broken') {
         $wpdb->update($wpdb->posts, ['post_content' => $intact], ['ID' => $member->ID]);
         clean_post_cache($member->ID);
         $touched++;

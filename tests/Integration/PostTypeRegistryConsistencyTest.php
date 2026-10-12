@@ -55,6 +55,15 @@ final class PostTypeRegistryConsistencyTest extends WP_UnitTestCase
         $this->assertSame(['case', 'team', 'vacature', 'tool'], AdminUIService::POST_TYPES);
     }
 
+    public function test_the_editor_screens_and_the_dashboard_list_the_same_post_types(): void
+    {
+        $this->assertSame(
+            AdminUIService::POST_TYPES,
+            array_keys(AdminAppService::POST_TYPES),
+            'two hand-kept lists of the same four slugs: one gaining a type must fail here, not silently on a screen',
+        );
+    }
+
     public function test_case_is_a_real_registered_content_model_and_is_named_in_post_types(): void
     {
         $this->assertContains(

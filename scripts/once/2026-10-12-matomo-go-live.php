@@ -13,7 +13,8 @@
  *  - headless browsers (the smoke check) are excluded from the reports, in the plugin option AND in Matomo's own setting;
  *  - IP anonymisation (2 bytes) is switched on explicitly rather than left to a default;
  *  - JavaScript errors on the site are reported as events, and the goals below exist (the events of src/analytics.js).
- * Idempotent. Not touched: goals (they live in Matomo's UI), Do-Not-Track (a choice for Stefan, off by default).
+ * Idempotent: a goal that exists under its name is brought to the pattern below, never duplicated. Not touched: Do-Not-Track
+ * (a choice for Stefan, off by default) and any goal added by hand in Matomo.
  */
 \WpMatomo\Bootstrap::do_bootstrap();
 
@@ -28,7 +29,7 @@ const USER_AGENTS = ['HeadlessChrome'];
 const GOALS = [
     'Afspraak ingepland' => ['event_category', 'Booking', 'exact'],
     'Nieuwsbrief-inschrijving' => ['event_name', 'newsletter', 'exact'],
-    'Tool opgevraagd' => ['event_name', 'download', 'contains'],
+    'Tool opgevraagd' => ['event_name', '^download: ', 'regex'],
     'Stageaanvraag' => ['event_name', 'stage', 'exact'],
     'Contactklik (mail of telefoon)' => ['event_category', 'Contact', 'exact'],
 ];
@@ -86,10 +87,16 @@ $settings->set_global_option(\WpMatomo\Settings::SITE_CURRENCY, 'EUR');
 
 $asSuperUser(static function (): void {
     $api = \Piwik\Plugins\Goals\API::getInstance();
-    $existing = array_column($api->getGoals(SITE_ID), 'name');
+    $existing = [];
+    foreach ($api->getGoals(SITE_ID) as $goal) {
+        $existing[$goal['name']] = $goal;
+    }
     foreach (GOALS as $name => [$attribute, $pattern, $type]) {
-        if (! in_array($name, $existing, true)) {
+        $goal = $existing[$name] ?? null;
+        if ($goal === null) {
             $api->addGoal(SITE_ID, $name, $attribute, $pattern, $type, false, 0, false);
+        } elseif ([$goal['match_attribute'], $goal['pattern'], $goal['pattern_type']] !== [$attribute, $pattern, $type]) {
+            $api->updateGoal(SITE_ID, $goal['idgoal'], $name, $attribute, $pattern, $type, false, 0, false);
         }
     }
 });

@@ -93,7 +93,7 @@ final class BookingRepository implements ActivitySource
             'who' => $this->booker($row),
             'event' => (string) ($row->event_title ?? ''),
             'when' => (string) ($row->start_time ?? ''),
-            'url' => admin_url('admin.php?page=fluent-booking#/scheduled-events/' . (int) ($row->id ?? 0)),
+            'url' => admin_url('admin.php?page=fluent-booking#/scheduled-events?booking_id=' . (int) ($row->id ?? 0)),
         ];
     }
 

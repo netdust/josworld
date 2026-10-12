@@ -12,7 +12,7 @@
   booking feed with `event_trigger: after_booking_scheduled`, sender `Jos <jos@jos.agency>`, `filtered_only` (only Nieuwsbrief public), wizard flag set, 0 contacts. **Open: FluentSMTP has no connection**
   (nothing sends) and form 1 "Contact Form Demo" has no feed (unused).
 - **Matomo on production**: Auto, cookieless, `HeadlessChrome` excluded, IP anonymised, JS errors tracked, EUR/Europe-Brussels, 5 goals (Afspraak ingepland, Nieuwsbrief-inschrijving, Tool opgevraagd,
-  Stageaanvraag, Contactklik) — all from `scripts/once/2026-10-12-matomo-go-live.php apply`. A hit with a normal UA is recorded; the tracker needed `content/plugins/matomo.wpload_dir.php` (below).
+  Stageaanvraag, Contactklik) — all from `scripts/once/2026-10-12-matomo-go-live.php apply` (it also brings a goal whose pattern changed up to date). A hit with a normal UA is recorded; the tracker needed `content/plugins/matomo.wpload_dir.php` (below).
 - **New theme events (branch feature/matomo-events, NOT deployed):** `Scroll|Depth|25/50/75/100%` and `CTA|Click|<button label> → <path>` in `src/analytics.js` (vitest + a real-browser check on local).
   Needs the normal promote → staging → ship path (or a manual copy of `themes/josworld/dist` + `src` to production).
 - **Seen on staging (and likely production): a YOOtheme cookie banner in English** ("We use cookies … Accept / Reject / Manage Settings") on a cookieless site. Not yet decided.
@@ -1119,3 +1119,5 @@ places.
 
 **Risks**
 - staging heeft nog de defecte boekingsfeed, en het stageformulier is daar onbruikbaar tot Pro of een alternatief er is.
+
+- **The mail block (`00-block-outgoing-mail.php`) does NOT block anything on production** — it switches itself off when `WP_HOME` is `jos.agency`, which production is. Mail leaves through plain PHP `mail()` until FluentSMTP has a connection (2026-10-12 review). The go-live script's `swap` now checks for queued mail instead.

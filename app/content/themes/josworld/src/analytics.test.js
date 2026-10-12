@@ -101,4 +101,14 @@ describe('analytics events', () => {
       ['trackEvent', 'Scroll', 'Depth', '25%'],
     ]);
   });
+
+  it('counts a page that fits the screen as read to the end, once it has loaded', () => {
+    const handlers = {};
+    const doc = { addEventListener: () => {}, querySelector: () => null, documentElement: { scrollHeight: 700 } };
+    const win = { XMLHttpRequest: undefined, innerHeight: 900, scrollY: 0, addEventListener: (t, f) => { handlers[t] = f; } };
+    initAnalytics({ win, doc });
+    handlers.load();
+    handlers.load();
+    expect(win._paq.map((e) => e[3])).toEqual(['25%', '50%', '75%', '100%']);
+  });
 });

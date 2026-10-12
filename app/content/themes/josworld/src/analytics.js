@@ -61,14 +61,17 @@ export function initAnalytics({ win = window, doc = document } = {}) {
   });
 
   const reached = new Set();
-  win.addEventListener?.('scroll', () => {
+  const reportScroll = () => {
     const height = doc.documentElement?.scrollHeight;
     if (!height) return;
     for (const step of scrollMilestones((win.scrollY + win.innerHeight) / height, reached)) {
       reached.add(step);
       track('Scroll', 'Depth', `${step}%`);
     }
-  }, { passive: true });
+  };
+  win.addEventListener?.('scroll', reportScroll, { passive: true });
+  // A page that fits the screen never scrolls: whatever is already in view counts once it has loaded.
+  win.addEventListener?.('load', reportScroll);
 
   // FluentBooking confirms in its own screen and fires no event: watch its AJAX call. Failures are HTTP 422.
   const Xhr = win.XMLHttpRequest;

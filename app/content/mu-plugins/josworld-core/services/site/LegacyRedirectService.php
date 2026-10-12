@@ -64,6 +64,13 @@ final class LegacyRedirectService
             header('Location: ' . $target, true, 301);
             exit;
         }
+
+        // An unknown old ID stays a 404: left to WordPress, "?p=123" would open whatever post 123 is on this site.
+        if ($this->namesAnId($uri)) {
+            status_header(404);
+            nocache_headers();
+            exit;
+        }
     }
 
     public function handlesHost(string $host): bool
@@ -79,13 +86,13 @@ final class LegacyRedirectService
         if (preg_match('#^/(?:fr|en)(?:/.*)?$#i', $path) === 1) {
             return self::HOME;
         }
-        if (in_array(strtolower((string) ($query['lang'] ?? '')), ['fr', 'en'], true)) {
+        if (is_string($query['lang'] ?? null) && in_array(strtolower($query['lang']), ['fr', 'en'], true)) {
             return self::HOME;
         }
 
-        $id = $query['p'] ?? $query['page_id'] ?? null;
+        $id = $this->idIn($query);
         if ($id !== null) {
-            return $this->table['ids'][(int) $id] ?? null;
+            return $this->table['ids'][$id] ?? null;
         }
 
         $key = strtolower(rtrim($path, '/'));
@@ -100,5 +107,21 @@ final class LegacyRedirectService
         }
 
         return null;
+    }
+
+    /** Whether the request is an old-style `?p=ID` / `?page_id=ID` address. */
+    public function namesAnId(string $requestUri): bool
+    {
+        parse_str((string) parse_url($requestUri, PHP_URL_QUERY), $query);
+
+        return $this->idIn($query) !== null;
+    }
+
+    /** @param array<string, mixed> $query */
+    private function idIn(array $query): ?int
+    {
+        $id = $query['p'] ?? $query['page_id'] ?? null;
+
+        return is_string($id) && ctype_digit($id) ? (int) $id : null;
     }
 }

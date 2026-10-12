@@ -88,9 +88,12 @@ final class SubmissionRepositoryTest extends TestCase
         Functions\when('__')->returnArg();
     }
 
-    private function row(int $id, string $title, string $response, string $created): object
+    private function row(int $id, string $title, string $response, string $created, int $formId = 1): object
     {
-        return (object) ['id' => $id, 'form_title' => $title, 'response' => $response, 'created_at' => $created];
+        return (object) [
+            'id' => $id, 'form_id' => $formId, 'form_title' => $title,
+            'response' => $response, 'created_at' => $created,
+        ];
     }
 
     public function test_an_unavailable_source_yields_no_rows_and_issues_no_query(): void
@@ -125,6 +128,20 @@ final class SubmissionRepositoryTest extends TestCase
 
         $this->assertStringContainsString('%d', (string) $this->wpdb->preparedSql);
         $this->assertContains(SubmissionRepository::LIMIT, $this->wpdb->preparedArgs);
+    }
+
+    public function test_an_entry_link_opens_the_entry_in_its_own_form(): void
+    {
+        $this->stubWordPress(
+            tableExists: true,
+            canRead: true,
+            rows: [$this->row(27, 'Download tool', '{"email":"els@example.be"}', '2026-09-13 10:00:00', formId: 3)],
+        );
+
+        $url = (new SubmissionRepository())->latest()[0]['url'];
+
+        $this->assertStringContainsString('route=entries&form_id=3#/entries/27', $url, 'form_id=0 is "No form found"');
+        $this->assertStringContainsString('form_id', (string) $this->wpdb->preparedSql);
     }
 
     public function test_it_returns_at_most_the_limit_newest_first(): void
