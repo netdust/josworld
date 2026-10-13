@@ -37,8 +37,9 @@ export function ctaEvent(target) {
   if (!button) return null;
   const label = (button.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
   const href = button.getAttribute?.('href') ?? '';
+  if (href === '' || href.startsWith('#')) return null; // a button with nowhere to go (the cookie banner's) is not a call to action
   const where = /^(https?:)?\/\//.test(href) ? new URL(href, 'https://x').pathname : href.split('#')[0] || href;
-  return label ? ['trackEvent', 'CTA', 'Click', `${label} → ${where || '#'}`] : null;
+  return label ? ['trackEvent', 'CTA', 'Click', `${label} → ${where}`] : null;
 }
 
 export function initAnalytics({ win = window, doc = document } = {}) {
@@ -49,7 +50,10 @@ export function initAnalytics({ win = window, doc = document } = {}) {
   doc.addEventListener('fluentform_submission_success', (event) => {
     const form = event.detail?.form;
     const id = form?.dataset?.form_id;
-    track('Form', 'Submit', formEventName(id, doc.querySelector('h1')?.textContent?.trim()));
+    const name = formEventName(id, doc.querySelector('h1')?.textContent?.trim());
+    track('Form', 'Submit', name);
+    // The footer form is only a newsletter signup; on the others the newsletter is a box to tick.
+    if (form?.querySelector?.('input[name="nieuwsbrief[]"]:checked')) track('Form', 'Newsletter opt-in', name);
   });
 
   doc.addEventListener('click', (event) => {

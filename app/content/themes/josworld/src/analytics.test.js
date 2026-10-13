@@ -49,6 +49,18 @@ describe('analytics events', () => {
     expect(win._paq).toEqual([['trackEvent', 'Form', 'Submit', 'download: Canvas - Gedrag']]);
   });
 
+  it('also reports the newsletter box on a form, so the opt-in is its own conversion', () => {
+    const { win, listeners } = setup();
+    const form = (checked) => ({ dataset: { form_id: '3' }, querySelector: (sel) => (sel.includes('nieuwsbrief') && checked ? {} : null) });
+    listeners.fluentform_submission_success({ detail: { form: form(true) } });
+    listeners.fluentform_submission_success({ detail: { form: form(false) } });
+    expect(win._paq).toEqual([
+      ['trackEvent', 'Form', 'Submit', 'download: Canvas - Gedrag'],
+      ['trackEvent', 'Form', 'Newsletter opt-in', 'download: Canvas - Gedrag'],
+      ['trackEvent', 'Form', 'Submit', 'download: Canvas - Gedrag'],
+    ]);
+  });
+
   it('pushes a Contact event for a mailto click and nothing for other links', () => {
     const { win, listeners } = setup();
     listeners.click({ target: anchor('https://jos.agency/team/') });
@@ -79,7 +91,9 @@ describe('analytics events', () => {
     const button = (text, href) => ({ closest: () => ({ textContent: `  ${text}\n `, getAttribute: () => href }) });
     expect(ctaEvent(button('Plan een sparmoment', 'https://jos.agency/contact/#boek')))
       .toEqual(['trackEvent', 'CTA', 'Click', 'Plan een sparmoment → /contact/']);
-    expect(ctaEvent(button('Naar boven', '#top'))).toEqual(['trackEvent', 'CTA', 'Click', 'Naar boven → #top']);
+    expect(ctaEvent(button('Accept', '#'))).toBeNull();
+    expect(ctaEvent(button('Naar boven', '#top'))).toBeNull();
+    expect(ctaEvent(button('Zonder bestemming', ''))).toBeNull();
     expect(ctaEvent({ closest: () => null })).toBeNull();
   });
 

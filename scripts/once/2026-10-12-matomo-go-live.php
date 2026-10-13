@@ -29,6 +29,7 @@ const USER_AGENTS = ['HeadlessChrome'];
 const GOALS = [
     'Afspraak ingepland' => ['event_category', 'Booking', 'exact'],
     'Nieuwsbrief-inschrijving' => ['event_name', 'newsletter', 'exact'],
+    'Nieuwsbrief aangevinkt bij een formulier' => ['event_action', 'Newsletter opt-in', 'exact'],
     'Tool opgevraagd' => ['event_name', '^download(: |$)', 'regex'],
     'Stageaanvraag' => ['event_name', 'stage', 'exact'],
     'Contactklik (mail of telefoon)' => ['event_category', 'Contact', 'exact'],
