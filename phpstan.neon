@@ -47,6 +47,12 @@ parameters:
         # The data manager: ntdst_data() and the model API are read at new call
         # sites (DownloadFormService) — scanned, so no new discovery-gap entry.
         - app/content/mu-plugins/ntdst-core/api/Data.php
+        # The mail layout (MailLayoutService) renders through ntdst_response()->html()
+        # and registers its template directory with the loader — scanned, same posture.
+        - app/content/mu-plugins/ntdst-core/api/Response.php
+        - app/content/mu-plugins/ntdst-core/core/TemplateLoader.php
+        # MockPHPMailer's helpers: MailLayoutTest reads the sent mail back through them.
+        - vendor/wp-phpunit/wp-phpunit/includes/mock-mailer.php
         # WP_UnitTest_Factory: `self::factory()->user->create()` is how the
         # integration tier seeds fixtures, and abstract-testcase.php above
         # declares the METHOD but not the factory CLASS it returns. Named
