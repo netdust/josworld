@@ -86,7 +86,11 @@ final class MailLayoutService
             return ntdst_response()->html('mail/layout', [
                 'content' => $content,
                 'subject' => $subject,
-                'logo'    => get_stylesheet_directory_uri() . '/images/logo.png',
+                // The site's own scheme: a theme URL follows the request, and WP-CLI or a system cron is http.
+                'logo'    => set_url_scheme(
+                    get_stylesheet_directory_uri() . '/images/logo.png',
+                    wp_parse_url(home_url(), PHP_URL_SCHEME)
+                ),
             ]);
         } catch (\Throwable $e) {
             ntdst_log('mail')->error('mail layout failed; sent unstyled', ['error' => $e->getMessage()]);

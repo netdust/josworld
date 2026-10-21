@@ -43,6 +43,7 @@ $josworld_home = home_url('/');
                 <tr>
                     <td class="jos-message" bgcolor="#ffffff"
                         style="background-color: #ffffff; padding: 40px; font-size: 16px; line-height: 1.55;
+                        word-break: break-word; overflow-wrap: anywhere;
                         <?php echo esc_attr($josworld_text); ?>">
                         <?php
                         // The message itself: escaped plain text, or a plugin's own HTML.
