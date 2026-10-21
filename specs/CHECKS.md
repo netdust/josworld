@@ -6,9 +6,9 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
 
 | surface | tier | entry | test | first feature | verified |
 |---|---|---|---|---|---|
-| Tool download notification mail (FluentForms form 3) | e2e | /tools/canvas-gedrag/ | tests/E2E/mail-template.spec.ts | mail-template | 134d5fc 2026-10-21 |
-| Lost-password mail (WordPress core) | e2e | /wp/wp-login.php, "Wachtwoord vergeten" | tests/E2E/mail-template.spec.ts | mail-template | 134d5fc 2026-10-21 |
-| Mail logo, shown by every mail the site sends | smoke | /content/themes/josworld/images/logo.png | tests/E2E/smoke/mail-template.spec.ts | mail-template | 134d5fc 2026-10-21 |
+| Tool download notification mail (FluentForms form 3) | e2e | /tools/canvas-gedrag/ | tests/E2E/mail-template.spec.ts | mail-template | 46abb5e 2026-10-21 |
+| Lost-password mail (WordPress core) | e2e | /wp/wp-login.php, "Wachtwoord vergeten" | tests/E2E/mail-template.spec.ts | mail-template | 46abb5e 2026-10-21 |
+| Mail logo, shown by every mail the site sends | smoke | /content/themes/josworld/images/logo.png | tests/E2E/smoke/mail-template.spec.ts | mail-template | 46abb5e 2026-10-21 |
 
 ## Notes
 
