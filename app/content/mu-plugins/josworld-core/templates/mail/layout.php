@@ -21,7 +21,8 @@ $josworld_home = home_url('/');
     <title><?php echo esc_html($args['subject']); ?></title>
     <style>
         .jos-message a { color: #35070c; }
-        .jos-message table { width: 100% !important; max-width: 100%; }
+        /* FluentForms' {all_data} table is width="600", wider than the card. */
+        .jos-message table.ff_all_data { width: 100% !important; }
     </style>
 </head>
 <body style="margin: 0; padding: 0; background-color: #fff794;">
