@@ -56,11 +56,34 @@ trusted, so only what a session must not re-derive lands here.
   The multilingual layer itself is ntdst-baseline's `polylang` module (opted into in
   `josworld-core.php`), which carries the same absence contract in the package.
 
+## Outgoing mail (2026-10-21)
+
+- **Every mail leaves in the JOS layout through ONE `wp_mail` filter** —
+  `MailLayoutService` at priority 99, rendering `josworld-core/templates/mail/layout.php`
+  through `ntdst_response()->html()`. FluentSMTP's own `wp_mail()` applies the filter too,
+  so WP core, FluentForms, FluentBooking and anything added later pass through it.
+- **What it does per message:** plain text (no HTML Content-Type, and the
+  `wp_mail_content_type` filter not saying HTML) is escaped, linked and sent as HTML; an
+  HTML fragment is taken as markup; a complete `<html>` page is another plugin's layout and
+  leaves untouched — except FluentBooking's, which has no setting to send its message bare.
+  Its message is lifted out of `td.body-inner … td.content > div.success` (exact classes:
+  FluentCRM and FluentSMTP share the skeleton as `body-inner fluent-crm|fluent-smtp`) and
+  its inlined grey text and font are stripped. FluentBooking's `email_footer` setting is
+  dropped with its page (unset today). If the selector ever misses, the booking mail goes
+  out in FluentBooking's own layout — nothing is lost.
+- **FluentForms is switched site-wide** to send its message instead of its page
+  (`fluentform/send_plain_html_email`). FluentCRM newsletters keep FluentCRM's own design
+  and unsubscribe footer; a campaign on the "Raw HTML" design gets the JOS layout.
+- **josworld keeps its own wrapper** rather than adopting `netdust-mail` (Stride's mailer,
+  not installed here): Stefan, 2026-10-21, "hou het eenvoudig", on placing it in
+  josworld-core. Revisit when a second site wants the same layout.
+
 ## Boundaries
 
 - `app/content/mu-plugins/josworld-core/` is the business logic (services, one per CPT,
   explicitly required and resolved through the container). The theme carries no
-  templates and no data code.
+  templates and no data code; `josworld-core/templates/` holds rendered-to-string
+  templates only (the mail layout) — a page template there would take over the theme's.
 - The team single is public and `exclude_from_search`; `email` and `phone` leave the
   model only through the builder source, never REST.
 - The deploy payload is `content/mu-plugins` and `content/themes/josworld`; the

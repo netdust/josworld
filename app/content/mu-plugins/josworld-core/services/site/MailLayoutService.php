@@ -6,7 +6,7 @@
  *
  * One `wp_mail` filter; FluentSMTP's own wp_mail() applies it too. Plain text
  * is escaped and linked, an HTML fragment is taken as markup. A complete page
- * is another plugin's own layout: FluentBooking's is unwrapped to its content,
+ * is another plugin's own layout: FluentBooking's is unwrapped to its message,
  * any other (a FluentCRM newsletter, unsubscribe footer and all) leaves as it
  * came. FluentForms is asked for its fragment instead of its page.
  *
@@ -21,7 +21,16 @@ defined('ABSPATH') || exit;
 
 final class MailLayoutService
 {
-    private const LOGO = 'themes/josworld/images/logo.png';
+    /**
+     * FluentBooking's page keeps the message here. FluentCRM and FluentSMTP
+     * share the skeleton but tag body-inner with their own name, so the exact
+     * class match leaves their pages alone.
+     */
+    private const FLUENTBOOKING_MESSAGE = '//td[@class="body-inner"]//td[@class="content"]/div[@class="success"]';
+
+    /** FluentBooking's base text colour and font, inlined by its Emogrifier onto every paragraph. */
+    private const FLUENTBOOKING_TEXT_STYLE = '/(color:\s*#444\b'
+        . '|font-family:\s*["\']?Helvetica Neue["\']?,\s*Helvetica,\s*Arial,\s*sans-serif)\s*;?\s*/i';
 
     public function __construct()
     {
@@ -45,26 +54,22 @@ final class MailLayoutService
         $message = (string) ($mail['message'] ?? '');
         $headers = $this->headerLines($mail['headers'] ?? []);
 
-        if (stripos($message, '<html') !== false) {
-            $content = $this->fluentBookingContent($message);
-        } elseif ($this->isHtml($headers)) {
-            $content = $message;
-        } else {
+        if (!$this->isHtml($headers)) {
             $content = wpautop(make_clickable(esc_html($message)));
             $headers = $this->withHtmlContentType($headers);
+        } elseif (stripos($message, '<html') !== false) {
+            $content = $this->fluentBookingMessage($message);
+        } else {
+            $content = $message;
         }
 
         if ($content === null) {
             return $mail;
         }
 
-        $html = ntdst_response()->html('mail/layout', [
-            'content' => $content,
-            'subject' => (string) ($mail['subject'] ?? ''),
-            'logo'    => content_url(self::LOGO),
-        ]);
+        $html = $this->render($content, (string) ($mail['subject'] ?? ''));
 
-        // No template resolved: the mail still goes out, unstyled.
+        // No layout rendered: the mail still goes out, unstyled.
         if ($html === '') {
             return $mail;
         }
@@ -73,6 +78,21 @@ final class MailLayoutService
         $mail['headers'] = $headers;
 
         return $mail;
+    }
+
+    private function render(string $content, string $subject): string
+    {
+        try {
+            return ntdst_response()->html('mail/layout', [
+                'content' => $content,
+                'subject' => $subject,
+                'logo'    => get_stylesheet_directory_uri() . '/images/logo.png',
+            ]);
+        } catch (\Throwable $e) {
+            ntdst_log('mail')->error('mail layout failed; sent unstyled', ['error' => $e->getMessage()]);
+
+            return '';
+        }
     }
 
     /**
@@ -114,10 +134,10 @@ final class MailLayoutService
     }
 
     /**
-     * FluentBooking has no setting to send its message bare; its page keeps
-     * the message in `td.content > div.success`.
+     * FluentBooking has no setting to send its message bare, so it is lifted
+     * out of the page, minus the grey text the page imposed on it.
      */
-    private function fluentBookingContent(string $page): ?string
+    private function fluentBookingMessage(string $page): ?string
     {
         $dom = new \DOMDocument();
         $previous = libxml_use_internal_errors(true);
@@ -125,15 +145,18 @@ final class MailLayoutService
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
 
-        if (!$loaded) {
+        $found = $loaded ? (new \DOMXPath($dom))->query(self::FLUENTBOOKING_MESSAGE) : false;
+        $message = $found ? $found->item(0) : null;
+
+        if (!$message instanceof \DOMElement) {
             return null;
         }
 
-        $found = (new \DOMXPath($dom))->query('//td[contains(@class, "content")]/div[contains(@class, "success")]');
-        $message = $found ? $found->item(0) : null;
-
-        if (!$message) {
-            return null;
+        foreach ((new \DOMXPath($dom))->query('.//*[@style]', $message) ?: [] as $element) {
+            if ($element instanceof \DOMElement) {
+                $style = preg_replace(self::FLUENTBOOKING_TEXT_STYLE, '', $element->getAttribute('style'));
+                $element->setAttribute('style', (string) $style);
+            }
         }
 
         $content = '';

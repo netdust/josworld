@@ -9,7 +9,8 @@ use WP_UnitTestCase;
 /**
  * Every mail the site sends leaves in the JOS layout (lemon background, logo,
  * white card): driven through the real wp_mail() and read back from
- * WordPress's test mailer.
+ * WordPress's test mailer. The FluentBooking page is a real one, rendered
+ * and emogrified by the plugin and kept under fixtures/.
  *
  * A test file by nature declares a symbol and executes side effects.
  * phpcs:disable PSR1.Files.SideEffects
@@ -18,7 +19,7 @@ final class MailLayoutTest extends WP_UnitTestCase
 {
     private const LEMON = '#fff794';
 
-    private const LOGO = '/themes/josworld/images/logo.png';
+    private const LOGO = '/images/logo.png';
 
     private const HTML = ['Content-Type: text/html; charset=UTF-8'];
 
@@ -39,8 +40,36 @@ final class MailLayoutTest extends WP_UnitTestCase
         $this->assertStringContainsString(self::LEMON, $sent->body);
         $this->assertStringContainsString(self::LOGO, $sent->body);
         $this->assertStringContainsString('Hallo &lt;Sarah&gt;', $sent->body, 'plain text is escaped, never markup');
-        preg_match('/<a href="(https:\/\/jos\.agency[^"]+)"/', $sent->body, $link);
-        $this->assertSame($resetUrl, html_entity_decode($link[1] ?? ''), 'a bare URL becomes a link');
+        $this->assertSame($resetUrl, $this->firstLink($sent->body, 'https://jos.agency'), 'a bare URL becomes a link');
+    }
+
+    public function test_the_real_password_reset_mail_keeps_a_working_reset_link(): void
+    {
+        $login = 'sarah';
+        self::factory()->user->create(['user_login' => $login, 'user_email' => 'sarah@example.org']);
+
+        retrieve_password($login);
+
+        $link = $this->firstLink($this->sent()->body, network_site_url('wp-login.php'));
+        parse_str((string) wp_parse_url($link, PHP_URL_QUERY), $query);
+        $this->assertSame('rp', $query['action'] ?? null);
+        $this->assertSame($login, $query['login'] ?? null);
+        $this->assertNotEmpty($query['key'] ?? '');
+    }
+
+    public function test_sender_reply_to_and_bcc_survive_the_switch_to_html(): void
+    {
+        $headers = "From: Jos <jos@jos.agency>\nReply-To: sarah@example.org\nBcc: goele@jos.agency\n"
+            . 'Content-Type: text/plain; charset=UTF-8';
+
+        wp_mail('jos@jos.agency', 'Vraag', 'Hallo Jos', $headers);
+
+        $sent = $this->sent();
+        $this->assertStringContainsString('From: Jos <jos@jos.agency>', $sent->header);
+        $this->assertStringContainsString('Reply-To: sarah@example.org', $sent->header);
+        $this->assertStringContainsString('Content-Type: text/html', $sent->header);
+        $this->assertSame('goele@jos.agency', $sent->bcc[0][0] ?? null);
+        $this->assertStringContainsString(self::LEMON, $sent->body);
     }
 
     public function test_an_html_fragment_is_wrapped_as_markup(): void
@@ -54,25 +83,55 @@ final class MailLayoutTest extends WP_UnitTestCase
         $this->assertStringContainsString(self::LOGO, $sent->body);
     }
 
-    public function test_a_fluentbooking_page_is_rewrapped_around_its_content(): void
+    public function test_html_declared_through_the_content_type_filter_is_wrapped_as_markup(): void
     {
-        $message = '<p>Je afspraak met Jos staat vast — <strong>do 24 oktober</strong>.</p>';
-        $page = '<!DOCTYPE html><html><head><title></title></head><body style="background-color: #f1f1f1;">'
-            . '<table class="body" style="background-color: #f1f1f1;"><tr><td class="body-inner">'
-            . '<table class="container"><tr><td class="content" style="border-top: 4px solid #0069ff;">'
-            . '<div class="success" style="text-align: left;">' . $message . '</div>'
-            . '</td></tr></table></td></tr>'
-            . '<tr><td><p>Powered by FluentBooking</p></td></tr></table></body></html>';
+        $html = static fn(): string => 'text/html';
+        add_filter('wp_mail_content_type', $html);
 
-        wp_mail('sarah@example.org', 'Afspraak bevestigd', $page, self::HTML);
+        wp_mail('jos@jos.agency', 'Voucher', '<p><strong>Code</strong>: JOS-2026</p>');
+
+        remove_filter('wp_mail_content_type', $html);
+        $this->assertStringContainsString('<p><strong>Code</strong>: JOS-2026</p>', $this->sent()->body);
+    }
+
+    public function test_fluentforms_is_asked_for_its_message_instead_of_its_page(): void
+    {
+        $this->assertTrue(apply_filters('fluentform/send_plain_html_email', false, [], []));
+    }
+
+    public function test_a_fluentbooking_page_is_rewrapped_around_its_message_in_jos_colours(): void
+    {
+        wp_mail('sarah@example.org', 'Afspraak bevestigd', $this->fixture('fluentbooking-page.html'), self::HTML);
 
         $body = $this->sent()->body;
 
-        $this->assertStringContainsString($message, $body);
+        $this->assertStringContainsString('Je afspraak met Jos staat vast.', $body);
+        $this->assertStringContainsString('<a href="https://jos.agency/afspraak">Opnieuw inplannen</a>', $body);
         $this->assertStringContainsString(self::LEMON, $body);
-        $this->assertStringContainsString(self::LOGO, $body);
         $this->assertStringNotContainsString('#0069ff', $body, "FluentBooking's own page is gone");
-        $this->assertStringNotContainsString('Powered by FluentBooking', $body);
+        $this->assertStringNotContainsString('Lakensestraat 99', $body, "FluentBooking's footer goes with it");
+        $this->assertStringNotContainsString('color: #444', $body, 'the message reads in brand brown, not grey');
+    }
+
+    public function test_a_plain_text_mail_quoting_a_booking_page_stays_escaped(): void
+    {
+        $quoted = 'Nieuwe reactie: ' . $this->fixture('fluentbooking-page.html')
+            . "\n\nGoedkeuren: https://jos.agency/wp-admin";
+
+        wp_mail('jos@jos.agency', 'Reactie wacht op moderatie', $quoted);
+
+        $body = $this->sent()->body;
+        $this->assertStringContainsString('Nieuwe reactie: &lt;', $body);
+        $this->assertSame('https://jos.agency/wp-admin', $this->firstLink($body, 'https://jos.agency/wp-admin'));
+    }
+
+    public function test_a_page_with_fluentbookings_skeleton_from_another_plugin_is_sent_untouched(): void
+    {
+        $page = $this->fixture('fluentcrm-page.html');
+
+        wp_mail('sarah@example.org', 'Uitschrijven bevestigen', $page, self::HTML);
+
+        $this->assertSame($this->lines($page), $this->lines($this->sent()->body));
     }
 
     public function test_a_complete_page_it_does_not_know_is_sent_untouched(): void
@@ -91,5 +150,24 @@ final class MailLayoutTest extends WP_UnitTestCase
         $this->assertNotFalse($sent, 'wp_mail() sent nothing');
 
         return $sent;
+    }
+
+    private function fixture(string $name): string
+    {
+        return (string) file_get_contents(__DIR__ . '/fixtures/' . $name);
+    }
+
+    /** PHPMailer sends CRLF line endings; the page is otherwise byte-for-byte what came in. */
+    private function lines(string $text): string
+    {
+        return trim(str_replace("\r\n", "\n", $text));
+    }
+
+    private function firstLink(string $body, string $prefix): string
+    {
+        $found = preg_match('/<a href="(' . preg_quote($prefix, '/') . '[^"]*)"/', $body, $link);
+        $this->assertSame(1, $found, "no link starting with {$prefix}");
+
+        return html_entity_decode($link[1]);
     }
 }
