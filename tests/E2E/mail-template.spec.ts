@@ -193,7 +193,7 @@ test.describe('mail layout: the lost-password mail @e2e', () => {
     expect(card!.right).toBeLessThanOrEqual(375);
   });
 
-  test('flow 3, hunt: a mail sent outside a web request (WP-CLI, a system cron) takes its logo from the site\'s own https address', async ({ page, request, baseURL }) => {
+  test('flow 3, hunt: a mail sent outside a web request (WP-CLI, a system cron) takes its logo from the site\'s own https address', async ({ page, request, baseURL }, testInfo) => {
     const box = mailbox(baseURL);
     test.skip(!box, mailOnlyLocally);
 
@@ -201,6 +201,8 @@ test.describe('mail layout: the lost-password mail @e2e', () => {
     ddevWp(`retrieve_password(${phpString(RESET_LOGIN)});`);
     const mail = await resetMail(request, box!, since);
     await openMail(page, box!, mail);
+
+    await page.screenshot({ path: testInfo.outputPath('cli-reset-mail.png'), fullPage: true, mask: [page.locator('a[href*="action=rp"]')] });
 
     const logo = await page.locator('img[alt="JOS"]').getAttribute('src');
     expect(new URL(logo!).origin).toBe(new URL(baseURL!).origin);

@@ -161,14 +161,16 @@ test.describe('mail layout: a booking (local DDEV only — make e2e and make smo
     }
   });
 
-  test('flow 2, edge 5: at 375px the guest mail stays inside the screen', async ({ page, baseURL }, testInfo) => {
+  test('flow 2, edge 5: at 375px both mails stay inside the screen, the guest\'s long address included', async ({ page, baseURL }, testInfo) => {
     await page.setViewportSize({ width: 375, height: 812 });
-    await openMail(page, mailbox(baseURL)!, guestMail);
-    await page.screenshot({ path: testInfo.outputPath('booking-guest-375.png'), fullPage: true });
+    for (const [name, mail] of [['guest', guestMail], ['host', hostMail]] as const) {
+      await openMail(page, mailbox(baseURL)!, mail);
+      await page.screenshot({ path: testInfo.outputPath(`booking-${name}-375.png`), fullPage: true });
 
-    const { card, pageWidth } = await readLayout(page);
-    expect(pageWidth, 'nothing scrolls sideways').toBeLessThanOrEqual(375);
-    expect(card!.left).toBeGreaterThanOrEqual(0);
-    expect(card!.right).toBeLessThanOrEqual(375);
+      const { card, pageWidth } = await readLayout(page);
+      expect(pageWidth, `${name} mail: nothing scrolls sideways`).toBeLessThanOrEqual(375);
+      expect(card!.left).toBeGreaterThanOrEqual(0);
+      expect(card!.right).toBeLessThanOrEqual(375);
+    }
   });
 });
