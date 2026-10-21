@@ -52,3 +52,7 @@ touches section `animation` / `animation_delay` and grid/gallery `item_animation
 - [ ] Recompile the style on staging (the reduced-motion rule; theme.1.css is outside the payload).
 - [ ] Check after: a page scrolled (cascade), reduced motion on (nothing hidden), a card-stack
       page and the logo wall unchanged.
+
+---
+## Carried forward (2026-10-21)
+- [ ] `tests/E2E/footer-newsletter.spec.ts:28` ("a wrong address is answered in Dutch") is flaky. The click on the submit button sometimes lands while `main` still covers the reveal footer (`uk-sticky position: bottom`), so it times out after 30s. Seen twice on `feature/mail-template` on 2026-10-21, never caused by mail changes. A first fix would be to scroll to the very bottom of the page and wait for the sticky footer to settle before clicking.
