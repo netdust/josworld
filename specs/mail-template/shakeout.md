@@ -47,3 +47,14 @@ Hunt: 4 charters · 2 confirmed · 2 not ours · 3 rejected
 ## Not driven
 
 From `flows.md`: Stageformulier (form 4) cannot be submitted locally; the footer newsletter (form 2) sends no mail.
+
+## After the first staging run (2026-10-21)
+
+`make e2e env=staging` on `6689146` failed rows 1 and 3, both on the environment, not the mail:
+
+- Row 1 opened `/tools/canvas-gedrag/`, a tool only the local site has (staging and production
+  carry contentkalender, checklist-fair-aanbesteden, checklist-campagne); the form never rendered.
+  The flow now opens `/tools/contentkalender/`: green locally (7/7, Mailpit) and on staging, where
+  the debug log reads `[ntdst-mail-block] suppressed mail to … — Tool gedownload: Backlashplanner`.
+- Row 3 asked a reset for `e2e-author`, which staging does not have: nothing seeds there. Flow 3
+  lost its `@e2e` tag and runs in the local gate only, like every spec here that needs a seeded user.

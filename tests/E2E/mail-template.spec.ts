@@ -4,12 +4,14 @@ import { ddevWp, expectJosLayout, mailbox, openMail, phpString, readLayout, wait
 /**
  * specs/mail-template flows 1 and 3: every mail the site sends leaves in the JOS layout.
  *
- * Both run on staging under @e2e, where outgoing mail is blocked: there they prove the send
- * went through (the form's thank-you, WordPress's "check your email" screen). The mail itself
- * is read back only locally, in Mailpit. Flow 2 (booking) is mail-booking.spec.ts, local only.
+ * Flow 1 runs on staging under @e2e, where outgoing mail is blocked: there it proves the send
+ * went through (the form's thank-you). The mail itself is read back only locally, in Mailpit.
+ * Flow 3 needs the seeded e2e-author, which only DDEV has, so it runs locally like every spec
+ * that needs a seeded user. Flow 2 (booking) is mail-booking.spec.ts, local only.
  */
 
-const TOOL_PAGE = '/tools/canvas-gedrag/';
+// A tool production carries; staging runs on a copy of production's database.
+const TOOL_PAGE = '/tools/contentkalender/';
 const LEAD_EMAIL = 'e2e-tool-download@example.test';
 const RESET_LOGIN = 'e2e-author';
 
@@ -134,18 +136,14 @@ test.describe('mail layout: the tool download notification @e2e', () => {
   });
 });
 
-test.describe('mail layout: the lost-password mail @e2e', () => {
+test.describe('mail layout: the lost-password mail', () => {
   test('flow 3: the reset mail arrives in the JOS layout as readable text with a clickable link', async ({ page, request, baseURL }, testInfo) => {
+    const box = mailbox(baseURL);
+    test.skip(!box, mailOnlyLocally);
+
     const since = Date.now();
     await requestReset(page, RESET_LOGIN);
-
-    const box = mailbox(baseURL);
-    if (!box) {
-      testInfo.annotations.push({ type: 'mail not read', description: mailOnlyLocally });
-      return;
-    }
-
-    await openMail(page, box, await resetMail(request, box, since));
+    await openMail(page, box!, await resetMail(request, box!, since));
     await expectJosLayout(page, baseURL!);
 
     const message = page.locator('td.jos-message');
