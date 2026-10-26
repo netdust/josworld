@@ -1,15 +1,13 @@
 <?php
 
 /**
- * Tool App Service — serves the interactive tools at /tool-app/<slug>/.
+ * Tool App Service — what a visitor's personal link shows for a link-kind tool.
  *
  * A tool app is a standalone page in the theme's `tools/` folder (its own markup, styles and script, in the
- * Jos style, no external requests). A `tool` post of kind "link" points at `url($slug)`; the download form
- * hands the visitor there. The slug is looked up in the folder's file list, never turned into a path, so
- * nothing outside `tools/*.html` can be served. The pages are `noindex`: the form is the way in.
- *
- * The route is ntdst-core's page router: it flushes the rewrite rules itself when its rule set changes, so a deploy
- * needs no hand-run flush.
+ * Jos style, no external requests). A `tool` post of kind "link" whose link's path is `/tool-app/<slug>/` points
+ * at one. That path has no route of its own: the app opens only at a personal link, through baseline's grants
+ * module calling `renderForGrant()`. The slug is looked up in the folder's file list, never turned into a path,
+ * so nothing outside `tools/*.html` can be served.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -18,24 +16,42 @@ declare(strict_types=1);
 
 namespace josworld\services\content;
 
+use ntdst\baseline\services\grants\GrantService;
+
 defined('ABSPATH') || exit;
 
 final class ToolAppService
 {
-    public function __construct()
+    private const APP_PATH = '#^/tool-app/([^/]+)/?$#';
+
+    public function __construct(private readonly ToolService $tools)
     {
-        add_action('init', [$this, 'register']);
     }
 
-    public function register(): void
+    /**
+     * Baseline's `render` for a granted tool: null when the app was echoed (the grant route sent the headers and
+     * ends the request; a header here would undo its `no-store`), the "Open" page body for a link to another
+     * site, false for everything else so baseline answers with its file page or its dead page.
+     * The link's host is ignored: staging runs on production's database.
+     */
+    public function renderForGrant(\WP_Post $tool, \WP_Post $grant): string|false|null
     {
-        ntdst_pages()->path('/tool-app/:slug', [$this, 'serve']);
-    }
+        $link = $this->tools->link($tool->ID);
+        if ($link === '') {
+            return false;
+        }
 
-    /** Where a link-kind tool points. */
-    public function url(string $slug): string
-    {
-        return home_url('/tool-app/' . $slug . '/');
+        if (preg_match(self::APP_PATH, (string) wp_parse_url($link, PHP_URL_PATH), $match) === 1) {
+            $html = $this->render($match[1]);
+            if ($html === null) {
+                return false;
+            }
+            echo $html; // phpcs:ignore WordPress.Security.EscapeOutput -- a theme file, not user input
+
+            return null;
+        }
+
+        return $this->openPage($tool, $link, (string) ($grant->fields['lang'] ?? ''));
     }
 
     /** The page's HTML, or null when no such tool app exists. */
@@ -46,26 +62,14 @@ final class ToolAppService
         return is_string($html) ? $html : null;
     }
 
-    /**
-     * The page route's callback: the page itself, or false for WordPress's own 404.
-     *
-     * @param array<string, string> $params
-     */
-    public function serve(array $params): ?bool
+    private function openPage(\WP_Post $tool, string $link, string $lang): string
     {
-        $html = $this->render($params['slug'] ?? '');
-        if ($html === null) {
-            return false;
-        }
-
-        if (! headers_sent()) {
-            header('Content-Type: text/html; charset=utf-8');
-            header('X-Robots-Tag: noindex');
-            header('Cache-Control: public, max-age=3600');
-        }
-        echo $html; // phpcs:ignore WordPress.Security.EscapeOutput -- a theme file, not user input
-
-        return null;
+        return sprintf(
+            '<h1>%s</h1><p><a class="button" href="%s" rel="noreferrer noopener">%s</a></p>',
+            esc_html(get_the_title($tool)),
+            esc_url($link),
+            esc_html(GrantService::label('open', $lang))
+        );
     }
 
     /** @return list<string> the tool apps that exist */

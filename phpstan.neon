@@ -77,6 +77,8 @@ parameters:
         - app/content/mu-plugins/ntdst-baseline/services/grants/GrantRepository.php
         - app/content/mu-plugins/ntdst-baseline/services/grants/LinkRoute.php
         - app/content/mu-plugins/ntdst-baseline/services/grants/PrivateFiles.php
+        # ToolGrantAccessTest runs `wp ntdst grants gate-files` through it. Symbol only.
+        - app/content/mu-plugins/ntdst-baseline/services/grants/Cli.php
         # The outgoing-mail block is a standalone mu-plugin TEMPLATE deployed to
         # servers, never autoloaded here; MailBlockGuardTest substitutes its
         # __PRODUCTION_HOST__ placeholder and eval()s it, so

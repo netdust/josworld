@@ -9,46 +9,14 @@ use WP_UnitTestCase;
 
 /**
  * The interactive tools (campagnestart, faire-aanbestedingsscan) are standalone pages in the theme's
- * tools/ folder, served at /tool-app/<slug>/. Only a file that exists there can be served: the slug is
- * a whitelist lookup, never a path. The route is ntdst-core's page router.
+ * tools/ folder, served only at a personal link (ToolGrantAccessTest). Only a file that exists there
+ * can be served: the slug is a whitelist lookup, never a path.
  */
 final class ToolAppServiceTest extends WP_UnitTestCase
 {
     private function service(): ToolAppService
     {
         return ntdst_get(ToolAppService::class);
-    }
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->set_permalink_structure('/%postname%/');
-        $this->service()->register();
-        flush_rewrite_rules();
-    }
-
-    public function test_the_two_tools_are_online_at_a_clean_url(): void
-    {
-        $this->assertSame(home_url('/tool-app/campagnestart/'), $this->service()->url('campagnestart'));
-
-        $this->go_to(home_url('/tool-app/faire-aanbestedingsscan/'));
-
-        $claimed = (string) get_query_var('ntdst_page');
-        $this->assertMatchesRegularExpression('/^\d+$/', $claimed, 'the page router claims the URL');
-        $this->assertSame('faire-aanbestedingsscan', get_query_var('ntdst_p_slug'));
-    }
-
-    public function test_a_known_tool_is_served_and_an_unknown_one_is_a_404(): void
-    {
-        ob_start();
-        $served = $this->service()->serve(['slug' => 'campagnestart']);
-        $page = (string) ob_get_clean();
-
-        $this->assertNull($served, 'null: the callback answered, the router ends the request');
-        $this->assertStringContainsString('Zet de basis voor je campagne', $page);
-        $this->assertFalse($this->service()->serve(['slug' => 'bestaat-niet']), 'false is the router\'s own 404');
-        $this->assertFalse($this->service()->serve([]));
     }
 
     public function test_a_tool_page_is_the_themed_page_not_a_wordpress_template(): void

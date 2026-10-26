@@ -8,8 +8,9 @@ use josworld\services\content\ToolService;
 use WP_UnitTestCase;
 
 /**
- * A tool is a downloadable file OR a link to an external page. One answer decides which
- * (ToolService::target) and the download form and the builder both ask it.
+ * A tool is a downloadable file OR a link to a page. ToolService::link is the one reader of the
+ * link: a safe address for a link-kind tool, nothing for a file tool. (`target` is the tool's own
+ * page: ToolGrantAccessTest.)
  */
 final class ToolTargetTest extends WP_UnitTestCase
 {
@@ -24,66 +25,41 @@ final class ToolTargetTest extends WP_UnitTestCase
         return $id;
     }
 
-    private function attachment(int $toolId): int
+    private function link(int $toolId): string
     {
-        $attachment = ['post_mime_type' => 'application/pdf', 'post_title' => 'checklist', 'post_status' => 'inherit'];
-
-        return (int) wp_insert_attachment($attachment, 'checklist.pdf', $toolId);
+        return ntdst_get(ToolService::class)->link($toolId);
     }
 
-    /** @return array{url: string, isLink: bool} */
-    private function target(int $toolId): array
-    {
-        return ntdst_get(ToolService::class)->target($toolId);
-    }
-
-    public function test_a_link_tool_targets_its_url_and_says_it_is_a_link(): void
+    public function test_a_link_tool_gives_its_url(): void
     {
         $id = $this->tool(['delivery' => 'url', 'url' => 'https://example.org/tool']);
 
-        $this->assertSame(['url' => 'https://example.org/tool', 'isLink' => true], $this->target($id));
+        $this->assertSame('https://example.org/tool', $this->link($id));
     }
 
-    public function test_a_file_tool_targets_its_attachment(): void
+    public function test_a_file_tool_has_no_link_even_with_one_filled_in(): void
     {
-        $id = $this->tool(['delivery' => 'file']);
-        update_post_meta($id, '_jw_file', $this->attachment($id));
-
-        $target = $this->target($id);
-
-        $this->assertStringEndsWith('checklist.pdf', $target['url']);
-        $this->assertFalse($target['isLink']);
+        $this->assertSame('', $this->link($this->tool(['delivery' => 'file', 'url' => 'https://example.org/tool'])));
     }
 
-    public function test_a_tool_saved_before_the_choice_existed_stays_a_file_tool(): void
+    public function test_a_tool_saved_before_the_choice_existed_is_a_file_tool(): void
     {
-        $id = $this->tool([]);
-        update_post_meta($id, '_jw_file', $this->attachment($id));
-
-        $this->assertStringEndsWith('checklist.pdf', $this->target($id)['url']);
-    }
-
-    public function test_the_choice_decides_when_both_are_filled_in(): void
-    {
-        $id = $this->tool(['delivery' => 'url', 'url' => 'https://example.org/tool']);
-        update_post_meta($id, '_jw_file', $this->attachment($id));
-
-        $this->assertSame('https://example.org/tool', $this->target($id)['url']);
+        $this->assertSame('', $this->link($this->tool(['url' => 'https://example.org/tool'])));
     }
 
     public function test_an_unpublished_tool_still_resolves_so_the_builder_preview_works(): void
     {
         $id = $this->tool(['delivery' => 'url', 'url' => 'https://example.org/tool'], 'draft');
 
-        $this->assertSame('https://example.org/tool', $this->target($id)['url']);
+        $this->assertSame('https://example.org/tool', $this->link($id));
     }
 
     /** @dataProvider unsafeUrls */
-    public function test_a_link_that_is_not_an_http_address_with_a_host_is_no_target(string $url): void
+    public function test_a_link_that_is_not_an_http_address_with_a_host_is_no_link(string $url): void
     {
         $id = $this->tool(['delivery' => 'url', 'url' => $url]);
 
-        $this->assertSame('', $this->target($id)['url']);
+        $this->assertSame('', $this->link($id));
     }
 
     /** @return array<string, array{string}> */
@@ -106,7 +82,7 @@ final class ToolTargetTest extends WP_UnitTestCase
     {
         $id = $this->tool(['delivery' => 'url', 'url' => 'example.org/tool']);
 
-        $this->assertSame('http://example.org/tool', $this->target($id)['url']);
+        $this->assertSame('http://example.org/tool', $this->link($id));
     }
 
     public function test_the_schema_declares_which_field_belongs_to_which_kind(): void

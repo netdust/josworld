@@ -42,13 +42,19 @@ add_filter('ntdst/baseline/polylang/config', static function (array $config): ar
     return $config;
 });
 
-// A tool's file opens only at a visitor's personal link; the download form hands it out.
+// A tool's file or app opens only at a visitor's personal link; the download form hands it out.
+// `render` resolves ToolAppService on the request that opens a link, not when the config is first read.
 add_filter('ntdst/baseline/grants/config', static function (array $config): array {
-    $config['types'] = ['tool' => ['file_fields' => ['file']]];
+    $config['types'] = ['tool' => [
+        'file_fields' => ['file'],
+        'render'      => static fn (\WP_Post $tool, \WP_Post $grant): string|false|null
+            => ntdst_get(\josworld\services\content\ToolAppService::class)->renderForGrant($tool, $grant),
+    ]];
     $config['base'] = ['nl' => 'toegang', 'en' => 'access', 'fr' => 'acces'];
     $config['store'] = defined('PRIVATE_FILES_DIR') ? PRIVATE_FILES_DIR : null;
     $config['labels'] = [
         'download'       => 'Download de tool',
+        'open'           => 'Open de tool',
         'dead_title'     => 'Deze link werkt niet meer',
         'dead_body'      => 'De link die je volgde is niet meer geldig. Vraag de tool gerust opnieuw aan.',
         'dead_back'      => 'Naar de tool',
@@ -79,6 +85,7 @@ add_filter('ntdst/baseline/grants/config', static function (array $config): arra
     $config['labels_i18n'] = [
         'en' => [
             'download'     => 'Download the tool',
+            'open'         => 'Open the tool',
             'dead_title'   => 'This link no longer works',
             'dead_body'    => 'The link you followed is no longer valid. Feel free to request the tool again.',
             'dead_back'    => 'Go to the tool',
@@ -95,6 +102,7 @@ add_filter('ntdst/baseline/grants/config', static function (array $config): arra
         ],
         'fr' => [
             'download'     => 'Télécharger l’outil',
+            'open'         => 'Ouvrir l’outil',
             'dead_title'   => 'Ce lien ne fonctionne plus',
             'dead_body'    => 'Le lien que vous avez suivi n’est plus valable. N’hésitez pas à redemander l’outil.',
             'dead_back'    => 'Vers l’outil',
@@ -182,7 +190,6 @@ add_action('plugins_loaded', function (): void {
         ntdst_get(\josworld\services\content\TeamService::class);
         ntdst_get(\josworld\services\content\VacatureService::class);
         ntdst_get(\josworld\services\content\ToolService::class);
-        ntdst_get(\josworld\services\content\ToolAppService::class);
 
         // Admin-only services — only in wp-admin. Never move a service out
         // of this branch without also moving its require_once with it.
