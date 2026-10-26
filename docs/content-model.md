@@ -330,8 +330,8 @@ copied once; after that a copy keeps its own files, images and values. Configure
 
 A `text` field that holds a fact (a name, a number) declares `'translate' => false`.
 
-Every environment needs the `dienst` terms in en and fr, or a copied case loses its diensten:
-`wp eval-file scripts/once/2026-10-26-dienst-translations.php` (idempotent).
+A copied case keeps only the diensten that have a term in its language: Jos translates the five
+`dienst` terms on the Diensten screen in wp-admin, one language at a time, no script (Stefan, 2026-10-26).
 
 ### A methodological note: `wp eval` has no request context
 
