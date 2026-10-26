@@ -322,8 +322,9 @@ copied once; after that a copy keeps its own files, images and values. Configure
 `josworld-core.php` (`ntdst/baseline/polylang/config`, baseline 2.18):
 
 - `field_sync => 'create'`: facts and terms reach the copy at "+" only; nothing syncs later.
-- `translate_copies`: DeepL fills the draft's text; a later Dutch text change re-translates a copy
-  nobody edited. Needs `DEEPL_API_KEY` in that environment's `.env`; without it "+" opens a
+- `translate_copies`: DeepL fills the draft's text, on a page or post too (its YOOtheme layout's
+  texts included, baseline 2.19); a later Dutch text change re-translates a case, team, tool or
+  vacature copy nobody edited, while a page is translated at "+" only. Needs `DEEPL_API_KEY` in that environment's `.env`; without it "+" opens a
   flagged Dutch copy and logs one `polylang` warning.
 - `follow_status`: unpublishing or trashing the Dutch record does the same to its published copies.
 - `fact_titles => ['team']`: a team member's name is never translated.
