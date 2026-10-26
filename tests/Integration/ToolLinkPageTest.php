@@ -294,6 +294,21 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         $this->assertTrue(self::bound(self::ofType($layout, 'text')[0]), 'a tool without a layout keeps its text');
     }
 
+    public function test_no_post_global_points_at_the_tool_after_its_page_when_there_was_none(): void
+    {
+        $this->recordingBuilder();
+        $toolId = $this->tool(['delivery' => 'url', 'url' => 'https://example.org/tool']);
+        $grant = $this->grantFor($toolId);
+        $GLOBALS['post'] = null;
+        unset($GLOBALS['id'], $GLOBALS['pages']);
+
+        $this->open((string) ($grant->fields['token'] ?? ''));
+
+        $this->assertSame($toolId, $this->builds[0]['post'], 'the tool was the current post while it rendered');
+        $this->assertNull($GLOBALS['post']);
+        $this->assertNotSame($toolId, $GLOBALS['id'] ?? null, 'setup_postdata\'s $id is not left on the tool');
+    }
+
     public function test_dead_page_is_the_header_section_without_a_tool(): void
     {
         $this->recordingBuilder();

@@ -27,6 +27,9 @@ final class ToolGrantFormTest extends WP_UnitTestCase
 
     private const LINK = '#^https?://[^/]+/toegang/[0-9a-f]{64}$#';
 
+    /** Form 3's stored confirmation: the old download message's tokens, filled in by nobody now. */
+    private const STORED_MESSAGE = '<p>Bedankt! {tool_title} {tool_action}: <a href="{tool_file_url}">download</a></p>';
+
     private string $store = '';
 
     public function set_up(): void
@@ -66,6 +69,13 @@ final class ToolGrantFormTest extends WP_UnitTestCase
         $returnData = ['message' => '<p><strong>Bedankt!</strong> Je tool staat klaar.</p>', 'action' => 'hide_form'];
 
         return apply_filters('fluentform/submission_confirmation', $returnData, null, [], 1, $formData);
+    }
+
+    /** The "nog niet beschikbaar" answer, never the stored message with its raw tokens. */
+    private function assertNeutral(string $message): void
+    {
+        $this->assertStringContainsString('nog niet beschikbaar', $message);
+        $this->assertStringNotContainsString('{tool_', $message);
     }
 
     /** @return list<\MockPHPMailer|object> */
@@ -159,13 +169,14 @@ final class ToolGrantFormTest extends WP_UnitTestCase
     public function test_spam_entry_issues_nothing(): void
     {
         $service = new DownloadFormService(ntdst_get(GrantService::class), static fn (int $insertId): string => 'spam');
-        $returnData = ['message' => 'Bedankt!', 'action' => 'hide_form'];
+        $returnData = ['message' => self::STORED_MESSAGE, 'action' => 'hide_form'];
 
         $formData = ['tool_id' => (string) $this->tool(), 'email' => self::EMAIL];
 
         $out = $service->injectToolDownload($returnData, null, [], 1, $formData);
 
         $this->assertEmpty($out['redirectUrl'] ?? '');
+        $this->assertNeutral((string) $out['message']);
         $this->assertSame([], $this->mails());
         $this->assertSame(0, $this->grantCount());
     }
@@ -181,7 +192,7 @@ final class ToolGrantFormTest extends WP_UnitTestCase
         \FluentForm\App\Models\Submission::$rows = [41 => 'spam', 42 => 'unread', 43 => 'read'];
         $service = new DownloadFormService(ntdst_get(GrantService::class));
         $confirm = fn (int $entry, string $email): array => $service->injectToolDownload(
-            ['message' => 'Bedankt!', 'action' => 'hide_form'],
+            ['message' => self::STORED_MESSAGE, 'action' => 'hide_form'],
             null,
             [],
             $entry,
@@ -191,6 +202,7 @@ final class ToolGrantFormTest extends WP_UnitTestCase
         try {
             $spam = $confirm(41, 'spam@example.test');
             $this->assertEmpty($spam['redirectUrl'] ?? '');
+            $this->assertNeutral((string) $spam['message']);
             $this->assertSame([], $this->mails());
             $this->assertSame(0, $this->grantCount());
 

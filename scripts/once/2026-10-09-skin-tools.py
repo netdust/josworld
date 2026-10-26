@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-docs/tools/*.html -> app/content/themes/josworld/tools/<slug>.html, in the Jos style.
+docs/tools/*.html -> app/content/themes/josworld/tools/<slug>.html.php, in the Jos style (opened directly the file exits).
 
 The two tools were built with a THEMING LAYER (one :root block of tokens): this swaps those tokens for the
 Jos brand (theme.josworld.less section 1), self-hosts Inter + Fraunces instead of calling Google Fonts, gives
@@ -19,6 +19,7 @@ SOURCES = {
 }
 OUT = ROOT / 'app/content/themes/josworld/tools'
 THEME_URL = '/content/themes/josworld'
+GUARD = "<?php defined('ABSPATH') || exit; ?>\n"  # PHP eats the newline after ?>: the page is unchanged
 
 TOKENS = {  # Figma "Jos …" variables, as in less/theme.josworld.less
     '--paper': '#FCFCF7',      # Jos Beige
@@ -88,8 +89,8 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for source, slug in SOURCES.items():
         skinned = skin((ROOT / 'docs/tools' / source).read_text(encoding='utf-8'))
-        (OUT / f'{slug}.html').write_text(skinned, encoding='utf-8')
-        print(f'{source} -> app/content/themes/josworld/tools/{slug}.html ({len(skinned)} bytes)')
+        (OUT / f'{slug}.html.php').write_text(GUARD + skinned, encoding='utf-8')
+        print(f'{source} -> app/content/themes/josworld/tools/{slug}.html.php ({len(skinned)} bytes)')
 
 
 if __name__ == '__main__':

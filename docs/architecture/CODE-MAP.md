@@ -87,16 +87,19 @@ trusted, so only what a session must not re-derive lands here.
   baseline, not here.
 - **`DownloadFormService`** turns form 3's confirmation into `GrantService::issue()` plus
   FluentForm's `redirectUrl`; a refused tool keeps the "nog niet beschikbaar" message, and
-  an entry FluentForm flagged `spam` gets nothing.
+  an entry FluentForm flagged `spam` gets nothing but that same neutral message.
 - **`ToolAppService::renderForGrant()`** is the `render` callable: a `/tool-app/<slug>/` link
   echoes the app (no header of its own: baseline's `no-store` must stand), another link gets
   the "Open" body, a file tool returns `false` for baseline's file page. There is no public
-  `/tool-app/` route any more.
+  `/tool-app/` route any more. The apps are `themes/josworld/tools/<slug>.html.php`, included
+  under output buffering and exiting without `ABSPATH`: a static `.html` under the theme is public.
 - **`ToolLinkPage`** renders the link and dead pages from the `single-tool` template's
   "Pagina-header" section, in memory, through the theme override
   `themes/josworld/ntdst-baseline/grants/link.php`; without the builder, baseline's own page.
 - **`ToolGrantsMatomo`** drops Matomo's tracker callbacks on a grant request, so the token
   never reaches Matomo.
+- **After a database copy between environments** (refresh, pull): run `wp ntdst grants gate-files`
+  on the target, then check a tool's old uploads URL answers 404 (flow old-url-404).
 
 ## Boundaries
 

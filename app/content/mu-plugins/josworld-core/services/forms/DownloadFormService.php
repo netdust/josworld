@@ -59,7 +59,7 @@ final class DownloadFormService
 
         // FluentForm still runs this filter for an entry it caught as spam: that address gets nothing.
         if (($this->entryStatus)(absint($insertId)) === 'spam') {
-            return $returnData;
+            return $this->withoutDownload($returnData);
         }
 
         // issue() refuses anything but a published tool and an address exactly as typed (it sanitizes and compares).

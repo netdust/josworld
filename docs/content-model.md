@@ -147,10 +147,12 @@ download form gives the visitor a personal link — `/toegang/<token>/` (`/en/ac
 `/fr/acces/`) — redirects them to it and mails it. A `file` tool's attachment lives in the
 private store (`PRIVATE_FILES_DIR`, `<project root>/private-files` on DDEV, outside the web
 root) and downloads only through that link; its uploads URL 404s. A `url` tool whose path is
-`/tool-app/<slug>/` (host ignored) is served from `themes/josworld/tools/<slug>.html` behind
-the link — `/tool-app/<slug>/` itself is 404; any other link gets an "Open" button there. The
+`/tool-app/<slug>/` (host ignored) is served from `themes/josworld/tools/<slug>.html.php` behind
+the link (a PHP file that prints nothing opened directly; a static `.html` would be public) — `/tool-app/<slug>/` itself is 404; any other link gets an "Open" button there. The
 link page reuses the `single-tool` builder template's header section (`ToolLinkPage`), its
-button turned into the link's action. An editor revokes a link on the tool's screen.
+button turned into the link's action. An editor revokes a link on the tool's screen. After a
+database copy between environments, run `wp ntdst grants gate-files` there, then check the old
+uploads URL answers 404.
 
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|

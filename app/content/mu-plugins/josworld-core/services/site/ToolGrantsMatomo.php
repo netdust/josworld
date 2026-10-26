@@ -36,7 +36,7 @@ final class ToolGrantsMatomo
 
     public function dropTracker(): void
     {
-        if (! class_exists(LinkRoute::class) || ! LinkRoute::isGrantRequest()) {
+        if (! LinkRoute::isGrantRequest()) {
             return;
         }
 

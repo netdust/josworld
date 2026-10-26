@@ -25,6 +25,10 @@ class ToolLinkPage
 {
     private const TEMPLATE = 'single-tool';
     private const SECTION = 'Pagina-header';
+    /** The globals setup_postdata() writes. */
+    private const POSTDATA = [
+        'id', 'authordata', 'currentday', 'currentmonth', 'page', 'pages', 'multipage', 'more', 'numpages',
+    ];
     private string $templateId = '';
 
     /** @var list<string> the pages this request's builder rendered */
@@ -38,7 +42,7 @@ class ToolLinkPage
     /** The theme's header wraps a non-builder page in a section and container of its own; these pages are sections. */
     public function markBuilderPage(): void
     {
-        if (! class_exists(LinkRoute::class) || ! LinkRoute::isGrantRequest()) {
+        if (! LinkRoute::isGrantRequest()) {
             return;
         }
         if (! self::hasBuilder() || $this->section() === null) {
@@ -78,7 +82,10 @@ class ToolLinkPage
         return $this->asCurrentPost($tool, fn (): ?string => $this->render($layout));
     }
 
-    /** True only for a page this object rendered on this request; a renderer's string cannot claim it. */
+    /**
+     * True only for a page this object rendered on this request; a renderer's string cannot claim it.
+     * Such a page is echoed raw: baseline's wp_kses_post would strip the builder's uk-* attributes.
+     */
     public function built(string $html): bool
     {
         return in_array($html, $this->built, true);
@@ -234,6 +241,7 @@ class ToolLinkPage
     private function asCurrentPost(\WP_Post $tool, callable $render): ?string
     {
         $previous = $GLOBALS['post'] ?? null;
+        $postdata = array_intersect_key($GLOBALS, array_flip(self::POSTDATA));
         $GLOBALS['post'] = $tool;
         setup_postdata($tool);
 
@@ -243,6 +251,25 @@ class ToolLinkPage
             $GLOBALS['post'] = $previous;
             if ($previous instanceof \WP_Post) {
                 setup_postdata($previous);
+            } else {
+                self::restorePostdata($postdata);
+                wp_reset_postdata();
+            }
+        }
+    }
+
+    /**
+     * wp_reset_postdata() sets nothing when the main query has no post: put back what was there.
+     *
+     * @param array<string, mixed> $postdata
+     */
+    private static function restorePostdata(array $postdata): void
+    {
+        foreach (self::POSTDATA as $name) {
+            if (array_key_exists($name, $postdata)) {
+                $GLOBALS[$name] = $postdata[$name];
+            } else {
+                unset($GLOBALS[$name]);
             }
         }
     }

@@ -132,6 +132,19 @@ final class ToolGrantAccessTest extends WP_UnitTestCase
         $this->assertNull($this->rendered, 'the app is the whole answer: no link page around it');
     }
 
+    /** A static file under the theme is served by the web server to anyone: no app may be one. */
+    public function test_the_tool_apps_are_not_static_files(): void
+    {
+        $dir = get_theme_root() . '/josworld/tools/';
+
+        $this->assertSame([], glob($dir . '*.html'), 'no app is a public .html file');
+        foreach (['campagnestart', 'faire-aanbestedingsscan'] as $slug) {
+            $first = strtok((string) file_get_contents($dir . $slug . '.html.php'), "\n");
+            $guard = "<?php defined('ABSPATH') || exit; ?>";
+            $this->assertSame($guard, $first, $slug . ' opened directly prints nothing');
+        }
+    }
+
     public function test_tool_app_direct_url_is_404(): void
     {
         $this->set_permalink_structure('/%postname%/');

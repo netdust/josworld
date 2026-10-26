@@ -7,7 +7,8 @@
  * Jos style, no external requests). A `tool` post of kind "link" whose link's path is `/tool-app/<slug>/` points
  * at one. That path has no route of its own: the app opens only at a personal link, through baseline's grants
  * module calling `renderForGrant()`. The slug is looked up in the folder's file list, never turned into a path,
- * so nothing outside `tools/*.html` can be served.
+ * so nothing outside `tools/*.html.php` can be served. The apps are PHP files that exit without ABSPATH: a static
+ * `.html` under the theme would be public to anyone who guessed its address.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -23,6 +24,7 @@ defined('ABSPATH') || exit;
 final class ToolAppService
 {
     private const APP_PATH = '#^/tool-app/([^/]+)/?$#';
+    private const EXT = '.html.php';
 
     public function __construct(private readonly ToolService $tools, private readonly ToolLinkPage $page)
     {
@@ -55,11 +57,16 @@ final class ToolAppService
     }
 
     /** The page's HTML, or null when no such tool app exists. */
-    public function render(string $slug): ?string
+    private function render(string $slug): ?string
     {
-        $html = in_array($slug, $this->slugs(), true) ? file_get_contents($this->dir() . $slug . '.html') : false;
+        if (! in_array($slug, $this->slugs(), true)) {
+            return null;
+        }
 
-        return is_string($html) ? $html : null;
+        ob_start();
+        include $this->dir() . $slug . self::EXT;
+
+        return (string) ob_get_clean();
     }
 
     /** The tool page's header with an "Open" button; without the builder, a heading and the button. */
@@ -82,10 +89,10 @@ final class ToolAppService
     /** @return list<string> the tool apps that exist */
     private function slugs(): array
     {
-        $files = glob($this->dir() . '*.html') ?: [];
+        $files = glob($this->dir() . '*' . self::EXT) ?: [];
 
         return array_values(array_filter(
-            array_map(static fn (string $file): string => basename($file, '.html'), $files),
+            array_map(static fn (string $file): string => basename($file, self::EXT), $files),
             static fn (string $slug): bool => preg_match('/^[a-z0-9-]+$/', $slug) === 1
         ));
     }
