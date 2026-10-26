@@ -28,7 +28,8 @@ export WP_BASE_URL
 # The e2e credential is single-sourced HERE (review C4 I4): generated per run
 # unless the caller provides one, seeded create-or-update (no silent drift),
 # and handed to the spec via the environment. No password literal anywhere.
-E2E_PASS="${E2E_PASS:-$(head -c16 /dev/urandom | od -An -tx1 | tr -d ' \n')}"
+# Node, which the suite needs anyway: an `od` earlier on PATH is not always coreutils'.
+E2E_PASS="${E2E_PASS:-$(node -e "process.stdout.write(require('crypto').randomBytes(16).toString('hex'))")}"
 export E2E_PASS
 
 if command -v ddev >/dev/null 2>&1; then
