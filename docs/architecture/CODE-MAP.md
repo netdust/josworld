@@ -55,6 +55,10 @@ trusted, so only what a session must not re-derive lands here.
   guarded for that reason — with `SiteMetaService`'s sitemap rule (it also lists a page's translations through `pll_get_post_translations`) it is one of two josworld-owned places that touch Polylang.
   The multilingual layer itself is ntdst-baseline's `polylang` module (opted into in
   `josworld-core.php`), which carries the same absence contract in the package.
+- **Translation is baseline's, configured in `josworld-core.php`** (2026-10-26): "+" is a DeepL
+  draft with the Dutch facts copied once (`field_sync => 'create'`), copies follow the Dutch
+  record out of publish, and a `text` field holding a fact declares `'translate' => false`.
+  josworld writes no translation code of its own. Runbook: `docs/content-model.md`, "Translating a record".
 
 ## Outgoing mail (2026-10-21)
 

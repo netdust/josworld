@@ -72,7 +72,7 @@ the YOOtheme builder, not stored as meta.
 
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|
-| `client` | `_jw_client` | text | required |
+| `client` | `_jw_client` | text | required; a fact (`'translate' => false`), never sent to DeepL |
 | `hover_image` | `_jw_hover_image` | image | optional; the second image a case grid tile shows on hover |
 
 `title`/`editor`/`thumbnail`/`excerpt` are native WP fields (`supports`),
@@ -108,7 +108,7 @@ posture and will go RED the moment it changes.
 | `role` | `_jw_role` | text | required |
 | `bio` | `_jw_bio` | textarea | the team-archive card's short bio; read server-side by the template, not REST-registered |
 | `email` | `_jw_email` | email | not REST-exposed (see caveat above) |
-| `phone` | `_jw_phone` | text | not REST-exposed (see caveat above) |
+| `phone` | `_jw_phone` | text | not REST-exposed (see caveat above); a fact (`'translate' => false`), never sent to DeepL |
 
 `title`/`thumbnail` are native (`supports`) — "photo" is the WP featured
 image by choice, not a bespoke meta field; the framework's `image` field
@@ -313,6 +313,25 @@ hard way — this is the single most valuable page in this doc.
    for the current values). After this, `composer gate` tier 9 (E2E) went
    from failing on "front page renders a header with a nav landmark" to all
    9 tiers green.
+
+### Translating a record (2026-10-26)
+
+Stefan, 2026-10-26, replacing the 2026-09-15 "one-time copy, nothing follows" rule: "+" on a
+Dutch record opens a DeepL draft flagged for review, with the Dutch facts and `dienst` terms
+copied once; after that a copy keeps its own files, images and values. Configured in
+`josworld-core.php` (`ntdst/baseline/polylang/config`, baseline 2.18):
+
+- `field_sync => 'create'`: facts and terms reach the copy at "+" only; nothing syncs later.
+- `translate_copies`: DeepL fills the draft's text; a later Dutch text change re-translates a copy
+  nobody edited. Needs `DEEPL_API_KEY` in that environment's `.env`; without it "+" opens a
+  flagged Dutch copy and logs one `polylang` warning.
+- `follow_status`: unpublishing or trashing the Dutch record does the same to its published copies.
+- `fact_titles => ['team']`: a team member's name is never translated.
+
+A `text` field that holds a fact (a name, a number) declares `'translate' => false`.
+
+Every environment needs the `dienst` terms in en and fr, or a copied case loses its diensten:
+`wp eval-file scripts/once/2026-10-26-dienst-translations.php` (idempotent).
 
 ### A methodological note: `wp eval` has no request context
 
