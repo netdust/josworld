@@ -8,6 +8,7 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
 |---|---|---|---|---|---|
 | Tool download notification mail (FluentForms form 3) | e2e | /tools/contentkalender/ | tests/E2E/mail-template.spec.ts | mail-template | 6689146 2026-10-21, on staging |
 | Mail logo, shown by every mail the site sends | smoke | /content/themes/josworld/images/logo.png | tests/E2E/smoke/mail-template.spec.ts | mail-template | 46abb5e 2026-10-21 |
+| The English home, the site's Polylang languages | smoke | /en/ | tests/E2E/smoke/translation.spec.ts | translation | 22c041b 2026-10-26 |
 
 ## Notes
 
@@ -25,3 +26,10 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
   calendar" (2026-10-21). The spec refuses any site but the local DDEV one, refuses while a host
   has a remote calendar connected, and deletes the booking and the CRM contact it made. It runs
   in the local gate only.
+- **Translation "+" — local only, not registered.** Polylang's "+" on a page, post, team member,
+  case and dienst, the review flag, and unpublishing a Dutch record (specs/translation flows 1-5),
+  driven by `tests/E2E/translation.spec.ts`, which carries no tier tag: every "+" sends text to
+  the real DeepL key and leaves drafts, so staging would spend the key on every deploy, and its
+  edges need the seeded `e2e-author`. The spec refuses any site but the local DDEV one and
+  deletes every post and dienst term it made. It runs in the local gate only, about eight DeepL
+  calls a run. Verified 22c041b 2026-10-26.
