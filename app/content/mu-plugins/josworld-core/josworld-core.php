@@ -159,6 +159,7 @@ add_action('plugins_loaded', function (): void {
     require_once $dir . '/content/TeamService.php';
     require_once $dir . '/content/VacatureService.php';
     require_once $dir . '/content/ToolService.php';
+    require_once $dir . '/content/ToolLinkPage.php';
     require_once $dir . '/content/ToolAppService.php';
 
     // Admin-only services. ActivitySource first: both repositories implement
@@ -218,6 +219,9 @@ add_action('plugins_loaded', function (): void {
 
         // No analytics on a personal link: its URL carries the token.
         ntdst_get(\josworld\services\site\ToolGrantsMatomo::class);
+
+        // A personal link's page wears the tool page's header section.
+        ntdst_get(\josworld\services\content\ToolLinkPage::class);
 
         // The download form's confirmation runs on a front-end submission.
         ntdst_get(\josworld\services\forms\DownloadFormService::class);

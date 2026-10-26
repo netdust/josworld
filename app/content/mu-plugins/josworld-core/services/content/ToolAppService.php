@@ -24,7 +24,7 @@ final class ToolAppService
 {
     private const APP_PATH = '#^/tool-app/([^/]+)/?$#';
 
-    public function __construct(private readonly ToolService $tools)
+    public function __construct(private readonly ToolService $tools, private readonly ToolLinkPage $page)
     {
     }
 
@@ -62,13 +62,20 @@ final class ToolAppService
         return is_string($html) ? $html : null;
     }
 
+    /** The tool page's header with an "Open" button; without the builder, a heading and the button. */
     private function openPage(\WP_Post $tool, string $link, string $lang): string
     {
+        $label = GrantService::label('open', $lang);
+        $page = $this->page->forTool($tool, $label, $link, true);
+        if ($page !== null) {
+            return $page;
+        }
+
         return sprintf(
             '<h1>%s</h1><p><a class="button" href="%s" rel="noreferrer noopener">%s</a></p>',
             esc_html(get_the_title($tool)),
             esc_url($link),
-            esc_html(GrantService::label('open', $lang))
+            esc_html($label)
         );
     }
 
