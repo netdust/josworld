@@ -51,6 +51,10 @@ Hunt: 5 charters · 0 confirmed · 0 not ours · 6 rejected
 
 ## Notes for the run
 
+- `shakeout-check.py` exits 1 on one rule only: no `@e2e` row in specs/CHECKS.md. The flows stay
+  local (they spend DeepL quota and need the seeded e2e-author staging lacks); Stefan chose to
+  close without a staging row, 2026-10-26 ("1, continue"). The `/en/` `@smoke` row stands.
+
 - `sh bin/e2e.sh tests/E2E/translation.spec.ts` spends about eight DeepL calls. Twice in this session a login click sent no POST (nginx's access log shows the login page and no POST); `logIn` retries the login up to three times.
 - Suites at `22c041b`: unit 169 OK, integration 165 OK (1 skipped).
 - Polylang's translation group of dienst 23 gets a new id each run (now term 153; before this session a lower one): the spec links a French term to it, deletes that term, and re-saves 23 alone. Same content, `{"nl":23}`; the group count is unchanged.

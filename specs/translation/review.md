@@ -42,4 +42,21 @@ None.
 - 2.17.0 adds `disable_media_enumeration`: logged-out attachment pages and `/wp/v2/media` 404.
 - Hard-coded salts in tracked app/wp-config.php:75-82 (outside the diff).
 
+## Fix pass (2026-10-26)
+
+1. Stefan: "Follow the Dutch record", then "syncing when creating, aftwards we can change
+   values". Facts are copied once at "+" (`field_sync => 'create'`, baseline 2.18, f170e75);
+   the 2026-09-15 memory note is marked superseded.
+2. Fixed by 1: a copy keeps its own file, link and image after the "+" (f170e75).
+3. Stefan: "josworld will do the translation from dutch, no automated scripts". Jos translates
+   diensten with "+" on the Diensten screen, the form pre-filled by DeepL (baseline 2.20, 22c041b);
+   a case carries only diensten that have a term in its language (shake-out flow 3).
+4. Open, Stefan's: add `DEEPL_API_KEY` to each server's `app/.env` after deploy;
+   `.env.example` names it.
+5. Stefan: "a free key, its josworlds choice to move to paid one or not". Accepted.
+6. Fixed: content-model "Translating a record" and the CODE-MAP bullet (f170e75, f120195).
+
+Also on the branch: "+" on pages and posts (baseline 2.19, 09da17e), the gate's e2e password
+from Node (031bafd) and the lost-password flow's own actor (2de3d7b).
+
 Findings: 0 Blocking · 6 Should fix · 6 Note
