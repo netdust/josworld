@@ -332,7 +332,8 @@ copied once; after that a copy keeps its own files, images and values. Configure
 A `text` field that holds a fact (a name, a number) declares `'translate' => false`.
 
 A copied case keeps only the diensten that have a term in its language: Jos translates the five
-`dienst` terms on the Diensten screen in wp-admin, one language at a time, no script (Stefan, 2026-10-26).
+`dienst` terms on the Diensten screen in wp-admin — "+" opens the add form with the DeepL name
+filled in (baseline 2.20) — one language at a time, no script (Stefan, 2026-10-26).
 
 ### A methodological note: `wp eval` has no request context
 
