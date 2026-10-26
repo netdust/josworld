@@ -26,8 +26,9 @@ final class ToolLinkPageTest extends WP_UnitTestCase
 {
     private const EMAIL = 'link-page@example.test';
     private const OVERRIDE = 'ntdst-baseline/grants/link.php';
-    /** JOS's pink button, the header's "Contacteer ons", is the style's secondary; its primary is aubergine. */
-    private const PINK = 'secondary';
+    /** Not the fixture's own style: the link page's button must follow whatever the template says. */
+    private const TEMPLATE_STYLE = 'danger';
+    private const HOSTILE = '"><script>alert(1)</script>';
 
     private string $store = '';
     private string $storedOption = '';
@@ -50,6 +51,9 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         ntdst_set(PrivateFiles::class); // a fresh store: the shared instance keeps the last test's directory
 
         $template = json_decode((string) file_get_contents(__DIR__ . '/fixtures/single-tool-template.json'));
+        foreach (self::ofType($template->layout, 'button_item') as $item) {
+            $item->props->button_style = self::TEMPLATE_STYLE;
+        }
         $this->storedOption = (string) wp_json_encode(['templates' => ['goYeARw1' => $template]]);
         update_option('yootheme', $this->storedOption);
     }
@@ -89,11 +93,36 @@ final class ToolLinkPageTest extends WP_UnitTestCase
                 $post = (int) ($GLOBALS['post']->ID ?? 0);
                 $this->test->builds[] = ['layout' => $layout, 'params' => $params, 'post' => $post];
 
-                return '<!-- built -->';
+                return '<div class="uk-section" uk-height-viewport="offset-top: true;"><!-- built --></div>';
             }
         };
         ntdst_set(ToolLinkPage::class, static fn () => $page);
         ntdst_set(ToolAppService::class, static fn () => new ToolAppService(ntdst_get(ToolService::class), $page));
+    }
+
+    /** The site's `render` for tools answers `$html` for every grant. */
+    private function renderAnswers(string $html): void
+    {
+        add_filter('ntdst/baseline/grants/config', static function (array $c) use ($html): array {
+            $c['types']['tool']['render'] = static fn (): string => $html;
+
+            return $c;
+        }, 100);
+        GrantService::reset();
+    }
+
+    /** Every language's "open" label reads `$label`. */
+    private function openLabel(string $label): void
+    {
+        add_filter('ntdst/baseline/grants/config', static function (array $c) use ($label): array {
+            $c['labels']['open'] = $label;
+            foreach (array_keys($c['labels_i18n'] ?? []) as $lang) {
+                $c['labels_i18n'][$lang]['open'] = $label;
+            }
+
+            return $c;
+        }, 100);
+        GrantService::reset();
     }
 
     /** @param array<string, mixed> $meta */
@@ -199,7 +228,7 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         );
     }
 
-    public function test_file_page_is_the_tool_header_with_a_pink_download_button(): void
+    public function test_file_page_is_the_tool_header_with_the_template_download_button(): void
     {
         $this->recordingBuilder();
         [$toolId, $publicUrl] = $this->fileTool();
@@ -228,7 +257,7 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         $this->assertCount(1, $buttons);
         $label = GrantService::label('download', (string) ($grant->fields['lang'] ?? ''));
         $this->assertSame($label, $buttons[0]->props->content);
-        $this->assertSame(self::PINK, $buttons[0]->props->button_style);
+        $this->assertSame(self::TEMPLATE_STYLE, $buttons[0]->props->button_style);
         $this->assertSame($args['download_url'], $buttons[0]->props->link);
         $this->assertFalse(isset($buttons[0]->source), 'the tool page\'s own target binding is gone');
 
@@ -241,7 +270,7 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         $this->assertSame($this->storedOption, get_option('yootheme'), 'the template is read, never written');
     }
 
-    public function test_open_page_is_the_tool_header_with_a_pink_open_button(): void
+    public function test_open_page_is_the_tool_header_with_the_template_open_button(): void
     {
         $this->recordingBuilder();
         $toolId = $this->tool(['delivery' => 'url', 'url' => 'https://example.org/tool?x=1'], '<p>Over de tool.</p>');
@@ -250,7 +279,8 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         [$printed, $args] = $this->open((string) ($grant->fields['token'] ?? ''));
 
         $this->assertSame('html', $args['kind']);
-        $this->assertStringContainsString('<!-- built -->', $printed);
+        $own = 'uk-height-viewport="offset-top: true;"';
+        $this->assertStringContainsString($own, $printed, 'the page it rendered itself is not kses\'d');
         ['layout' => $layout, 'post' => $post] = $this->builds[0];
         $this->assertSame($toolId, $post);
 
@@ -258,7 +288,7 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         $this->assertCount(1, $buttons);
         $label = GrantService::label('open', (string) ($grant->fields['lang'] ?? ''));
         $this->assertSame($label, $buttons[0]->props->content);
-        $this->assertSame(self::PINK, $buttons[0]->props->button_style);
+        $this->assertSame(self::TEMPLATE_STYLE, $buttons[0]->props->button_style);
         $this->assertSame('https://example.org/tool?x=1', html_entity_decode($buttons[0]->props->link));
         $this->assertTrue($buttons[0]->props->link_rel_noreferrer);
         $this->assertTrue(self::bound(self::ofType($layout, 'text')[0]), 'a tool without a layout keeps its text');
@@ -300,7 +330,7 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         $buttons = self::ofType($this->builds[0]['layout'], 'button_item');
         $this->assertCount(1, $buttons);
         $this->assertSame('Naar de tool', $buttons[0]->props->content);
-        $this->assertSame(self::PINK, $buttons[0]->props->button_style);
+        $this->assertSame(self::TEMPLATE_STYLE, $buttons[0]->props->button_style);
         $this->assertSame(get_permalink($toolId), $buttons[0]->props->link);
     }
 
@@ -315,5 +345,59 @@ final class ToolLinkPageTest extends WP_UnitTestCase
         $this->assertStringContainsString('href="' . esc_url($args['download_url']) . '"', $printed);
         $label = GrantService::label('download', (string) ($grant->fields['lang'] ?? ''));
         $this->assertStringContainsString($label, $printed);
+    }
+
+    public function test_a_renderer_string_is_kses_d_like_baseline_does(): void
+    {
+        $this->recordingBuilder();
+        $this->renderAnswers('<script>alert(1)</script><a href="javascript:alert(1)">x</a><p uk-grid>kept</p>');
+        $grant = $this->grantFor($this->tool(['delivery' => 'url', 'url' => 'https://example.org/tool']));
+
+        [$printed, $args] = $this->open((string) ($grant->fields['token'] ?? ''));
+
+        $this->assertSame('html', $args['kind']);
+        $this->assertStringNotContainsString('<script', $printed);
+        $this->assertStringNotContainsString('javascript:', $printed);
+        $this->assertStringNotContainsString('uk-grid', $printed, 'only its own page keeps uk-* attributes');
+        $this->assertStringContainsString('kept', $printed);
+    }
+
+    public function test_an_unsafe_tool_link_never_becomes_a_button(): void
+    {
+        $this->recordingBuilder();
+        $grant = $this->grantFor($this->tool(['delivery' => 'url', 'url' => 'javascript:alert(1)']));
+
+        [$printed, $args] = $this->open((string) ($grant->fields['token'] ?? ''));
+
+        $this->assertSame('dead', $args['kind']);
+        $this->assertStringNotContainsString('javascript:', $printed . wp_json_encode($this->builds));
+    }
+
+    public function test_a_hostile_label_and_link_are_escaped_on_the_open_page(): void
+    {
+        $this->recordingBuilder();
+        $this->openLabel(self::HOSTILE);
+        $url = 'https://example.org/a' . self::HOSTILE;
+        $grant = $this->grantFor($this->tool(['delivery' => 'url', 'url' => $url]));
+
+        $this->open((string) ($grant->fields['token'] ?? ''));
+
+        $button = self::ofType($this->builds[0]['layout'], 'button_item')[0]->props;
+        $this->assertSame(esc_html(self::HOSTILE), $button->content);
+        $this->assertStringNotContainsString('<', $button->link);
+        $this->assertStringNotContainsString('"', $button->link);
+    }
+
+    public function test_a_hostile_label_and_link_are_escaped_without_the_builder(): void
+    {
+        $this->openLabel(self::HOSTILE);
+        $url = 'https://example.org/a' . self::HOSTILE;
+        $grant = $this->grantFor($this->tool(['delivery' => 'url', 'url' => $url]));
+
+        [$printed, $args] = $this->open((string) ($grant->fields['token'] ?? ''));
+
+        $this->assertSame('html', $args['kind']);
+        $this->assertStringNotContainsString('<script', $printed);
+        $this->assertStringContainsString(esc_html(self::HOSTILE), $printed);
     }
 }

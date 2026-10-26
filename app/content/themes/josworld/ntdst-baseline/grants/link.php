@@ -13,8 +13,8 @@ $josworld_link_page = ntdst_get(\josworld\services\content\ToolLinkPage::class);
 
 $josworld_link_html = match ($args['kind']) {
     'file' => $josworld_link_page->file($args),
-    // The body is ToolAppService's Open page: builder output, which wp_kses_post would strip of its uk-* attributes.
-    'html' => $args['body'],
+    // wp_kses_post would strip the builder's uk-* attributes: only a page ToolLinkPage rendered skips it.
+    'html' => $josworld_link_page->built($args['body']) ? $args['body'] : wp_kses_post($args['body']),
     default => $josworld_link_page->dead($args),
 };
 
@@ -25,4 +25,4 @@ if ($josworld_link_html === null) {
     return;
 }
 
-echo $josworld_link_html; // phpcs:ignore WordPress.Security.EscapeOutput -- builder output; every value set in it is escaped by ToolLinkPage
+echo $josworld_link_html; // phpcs:ignore WordPress.Security.EscapeOutput -- ToolLinkPage's own builder output, or kses'd above

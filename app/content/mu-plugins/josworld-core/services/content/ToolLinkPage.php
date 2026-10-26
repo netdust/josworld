@@ -4,10 +4,10 @@
  * Tool Link Page — a visitor's personal link wears the tool page's header.
  *
  * The first section of the YOOtheme `single-tool` template ("Pagina-header") is rendered by the builder for the
- * granted tool, its button turned into the link's action (download or open) as JOS's pink button. The template
- * is read from the `yootheme` option and changed in memory only. The dead page is the same section without a
- * tool: its headline, its text and the way back. Without the builder or the template every page answers null,
- * and baseline's own link page stands.
+ * granted tool, its button turned into the link's action (download or open) in the template's own button style.
+ * The template is read from the `yootheme` option and changed in memory only. The dead page is the same section
+ * without a tool: its headline, its text and the way back. Without the builder or the template every page answers
+ * null, and baseline's own link page stands.
  *
  * phpcs:disable PSR1.Files.SideEffects
  */
@@ -25,9 +25,10 @@ class ToolLinkPage
 {
     private const TEMPLATE = 'single-tool';
     private const SECTION = 'Pagina-header';
-    // JOS's pink action button, the header's "Contacteer ons": the style's secondary (its primary is aubergine).
-    private const BUTTON_STYLE = 'secondary';
     private string $templateId = '';
+
+    /** @var list<string> the pages this request's builder rendered */
+    private array $built = [];
 
     public function __construct()
     {
@@ -77,6 +78,12 @@ class ToolLinkPage
         return $this->asCurrentPost($tool, fn (): ?string => $this->render($layout));
     }
 
+    /** True only for a page this object rendered on this request; a renderer's string cannot claim it. */
+    public function built(string $html): bool
+    {
+        return in_array($html, $this->built, true);
+    }
+
     /** @param array<string, mixed> $args baseline's dead page arguments */
     public function dead(array $args): ?string
     {
@@ -124,7 +131,12 @@ class ToolLinkPage
 
     private function render(object $layout): ?string
     {
-        return $this->build($layout, ['prefix' => 'template-' . $this->templateId, 'template' => self::TEMPLATE]);
+        $html = $this->build($layout, ['prefix' => 'template-' . $this->templateId, 'template' => self::TEMPLATE]);
+        if ($html !== null) {
+            $this->built[] = $html;
+        }
+
+        return $html;
     }
 
     /** A fresh copy of the template's header section as a layout of its own, or null when there is none. */
@@ -171,7 +183,6 @@ class ToolLinkPage
                 self::fix($node->children[0], [
                     'content' => esc_html($label),
                     'link' => esc_url($url),
-                    'button_style' => self::BUTTON_STYLE,
                     'link_rel_noreferrer' => $external,
                 ]);
             }
