@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d49780a62dd23a67bf34ccd97b367484",
+    "content-hash": "fb38155931b79ead8385d007ca342ef6",
     "packages": [
         {
             "name": "composer/installers",
@@ -216,16 +216,16 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.16.0",
+            "version": "dev-feature/grants",
             "source": {
                 "type": "git",
                 "url": "git@github.com:netdust/ntdst-baseline.git",
-                "reference": "8e66ba0b9418611197d2fba5da1b409a8a847576"
+                "reference": "a419e1a787c38931e9651d9780fa77f7785dfbf6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/8e66ba0b9418611197d2fba5da1b409a8a847576",
-                "reference": "8e66ba0b9418611197d2fba5da1b409a8a847576",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/a419e1a787c38931e9651d9780fa77f7785dfbf6",
+                "reference": "a419e1a787c38931e9651d9780fa77f7785dfbf6",
                 "shasum": ""
             },
             "require": {
@@ -248,6 +248,7 @@
                     "phpunit"
                 ],
                 "gate": [
+                    "@composer show 'netdust/*'",
                     "@lint",
                     "@test",
                     "@guard",
@@ -265,10 +266,10 @@
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
             "support": {
-                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.16.0",
+                "source": "https://github.com/netdust/ntdst-baseline/tree/feature/grants",
                 "issues": "https://github.com/netdust/ntdst-baseline/issues"
             },
-            "time": "2026-10-09T11:26:40+00:00"
+            "time": "2026-10-26T18:47:18+00:00"
         },
         {
             "name": "netdust/ntdst-core",
@@ -758,7 +759,9 @@
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {},
+    "stability-flags": {
+        "netdust/ntdst-baseline": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
