@@ -139,8 +139,18 @@ Source: `app/content/mu-plugins/josworld-core/services/content/ToolService.php`
 `public`, `has_archive`, slug `tools`, REST base `tools`. The card is
 `subtitle`, plus what the tool IS: a downloadable `file` or a `url` to an external
 page (`delivery` chooses; the editor shows only the matching field) — benefits and
-related tools are built per tool in the YOOtheme builder. `ToolService::targetUrl()`
-turns a tool into where the visitor goes; the builder reads it as the `target` field.
+related tools are built per tool in the YOOtheme builder. The builder's `target` field
+(`ToolService::target()`) is the tool's own page, where the download form is.
+
+**The tool is gated (ntdst-baseline `grants`, configured in `josworld-core.php`).** The
+download form gives the visitor a personal link — `/toegang/<token>/` (`/en/access/`,
+`/fr/acces/`) — redirects them to it and mails it. A `file` tool's attachment lives in the
+private store (`PRIVATE_FILES_DIR`, `<project root>/private-files` on DDEV, outside the web
+root) and downloads only through that link; its uploads URL 404s. A `url` tool whose path is
+`/tool-app/<slug>/` (host ignored) is served from `themes/josworld/tools/<slug>.html` behind
+the link — `/tool-app/<slug>/` itself is 404; any other link gets an "Open" button there. The
+link page reuses the `single-tool` builder template's header section (`ToolLinkPage`), its
+button turned into the link's action. An editor revokes a link on the tool's screen.
 
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|
