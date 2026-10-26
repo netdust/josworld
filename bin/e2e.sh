@@ -46,6 +46,10 @@ if command -v ddev >/dev/null 2>&1; then
     --role=author --user_pass="$E2E_PASS" >/dev/null 2>&1 \
     || ddev exec wp user update e2e-author --user_pass="$E2E_PASS" >/dev/null
 
+  # Reset actor: the lost-password flow's own, never logged in. A login clears the user's pending
+  # reset key, and other specs log in as e2e-author while that flow waits on its mail.
+  ddev exec wp user create e2e-reset e2e-reset@example.test --role=subscriber >/dev/null 2>&1 || true
+
   # Fixture post (slug pinned so the seeded permalink is deterministic)
   if [ -z "$(ddev exec wp post list --name=e2e-fixture-post --post_type=post --post_status=publish --field=ID)" ]; then
     ddev exec wp post create --post_title='E2E Fixture Post' --post_name=e2e-fixture-post \

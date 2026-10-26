@@ -17,7 +17,7 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
   keeps that one CRM contact (list Lead) up to date. The entry is a tool production carries:
   staging runs on a copy of production's database, so a tool that exists only locally 404s there.
 - **Lost-password mail — local only, not registered.** `tests/E2E/mail-template.spec.ts` flow 3
-  asks a reset for the seeded actor `e2e-author`. `bin/e2e.sh` seeds DDEV only and `commands.e2e`
+  asks a reset for the seeded actor `e2e-reset` (its own: a login clears a pending reset key). `bin/e2e.sh` seeds DDEV only and `commands.e2e`
   seeds nothing, so, like every spec here that needs a seeded user, it runs in the local gate only.
 - **Booking mails — local only, not registered.** FluentBooking "Sparmoment" on `/contact/`,
   driven by `tests/E2E/mail-booking.spec.ts`, which carries no tier tag: a booking reaches the
