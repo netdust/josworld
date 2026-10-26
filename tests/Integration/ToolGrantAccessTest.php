@@ -122,6 +122,16 @@ final class ToolGrantAccessTest extends WP_UnitTestCase
         $this->assertSame(1, (int) $reread->fields['access_count'], 'the open is recorded');
     }
 
+    public function test_the_staging_faire_link_opens_its_app_at_the_personal_link(): void
+    {
+        $grant = $this->grantFor($this->linkTool('https://staging.jos.agency/tool-app/faire-aanbestedingsscan/'));
+
+        $printed = $this->open($grant);
+
+        $this->assertStringContainsString('<title>Faire aanbestedingsscan | JOS</title>', $printed);
+        $this->assertNull($this->rendered, 'the app is the whole answer: no link page around it');
+    }
+
     public function test_tool_app_direct_url_is_404(): void
     {
         $this->set_permalink_structure('/%postname%/');
