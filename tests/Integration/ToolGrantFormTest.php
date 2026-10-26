@@ -170,6 +170,41 @@ final class ToolGrantFormTest extends WP_UnitTestCase
         $this->assertSame(0, $this->grantCount());
     }
 
+    /**
+     * The production reader against FluentForm's model: a stored `spam` entry gets nothing, a normal
+     * entry gets its link. A missing row is no spam flag, so it is issued: FluentForm stores every
+     * entry, spam included, before this filter runs.
+     */
+    public function test_the_default_reader_reads_fluentforms_stored_status(): void
+    {
+        require_once __DIR__ . '/fixtures/fluentform-submission-stub.php';
+        \FluentForm\App\Models\Submission::$rows = [41 => 'spam', 42 => 'unread', 43 => 'read'];
+        $service = new DownloadFormService(ntdst_get(GrantService::class));
+        $confirm = fn (int $entry, string $email): array => $service->injectToolDownload(
+            ['message' => 'Bedankt!', 'action' => 'hide_form'],
+            null,
+            [],
+            $entry,
+            ['tool_id' => (string) $this->tool(), 'email' => $email],
+        );
+
+        try {
+            $spam = $confirm(41, 'spam@example.test');
+            $this->assertEmpty($spam['redirectUrl'] ?? '');
+            $this->assertSame([], $this->mails());
+            $this->assertSame(0, $this->grantCount());
+
+            $passing = [42 => 'unread@example.test', 43 => 'read@example.test', 44 => 'norow@example.test'];
+            foreach ($passing as $entry => $email) {
+                $link = (string) ($confirm($entry, $email)['redirectUrl'] ?? '');
+                $this->assertMatchesRegularExpression(self::LINK, $link, $email);
+            }
+            $this->assertCount(3, $this->mails());
+        } finally {
+            \FluentForm\App\Models\Submission::$rows = [];
+        }
+    }
+
     public function test_matomo_callbacks_are_removed_on_a_grant_request(): void
     {
         require_once __DIR__ . '/fixtures/matomo-stubs.php';
