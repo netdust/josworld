@@ -231,6 +231,7 @@ final class CaseService
         return [
             'client' => [
                 'type' => 'text',
+                'translate' => false,
                 'label' => __('Klant', JOSWORLD_CORE_TEXTDOMAIN),
                 'required' => true,
             ],

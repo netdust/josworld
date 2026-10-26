@@ -42,6 +42,21 @@ add_filter('ntdst/baseline/duplicate/config', static function (array $config): a
     return $config;
 });
 
+// Translations follow the Dutch record: its facts are copied to each copy, "+" opens a DeepL
+// draft flagged for review, and copies leave publish with it. No key, no machine translation.
+add_filter('ntdst/baseline/polylang/config', static function (array $config): array {
+    $key = defined('DEEPL_API_KEY') ? (string) DEEPL_API_KEY : '';
+
+    $config['translator'] = ['provider' => $key !== '' ? 'deepl' : null, 'key' => $key];
+    $config['field_sync'] = true;
+    $config['translate_copies'] = true;
+    $config['follow_status'] = true;
+    // A team member's title is their name.
+    $config['fact_titles'] = ['team'];
+
+    return $config;
+});
+
 add_action('plugins_loaded', function (): void {
     // Fail quiet if ntdst-core didn't load (framework missing/disabled) —
     // no fatal, no partial registration.
