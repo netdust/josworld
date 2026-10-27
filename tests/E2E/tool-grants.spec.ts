@@ -94,6 +94,7 @@ test.describe('tool grants: the form, the link and the file @e2e', () => {
   test.describe.configure({ mode: 'serial' });
 
   let nlLink = '';
+  let toolTitle = '';
   let since = 0;
 
   test.beforeAll(({ baseURL }) => {
@@ -110,9 +111,12 @@ test.describe('tool grants: the form, the link and the file @e2e', () => {
 
   test('form-to-link: the form sends the visitor to their personal link, a live page with the Download button @e2e', async ({ page }, testInfo) => {
     since = Date.now();
+    await page.goto(NL_TOOL);
+    toolTitle = ((await page.locator('h1').first().textContent()) ?? '').trim();
+    expect(toolTitle).not.toBe('');
     nlLink = await requestTool(page, NL_TOOL, ADDRESS.nl, NL_LINK);
 
-    await expect(page.locator('h1')).toContainText('Contentkalender');
+    await expect(page.locator('h1')).toContainText(toolTitle);
     const download = page.getByRole('link', { name: 'Download de tool' });
     await expect(download).toHaveAttribute('href', `${nlLink}download/`);
     await expectNot404(page);
@@ -150,7 +154,7 @@ test.describe('tool grants: the form, the link and the file @e2e', () => {
     expect(mail.Subject).toBe('Je tool staat klaar. Aan jou nu.');
     await openMail(page, box!, mail);
     await expectJosLayout(page, baseURL!);
-    await expect(page.locator('td.jos-message a', { hasText: 'Contentkalender' })).toHaveAttribute('href', nlLink);
+    await expect(page.locator('td.jos-message a', { hasText: toolTitle })).toHaveAttribute('href', nlLink);
 
     await page.screenshot({ path: testInfo.outputPath('mail-nl.png'), fullPage: true });
   });
