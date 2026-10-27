@@ -6,14 +6,14 @@ import { ddevWp, expectJosLayout, mailbox, openMail, phpString, readLayout, wait
  *
  * Flow 1 runs on staging under @e2e, where outgoing mail is blocked: there it proves the form
  * went through (the redirect to the visitor's personal link). The mail is read back only locally, in Mailpit.
- * Flow 3 needs the seeded e2e-author, which only DDEV has, so it runs locally like every spec
+ * Flow 3 needs the seeded e2e-reset, which only DDEV has, so it runs locally like every spec
  * that needs a seeded user. Flow 2 (booking) is mail-booking.spec.ts, local only.
  */
 
 // A tool production carries; staging runs on a copy of production's database.
 const TOOL_PAGE = '/tools/contentkalender/';
 const LEAD_EMAIL = 'e2e-tool-download@example.test';
-const RESET_LOGIN = 'e2e-author';
+const RESET_LOGIN = 'e2e-reset';
 
 const mailOnlyLocally = 'outgoing mail is blocked here; only DDEV catches it';
 
