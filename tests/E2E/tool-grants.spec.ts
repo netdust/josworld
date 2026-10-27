@@ -86,6 +86,7 @@ function cleanUp(email: string): void {
     $ids = \FluentForm\App\Models\Submission::where('form_id', 3)->where('response', 'like', '%' . ${address} . '%')->pluck('id')->toArray();
     if ($ids) { (new \FluentForm\App\Services\Submission\SubmissionService())->deleteEntries($ids, 3); }
     foreach (ntdst_get(\ntdst\baseline\services\grants\GrantRepository::class)->forRecipient(${address}) as $grant) { wp_delete_post($grant->ID, true); }
+    delete_transient('ntdst_grants_mail_' . md5(strtolower(${address})));
   `);
 }
 
