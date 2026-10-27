@@ -6,12 +6,12 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
 
 | surface | tier | entry | test | first feature | verified |
 |---|---|---|---|---|---|
-| Tool download notification mail (FluentForms form 3) | e2e | /tools/contentkalender/ | tests/E2E/mail-template.spec.ts | mail-template | 963e64d 2026-10-27 local (6689146 2026-10-21 on staging) |
+| Tool download notification mail (FluentForms form 3) | e2e | /tools/contentkalender/ | tests/E2E/mail-template.spec.ts | mail-template | fb1c557 2026-10-27 local (6689146 2026-10-21 on staging) |
 | Mail logo, shown by every mail the site sends | smoke | /content/themes/josworld/images/logo.png | tests/E2E/smoke/mail-template.spec.ts | mail-template | 46abb5e 2026-10-21 |
 | The English language, the site's Polylang languages | smoke | /en/ | tests/E2E/smoke/translation.spec.ts | translation | 2026-10-26 local, staging, production |
-| The tool's personal link: form → link, download, mail, repeat, dead link, app at the link, revoke | e2e | /tools/contentkalender/ | tests/E2E/tool-grants.spec.ts | tool-grants | 963e64d 2026-10-27 local |
-| The personal link's dead page and its headers (no-referrer, no-store, noindex) | smoke | /toegang/<64 zeros>/ | tests/E2E/smoke/tool-grants.spec.ts | tool-grants | 963e64d 2026-10-27 local |
-| Personal links panel on a tool's edit screen, and the gated file in the media library | auth | /wp/wp-admin/post.php (tool) | | tool-grants | 963e64d 2026-10-27 local |
+| The tool's personal link: form → link, download, mail, repeat, dead link, app at the link, revoke | e2e | /tools/contentkalender/ | tests/E2E/tool-grants.spec.ts | tool-grants | fb1c557 2026-10-27 local |
+| The personal link's dead page and its headers (no-referrer, no-store, noindex) | smoke | /toegang/<64 zeros>/ | tests/E2E/smoke/tool-grants.spec.ts | tool-grants | fb1c557 2026-10-27 local |
+| Personal links panel on a tool's edit screen, and the gated file in the media library | auth | /wp/wp-admin/post.php (tool) | | tool-grants | fb1c557 2026-10-27 local |
 
 ## Notes
 
@@ -42,6 +42,6 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
   tool copy, the link-kind fixture 578, WP-CLI, the seeded e2e-admin and e2e-author) and skips
   there with a reason. Each staging run keeps one grant, one FluentForms entry and one CRM contact
   for `e2e-grant-nl@example.test` (the same address returns the same link). The download needs
-  `PRIVATE_FILES_DIR` and `wp ntdst grants gate-files` on staging first. Three tests are RED by
-  design until baseline is fixed (the author's REST 500, the panel's UTC time, the PDF preview in
-  the media library): specs/tool-grants/shakeout.md rows 16, 20 and 21.
+  `PRIVATE_FILES_DIR` and `wp ntdst grants gate-files` on staging first. The REST media, panel time and PDF preview tests (rows 16, 20 and 21 of
+  specs/tool-grants/shakeout.md) need baseline 2.21.3 and pass on it. Re-running the spec on one
+  machine more than five times a day needs the per-address mail cap cleared; the spec's cleanup does it.
