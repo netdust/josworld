@@ -24,6 +24,8 @@ function requiredEnv(name: string): string {
 
 async function logIn(page: Page, user: string): Promise<void> {
   await page.goto('/wp/wp-login.php');
+  // wp-login's autofocus runs after load and moves focus to the username field; fill() types into whichever field has focus, so wait for it first.
+  await expect(page.locator('#user_login')).toBeFocused();
   await page.locator('#user_login').fill(user);
   await page.locator('#user_pass').fill(requiredEnv('E2E_PASS'));
   await page.locator('#wp-submit').click();
