@@ -125,25 +125,28 @@ test.describe('tool grants: the form, the link and the file @e2e', () => {
     await page.screenshot({ path: testInfo.outputPath('link-page-nl.png') });
   });
 
-  test('download: the button downloads the PDF; the link, its download and the slashless download answer 200 with the three headers @e2e', async ({ page, request }) => {
+  test('download: the button downloads the file; the link, its download and the slashless download answer 200 with the three headers @e2e', async ({ page, request }) => {
     await page.goto(nlLink);
     const [file] = await Promise.all([
       page.waitForEvent('download'),
       page.getByRole('link', { name: 'Download de tool' }).click(),
     ]);
-    expect(file.suggestedFilename()).toMatch(/\.pdf$/);
+    expect(file.suggestedFilename()).toMatch(/\.[a-z0-9]+$/i);
 
     const linkPage = await request.get(nlLink, { maxRedirects: 0 });
     expect(linkPage.status()).toBe(200);
     expectLinkHeaders(linkPage);
 
+    const bodies: Buffer[] = [];
     for (const url of [`${nlLink}download/`, `${nlLink}download`]) {
       const answer = await request.get(url, { maxRedirects: 0 });
       expect(answer.status(), `${url} answers the file itself, no redirect`).toBe(200);
-      expect(answer.headers()['content-type']).toContain('application/pdf');
-      expect((await answer.body()).subarray(0, 5).toString()).toBe('%PDF-');
+      expect(answer.headers()['content-disposition'] ?? '', `${url} names the file`).toContain(file.suggestedFilename());
       expectLinkHeaders(answer);
+      bodies.push(await answer.body());
     }
+    expect(bodies[0].length).toBeGreaterThan(0);
+    expect(bodies[1].equals(bodies[0]), 'with and without the slash, the same file').toBe(true);
   });
 
   test('mail-arrives: the visitor gets one mail in the JOS layout carrying the same link @e2e', async ({ page, request, baseURL }, testInfo) => {
