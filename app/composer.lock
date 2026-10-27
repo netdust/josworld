@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a0e3c5f34219f3eff7f4d0d81330ae05",
+    "content-hash": "c18b46cea25f6be8485c0a7d4d61e5cd",
     "packages": [
         {
             "name": "composer/installers",
@@ -216,16 +216,16 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.21.2",
+            "version": "v2.21.3",
             "source": {
                 "type": "git",
                 "url": "git@github.com:netdust/ntdst-baseline.git",
-                "reference": "b83c6b48ae3cff7c54972835e7c888b2807bc244"
+                "reference": "c96f22a633c52603c6a1d6ddfd2a513a7b850589"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/b83c6b48ae3cff7c54972835e7c888b2807bc244",
-                "reference": "b83c6b48ae3cff7c54972835e7c888b2807bc244",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/c96f22a633c52603c6a1d6ddfd2a513a7b850589",
+                "reference": "c96f22a633c52603c6a1d6ddfd2a513a7b850589",
                 "shasum": ""
             },
             "require": {
@@ -266,10 +266,10 @@
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
             "support": {
-                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.21.2",
+                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.21.3",
                 "issues": "https://github.com/netdust/ntdst-baseline/issues"
             },
-            "time": "2026-10-26T21:40:42+00:00"
+            "time": "2026-10-27T08:26:40+00:00"
         },
         {
             "name": "netdust/ntdst-core",
