@@ -25,7 +25,7 @@ final class ToolGrantFormTest extends WP_UnitTestCase
 {
     private const EMAIL = 'visitor@example.test';
 
-    private const LINK = '#^https?://[^/]+/toegang/[0-9a-f]{64}$#';
+    private const LINK = '#^https?://[^/]+/toegang/[0-9a-f]{64}/$#';
 
     /** Form 3's stored confirmation: the old download message's tokens, filled in by nobody now. */
     private const STORED_MESSAGE = '<p>Bedankt! {tool_title} {tool_action}: <a href="{tool_file_url}">download</a></p>';

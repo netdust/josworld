@@ -27,7 +27,7 @@ async function downloadTool(page: Page, name: string): Promise<void> {
   await form.locator('[name=privacy]').check({ force: true });
   await form.locator('button[type=submit]').click();
   await page.waitForURL(/\/toegang\/[0-9a-f]{64}\/$/);
-  await expect(page.getByRole('link', { name: 'Download de tool' })).toHaveAttribute('href', /\/toegang\/[0-9a-f]{64}\/download/);
+  await expect(page.getByRole('link', { name: 'Download de tool' })).toHaveAttribute('href', /\/toegang\/[0-9a-f]{64}\/download\//);
 }
 
 /** The reset mail asked at or after `since`, read back in Mailpit. */
