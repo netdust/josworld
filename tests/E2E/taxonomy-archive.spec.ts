@@ -10,8 +10,10 @@ test.describe('domain archive @e2e', () => {
     await page.goto('/ons-werk/');
     const pill = page.locator('a[rel="tag"][href*="/ons-werk/"]').first();
     const term = (await pill.innerText()).trim();
-    await pill.evaluate((a: HTMLElement) => a.click());
-    await page.waitForLoadState('networkidle');
+    await Promise.all([
+      page.waitForURL(/\/ons-werk\/[^/]+\/$/),
+      pill.evaluate((a: HTMLElement) => a.click()),
+    ]);
 
     expect(new URL(page.url()).pathname, 'the overview lives under Ons werk').toMatch(/^\/ons-werk\/[^/]+\/$/);
 
