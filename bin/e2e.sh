@@ -46,10 +46,10 @@ if command -v ddev >/dev/null 2>&1; then
     --role=author --user_pass="$E2E_PASS" >/dev/null 2>&1 \
     || ddev exec wp user update e2e-author --user_pass="$E2E_PASS" >/dev/null
 
-  # Block-editor preferences, seeded so the welcome guide never covers the editor, the sidebar (home of the side meta boxes) is open and fullscreen
+  # Block-editor preferences, seeded so the welcome guide never covers the editor, the sidebar and the meta box drawer are open and fullscreen
   # mode never hides the admin bar. The editor writes them on first use, so a fresh user has none.
   for actor in e2e-admin e2e-author; do
-    ddev exec "wp eval '\$u = get_user_by(\"login\", \"$actor\"); update_user_meta(\$u->ID, \$GLOBALS[\"wpdb\"]->prefix . \"persisted_preferences\", [\"core\" => [\"isComplementaryAreaVisible\" => true], \"core/edit-post\" => [\"welcomeGuide\" => false, \"fullscreenMode\" => false], \"_modified\" => \"2026-10-27T10:00:00.000Z\"]);'"
+    ddev exec "wp eval '\$u = get_user_by(\"login\", \"$actor\"); update_user_meta(\$u->ID, \$GLOBALS[\"wpdb\"]->prefix . \"persisted_preferences\", [\"core\" => [\"isComplementaryAreaVisible\" => true], \"core/edit-post\" => [\"welcomeGuide\" => false, \"fullscreenMode\" => false, \"metaBoxesMainIsOpen\" => true, \"metaBoxesMainOpenHeight\" => 432], \"_modified\" => \"2026-10-27T10:00:00.000Z\"]);'"
   done
 
   # Reset actor: the lost-password flow's own, never logged in. A login clears the user's pending

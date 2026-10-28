@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext, type APIResponse, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext, type APIResponse, type Locator, type Page } from '@playwright/test';
 import { ddevWp, expectJosLayout, mailbox, openMail, phpString, waitForMail } from './support/mail';
 
 /**
@@ -26,6 +26,24 @@ const ADDRESS = {
 };
 
 const localOnly = 'needs the DDEV site: Mailpit, wp-cli fixtures or a seeded actor';
+
+/** The tool screen's Personal links panel, with the editor's "Meta vakken" drawer opened if it is shut (WordPress remembers it per user). */
+async function showGrantsPanel(page: Page): Promise<Locator> {
+  const panel = page.locator('#ntdst-grants');
+  // The panel is laid out a moment after the editor boots, so give an open drawer time before toggling it.
+  const shown = await expect(panel).toBeVisible({ timeout: 10_000 }).then(() => true, () => false);
+  if (!shown) {
+    // The drawer's resize handle sits over the middle of its toggle.
+    await page.getByRole('button', { name: 'Meta vakken' }).click({ position: { x: 40, y: 10 } });
+    await expect(panel).toBeVisible();
+  }
+  return panel;
+}
+
+async function openGrantsPanel(page: Page): Promise<Locator> {
+  await page.goto('/wp/wp-admin/post.php?post=161&action=edit');
+  return showGrantsPanel(page);
+}
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -265,16 +283,16 @@ test.describe('tool grants: the form, the link and the file @e2e', () => {
     await waitForMail(request, box!, `to:"${ADDRESS.revoke}"`, since);
 
     await logIn(page, 'e2e-admin');
-    await page.goto('/wp/wp-admin/post.php?post=161&action=edit');
-    const panel = page.locator('#ntdst-grants');
+    const panel = await openGrantsPanel(page);
     const row = panel.locator('tr', { hasText: ADDRESS.revoke });
     await expect(row).toContainText('Actief');
     await row.scrollIntoViewIfNeeded();
     await panel.screenshot({ path: testInfo.outputPath('editor-panel.png') });
     await row.getByRole('button', { name: 'Intrekken' }).click();
     await page.waitForURL(/post\.php\?post=161&action=edit/);
-    await expect(page.locator('#ntdst-grants tr', { hasText: ADDRESS.revoke })).toContainText('Ingetrokken');
-    await page.locator('#ntdst-grants').screenshot({ path: testInfo.outputPath('editor-revoked.png') });
+    const revoked = await showGrantsPanel(page);
+    await expect(revoked.locator('tr', { hasText: ADDRESS.revoke })).toContainText('Ingetrokken');
+    await revoked.screenshot({ path: testInfo.outputPath('editor-revoked.png') });
 
     const dead = await request.get(link, { maxRedirects: 0 });
     expect(dead.status()).toBe(404);
@@ -364,8 +382,8 @@ test.describe('tool grants: what the hunt and the denied actors found @e2e', () 
     const link = await requestTool(page, NL_TOOL, ADDRESS.panel, NL_LINK);
     await page.goto(link);
     await logIn(page, 'e2e-admin');
-    await page.goto('/wp/wp-admin/post.php?post=161&action=edit');
-    const cells = await page.locator('#ntdst-grants tr', { hasText: ADDRESS.panel }).locator('td').allInnerTexts();
+    const panel = await openGrantsPanel(page);
+    const cells = await panel.locator('tr', { hasText: ADDRESS.panel }).locator('td').allInnerTexts();
     const [created, opened] = [cells[2], cells[3]];
     expect(created).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
     expect(opened >= created, `Laatst geopend ${opened} is not before Aangemaakt ${created}`).toBe(true);
