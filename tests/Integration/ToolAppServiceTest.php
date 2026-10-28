@@ -9,53 +9,32 @@ use WP_UnitTestCase;
 
 /**
  * The interactive tools (campagnestart, faire-aanbestedingsscan) are standalone pages in the theme's
- * tools/ folder, served at /tool-app/<slug>/. Only a file that exists there can be served: the slug is
- * a whitelist lookup, never a path. The route is ntdst-core's page router.
+ * tools/ folder, served only at a personal link (ToolGrantAccessTest), through renderForGrant(). Only a
+ * file that exists there can be served: the slug is a whitelist lookup, never a path.
  */
 final class ToolAppServiceTest extends WP_UnitTestCase
 {
-    private function service(): ToolAppService
+    /** @return array{0: string|false|null, 1: string} what renderForGrant returned and what it echoed */
+    private function renderLink(string $url): array
     {
-        return ntdst_get(ToolAppService::class);
-    }
+        $tool = self::factory()->post->create_and_get(['post_type' => 'tool', 'post_status' => 'publish']);
+        update_post_meta($tool->ID, '_jw_delivery', 'url');
+        update_post_meta($tool->ID, '_jw_url', $url);
+        // The app path never reads the grant; a plain post stands in for it.
+        $grant = self::factory()->post->create_and_get();
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->set_permalink_structure('/%postname%/');
-        $this->service()->register();
-        flush_rewrite_rules();
-    }
-
-    public function test_the_two_tools_are_online_at_a_clean_url(): void
-    {
-        $this->assertSame(home_url('/tool-app/campagnestart/'), $this->service()->url('campagnestart'));
-
-        $this->go_to(home_url('/tool-app/faire-aanbestedingsscan/'));
-
-        $claimed = (string) get_query_var('ntdst_page');
-        $this->assertMatchesRegularExpression('/^\d+$/', $claimed, 'the page router claims the URL');
-        $this->assertSame('faire-aanbestedingsscan', get_query_var('ntdst_p_slug'));
-    }
-
-    public function test_a_known_tool_is_served_and_an_unknown_one_is_a_404(): void
-    {
         ob_start();
-        $served = $this->service()->serve(['slug' => 'campagnestart']);
-        $page = (string) ob_get_clean();
+        $answer = ntdst_get(ToolAppService::class)->renderForGrant($tool, $grant);
 
-        $this->assertNull($served, 'null: the callback answered, the router ends the request');
-        $this->assertStringContainsString('Zet de basis voor je campagne', $page);
-        $this->assertFalse($this->service()->serve(['slug' => 'bestaat-niet']), 'false is the router\'s own 404');
-        $this->assertFalse($this->service()->serve([]));
+        return [$answer, (string) ob_get_clean()];
     }
 
     public function test_a_tool_page_is_the_themed_page_not_a_wordpress_template(): void
     {
-        $html = $this->service()->render('campagnestart');
+        [$answer, $html] = $this->renderLink('https://jos.agency/tool-app/campagnestart/');
 
-        $this->assertIsString($html);
+        $this->assertNull($answer, 'null: the app is the answer');
+        $this->assertStringStartsWith('<!DOCTYPE html>', $html, 'the PHP guard line prints nothing');
         $this->assertStringContainsString('Zet de basis voor je campagne', $html);
         $this->assertStringContainsString('/content/themes/josworld/fonts/', $html, 'the site\'s own fonts');
         $this->assertStringNotContainsString('fonts.googleapis.com', $html, 'no call to Google');
@@ -65,7 +44,10 @@ final class ToolAppServiceTest extends WP_UnitTestCase
     /** @dataProvider notATool */
     public function test_anything_that_is_not_a_tool_file_is_not_served(string $slug): void
     {
-        $this->assertNull($this->service()->render($slug));
+        [$answer, $printed] = $this->renderLink('https://jos.agency/tool-app/' . $slug . '/');
+
+        $this->assertFalse($answer, 'false: baseline answers with its dead page');
+        $this->assertSame('', $printed);
     }
 
     /** @return array<string, array{string}> */
@@ -73,12 +55,12 @@ final class ToolAppServiceTest extends WP_UnitTestCase
     {
         return [
             'unknown' => ['bestaat-niet'],
-            'empty' => [''],
-            'traversal' => ['../../../wp-config'],
             'encoded traversal' => ['..%2f..%2fwp-config'],
-            'a file that is not html' => ['logo'],
+            'dot dot' => ['..'],
+            'a file that is not an app' => ['logo'],
             'uppercase' => ['CAMPAGNESTART'],
-            'with extension' => ['campagnestart.html'],
+            'the old static name' => ['campagnestart.html'],
+            'with extension' => ['campagnestart.html.php'],
         ];
     }
 }

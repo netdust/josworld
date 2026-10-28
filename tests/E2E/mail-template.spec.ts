@@ -4,16 +4,16 @@ import { ddevWp, expectJosLayout, mailbox, openMail, phpString, readLayout, wait
 /**
  * specs/mail-template flows 1 and 3: every mail the site sends leaves in the JOS layout.
  *
- * Flow 1 runs on staging under @e2e, where outgoing mail is blocked: there it proves the send
- * went through (the form's thank-you). The mail itself is read back only locally, in Mailpit.
- * Flow 3 needs the seeded e2e-author, which only DDEV has, so it runs locally like every spec
+ * Flow 1 runs on staging under @e2e, where outgoing mail is blocked: there it proves the form
+ * went through (the redirect to the visitor's personal link). The mail is read back only locally, in Mailpit.
+ * Flow 3 needs the seeded e2e-reset, which only DDEV has, so it runs locally like every spec
  * that needs a seeded user. Flow 2 (booking) is mail-booking.spec.ts, local only.
  */
 
 // A tool production carries; staging runs on a copy of production's database.
 const TOOL_PAGE = '/tools/contentkalender/';
 const LEAD_EMAIL = 'e2e-tool-download@example.test';
-const RESET_LOGIN = 'e2e-author';
+const RESET_LOGIN = 'e2e-reset';
 
 const mailOnlyLocally = 'outgoing mail is blocked here; only DDEV catches it';
 
@@ -26,7 +26,8 @@ async function downloadTool(page: Page, name: string): Promise<void> {
   await form.locator('[name=email]').fill(LEAD_EMAIL);
   await form.locator('[name=privacy]').check({ force: true });
   await form.locator('button[type=submit]').click();
-  await expect(page.locator('.ff-message-success')).toContainText('Bedankt!');
+  await page.waitForURL(/\/toegang\/[0-9a-f]{64}\/$/);
+  await expect(page.getByRole('link', { name: 'Download de tool' })).toHaveAttribute('href', /\/toegang\/[0-9a-f]{64}\/download\//);
 }
 
 /** The reset mail asked at or after `since`, read back in Mailpit. */
@@ -55,6 +56,8 @@ test.describe('mail layout: the tool download notification @e2e', () => {
       if ($contact) { \FluentCrm\App\Services\Helper::deleteContacts([$contact->id]); }
       $ids = \FluentForm\App\Models\Submission::where('form_id', 3)->where('response', 'like', '%' . ${email} . '%')->pluck('id')->toArray();
       if ($ids) { (new \FluentForm\App\Services\Submission\SubmissionService())->deleteEntries($ids, 3); }
+      $erasers = apply_filters('wp_privacy_personal_data_erasers', []);
+      $erasers['ntdst-baseline-grants']['callback'](${email}, 1);
     `);
   });
 

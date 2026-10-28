@@ -70,6 +70,15 @@ parameters:
         # symbol only — the package is analysed in its own repo. Exactly the
         # posture Pages.php / Container.php / Data.php take above.
         - app/content/mu-plugins/ntdst-baseline/services/admin/AdminUIService.php
+        # The grants module: DownloadFormService calls GrantService::issue(), ToolGrantsMatomo
+        # asks LinkRoute, and ToolGrantFormTest reads grants back. Symbols only, same posture.
+        - app/content/mu-plugins/ntdst-baseline/services/grants/GrantService.php
+        - app/content/mu-plugins/ntdst-baseline/services/grants/GrantModel.php
+        - app/content/mu-plugins/ntdst-baseline/services/grants/GrantRepository.php
+        - app/content/mu-plugins/ntdst-baseline/services/grants/LinkRoute.php
+        - app/content/mu-plugins/ntdst-baseline/services/grants/PrivateFiles.php
+        # ToolGrantAccessTest runs `wp ntdst grants gate-files` through it. Symbol only.
+        - app/content/mu-plugins/ntdst-baseline/services/grants/Cli.php
         # The outgoing-mail block is a standalone mu-plugin TEMPLATE deployed to
         # servers, never autoloaded here; MailBlockGuardTest substitutes its
         # __PRODUCTION_HOST__ placeholder and eval()s it, so

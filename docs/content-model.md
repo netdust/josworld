@@ -72,7 +72,7 @@ the YOOtheme builder, not stored as meta.
 
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|
-| `client` | `_jw_client` | text | required |
+| `client` | `_jw_client` | text | required; a fact (`'translate' => false`), never sent to DeepL |
 | `hover_image` | `_jw_hover_image` | image | optional; the second image a case grid tile shows on hover |
 
 `title`/`editor`/`thumbnail`/`excerpt` are native WP fields (`supports`),
@@ -108,7 +108,7 @@ posture and will go RED the moment it changes.
 | `role` | `_jw_role` | text | required |
 | `bio` | `_jw_bio` | textarea | the team-archive card's short bio; read server-side by the template, not REST-registered |
 | `email` | `_jw_email` | email | not REST-exposed (see caveat above) |
-| `phone` | `_jw_phone` | text | not REST-exposed (see caveat above) |
+| `phone` | `_jw_phone` | text | not REST-exposed (see caveat above); a fact (`'translate' => false`), never sent to DeepL |
 
 `title`/`thumbnail` are native (`supports`) — "photo" is the WP featured
 image by choice, not a bespoke meta field; the framework's `image` field
@@ -139,8 +139,20 @@ Source: `app/content/mu-plugins/josworld-core/services/content/ToolService.php`
 `public`, `has_archive`, slug `tools`, REST base `tools`. The card is
 `subtitle`, plus what the tool IS: a downloadable `file` or a `url` to an external
 page (`delivery` chooses; the editor shows only the matching field) — benefits and
-related tools are built per tool in the YOOtheme builder. `ToolService::targetUrl()`
-turns a tool into where the visitor goes; the builder reads it as the `target` field.
+related tools are built per tool in the YOOtheme builder. The builder's `target` field
+(`ToolService::target()`) is the tool's own page, where the download form is.
+
+**The tool is gated (ntdst-baseline `grants`, configured in `josworld-core.php`).** The
+download form gives the visitor a personal link — `/toegang/<token>/` (`/en/access/`,
+`/fr/acces/`) — redirects them to it and mails it. A `file` tool's attachment lives in the
+private store (`PRIVATE_FILES_DIR`, `<project root>/private-files` on DDEV, outside the web
+root) and downloads only through that link; its uploads URL 404s. A `url` tool whose path is
+`/tool-app/<slug>/` (host ignored) is served from `themes/josworld/tools/<slug>.html.php` behind
+the link (a PHP file that prints nothing opened directly; a static `.html` would be public) — `/tool-app/<slug>/` itself is 404; any other link gets an "Open" button there. The
+link page reuses the `single-tool` builder template's header section (`ToolLinkPage`), its
+button turned into the link's action. An editor revokes a link on the tool's screen. After a
+database copy between environments, run `wp ntdst grants gate-files` there, then check the old
+uploads URL answers 404.
 
 | Field key | Meta key | Type | Notes |
 |---|---|---|---|
@@ -313,6 +325,27 @@ hard way — this is the single most valuable page in this doc.
    for the current values). After this, `composer gate` tier 9 (E2E) went
    from failing on "front page renders a header with a nav landmark" to all
    9 tiers green.
+
+### Translating a record (2026-10-26)
+
+Stefan, 2026-10-26, replacing the 2026-09-15 "one-time copy, nothing follows" rule: "+" on a
+Dutch record opens a DeepL draft flagged for review, with the Dutch facts and `dienst` terms
+copied once; after that a copy keeps its own files, images and values. Configured in
+`josworld-core.php` (`ntdst/baseline/polylang/config`, baseline 2.18):
+
+- `field_sync => 'create'`: facts and terms reach the copy at "+" only; nothing syncs later.
+- `translate_copies`: DeepL fills the draft's text, on a page or post too (its YOOtheme layout's
+  texts included, baseline 2.19); a later Dutch text change re-translates a case, team, tool or
+  vacature copy nobody edited, while a page is translated at "+" only. Needs `DEEPL_API_KEY` in that environment's `.env`; without it "+" opens a
+  flagged Dutch copy and logs one `polylang` warning.
+- `follow_status`: unpublishing or trashing the Dutch record does the same to its published copies.
+- `fact_titles => ['team']`: a team member's name is never translated.
+
+A `text` field that holds a fact (a name, a number) declares `'translate' => false`.
+
+A copied case keeps only the diensten that have a term in its language: Jos translates the five
+`dienst` terms on the Diensten screen in wp-admin — "+" opens the add form with the DeepL name
+filled in (baseline 2.20) — one language at a time, no script (Stefan, 2026-10-26).
 
 ### A methodological note: `wp eval` has no request context
 

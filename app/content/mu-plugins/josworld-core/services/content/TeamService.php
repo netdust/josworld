@@ -59,6 +59,7 @@ final class TeamService
             ],
             'phone' => [
                 'type' => 'text',
+                'translate' => false,
                 'label' => __('Telefoonnummer', JOSWORLD_CORE_TEXTDOMAIN),
             ],
         ];

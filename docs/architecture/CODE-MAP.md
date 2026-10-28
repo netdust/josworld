@@ -55,6 +55,10 @@ trusted, so only what a session must not re-derive lands here.
   guarded for that reason — with `SiteMetaService`'s sitemap rule (it also lists a page's translations through `pll_get_post_translations`) it is one of two josworld-owned places that touch Polylang.
   The multilingual layer itself is ntdst-baseline's `polylang` module (opted into in
   `josworld-core.php`), which carries the same absence contract in the package.
+- **Translation is baseline's, configured in `josworld-core.php`** (2026-10-26): "+" is a DeepL
+  draft with the Dutch facts copied once (`field_sync => 'create'`), copies follow the Dutch
+  record out of publish, and a `text` field holding a fact declares `'translate' => false`.
+  josworld writes no translation code of its own. Runbook: `docs/content-model.md`, "Translating a record".
 
 ## Outgoing mail (2026-10-21)
 
@@ -77,6 +81,29 @@ trusted, so only what a session must not re-derive lands here.
 - **josworld keeps its own wrapper** rather than adopting `netdust-mail` (Stride's mailer,
   not installed here): Stefan, 2026-10-21, "hou het eenvoudig", on placing it in
   josworld-core. Revisit when a second site wants the same layout.
+
+## Tool grants (2026-10-26)
+
+- **Grants are ntdst-baseline's** (`grants` module: token, route, private store, mail,
+  revoke panel, privacy eraser). josworld only configures them in `josworld-core.php`
+  (`ntdst/baseline/grants/config`: the `tool` type, its gated `file` field, the `render`
+  callable, base paths, Dutch labels plus `labels_i18n`). Grant behaviour is fixed in
+  baseline, not here.
+- **`DownloadFormService`** turns form 3's confirmation into `GrantService::issue()` plus
+  FluentForm's `redirectUrl`; a refused tool keeps the "nog niet beschikbaar" message, and
+  an entry FluentForm flagged `spam` gets nothing but that same neutral message.
+- **`ToolAppService::renderForGrant()`** is the `render` callable: a `/tool-app/<slug>/` link
+  echoes the app (no header of its own: baseline's `no-store` must stand), another link gets
+  the "Open" body, a file tool returns `false` for baseline's file page. There is no public
+  `/tool-app/` route any more. The apps are `themes/josworld/tools/<slug>.html.php`, included
+  under output buffering and exiting without `ABSPATH`: a static `.html` under the theme is public.
+- **`ToolLinkPage`** renders the link and dead pages from the `single-tool` template's
+  "Pagina-header" section, in memory, through the theme override
+  `themes/josworld/ntdst-baseline/grants/link.php`; without the builder, baseline's own page.
+- **`ToolGrantsMatomo`** drops Matomo's tracker callbacks on a grant request, so the token
+  never reaches Matomo.
+- **After a database copy between environments** (refresh, pull): run `wp ntdst grants gate-files`
+  on the target, then check a tool's old uploads URL answers 404 (flow old-url-404).
 
 ## Boundaries
 

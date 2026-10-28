@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d49780a62dd23a67bf34ccd97b367484",
+    "content-hash": "c18b46cea25f6be8485c0a7d4d61e5cd",
     "packages": [
         {
             "name": "composer/installers",
@@ -216,16 +216,16 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.16.0",
+            "version": "v2.21.3",
             "source": {
                 "type": "git",
                 "url": "git@github.com:netdust/ntdst-baseline.git",
-                "reference": "8e66ba0b9418611197d2fba5da1b409a8a847576"
+                "reference": "c96f22a633c52603c6a1d6ddfd2a513a7b850589"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/8e66ba0b9418611197d2fba5da1b409a8a847576",
-                "reference": "8e66ba0b9418611197d2fba5da1b409a8a847576",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/c96f22a633c52603c6a1d6ddfd2a513a7b850589",
+                "reference": "c96f22a633c52603c6a1d6ddfd2a513a7b850589",
                 "shasum": ""
             },
             "require": {
@@ -248,6 +248,7 @@
                     "phpunit"
                 ],
                 "gate": [
+                    "@composer show 'netdust/*'",
                     "@lint",
                     "@test",
                     "@guard",
@@ -265,10 +266,10 @@
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
             "support": {
-                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.16.0",
+                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.21.3",
                 "issues": "https://github.com/netdust/ntdst-baseline/issues"
             },
-            "time": "2026-10-09T11:26:40+00:00"
+            "time": "2026-10-27T08:26:40+00:00"
         },
         {
             "name": "netdust/ntdst-core",
@@ -675,12 +676,12 @@
             "version": "v5.6.2",
             "source": {
                 "type": "git",
-                "url": "https://github.com/vlucas/phpdotenv.git",
+                "url": "https://github.com/phpdotenv/phpdotenv.git",
                 "reference": "24ac4c74f91ee2c193fa1aaa5c249cb0822809af"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/vlucas/phpdotenv/zipball/24ac4c74f91ee2c193fa1aaa5c249cb0822809af",
+                "url": "https://api.github.com/repos/phpdotenv/phpdotenv/zipball/24ac4c74f91ee2c193fa1aaa5c249cb0822809af",
                 "reference": "24ac4c74f91ee2c193fa1aaa5c249cb0822809af",
                 "shasum": ""
             },

@@ -28,7 +28,8 @@ export WP_BASE_URL
 # The e2e credential is single-sourced HERE (review C4 I4): generated per run
 # unless the caller provides one, seeded create-or-update (no silent drift),
 # and handed to the spec via the environment. No password literal anywhere.
-E2E_PASS="${E2E_PASS:-$(head -c16 /dev/urandom | od -An -tx1 | tr -d ' \n')}"
+# Node, which the suite needs anyway: an `od` earlier on PATH is not always coreutils'.
+E2E_PASS="${E2E_PASS:-$(node -e "process.stdout.write(require('crypto').randomBytes(16).toString('hex'))")}"
 export E2E_PASS
 
 if command -v ddev >/dev/null 2>&1; then
@@ -44,6 +45,20 @@ if command -v ddev >/dev/null 2>&1; then
   ddev exec wp user create e2e-author e2e-author@example.test \
     --role=author --user_pass="$E2E_PASS" >/dev/null 2>&1 \
     || ddev exec wp user update e2e-author --user_pass="$E2E_PASS" >/dev/null
+
+  # Every run's logins pile up in one usermeta row per user; start from none so that row stays small.
+  ddev exec wp user session destroy e2e-admin --all >/dev/null 2>&1 || true
+  ddev exec wp user session destroy e2e-author --all >/dev/null 2>&1 || true
+
+  # Block-editor preferences, seeded so the welcome guide never covers the editor, the sidebar and the meta box drawer are open and fullscreen
+  # mode never hides the admin bar. The editor writes them on first use, so a fresh user has none.
+  for actor in e2e-admin e2e-author; do
+    ddev exec "wp eval '\$u = get_user_by(\"login\", \"$actor\"); update_user_meta(\$u->ID, \$GLOBALS[\"wpdb\"]->prefix . \"persisted_preferences\", [\"core\" => [\"isComplementaryAreaVisible\" => true], \"core/edit-post\" => [\"welcomeGuide\" => false, \"fullscreenMode\" => false, \"metaBoxesMainIsOpen\" => true, \"metaBoxesMainOpenHeight\" => 432], \"_modified\" => \"2026-10-27T10:00:00.000Z\"]);'"
+  done
+
+  # Reset actor: the lost-password flow's own, never logged in. A login clears the user's pending
+  # reset key, and other specs log in as e2e-author while that flow waits on its mail.
+  ddev exec wp user create e2e-reset e2e-reset@example.test --role=subscriber >/dev/null 2>&1 || true
 
   # Fixture post (slug pinned so the seeded permalink is deterministic)
   if [ -z "$(ddev exec wp post list --name=e2e-fixture-post --post_type=post --post_status=publish --field=ID)" ]; then

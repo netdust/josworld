@@ -38,6 +38,16 @@ final class BaselineFilterNamespaceTest extends TestCase
         'ntdst/yootheme/exclude_fields' => 'the yootheme module (2.3.0) kept the name the per-project bridges consumed',
     ];
 
+    /**
+     * Hook literals allowed only as written: the scanner reads up to the closing quote, so a name
+     * built by concatenation shows as its first piece, and a prefix match on that would allow any hook.
+     *
+     * @var array<string, string>
+     */
+    private const ALLOWED_EXACT_LITERALS = [
+        'ntdst/' => "GrantModel's `'ntdst/' . POST_TYPE . '/fields'`: ntdst-core's per-model fields filter",
+    ];
+
     public function test_every_ntdst_hook_in_the_plugin_uses_the_baseline_namespace(): void
     {
         $offenders = [];
@@ -95,6 +105,10 @@ final class BaselineFilterNamespaceTest extends TestCase
 
     private function isAllowedForeignHook(string $hook): bool
     {
+        if (isset(self::ALLOWED_EXACT_LITERALS[$hook])) {
+            return true;
+        }
+
         foreach (array_keys(self::ALLOWED_FOREIGN_HOOKS) as $allowed) {
             if ($hook === $allowed || str_starts_with($hook, $allowed)) {
                 return true;
