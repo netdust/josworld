@@ -13,7 +13,14 @@ test.describe('footer newsletter (desktop)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.locator('button:has-text("Afwijzen")').first().click({ timeout: 2000 }).catch(() => {});
-    await page.keyboard.press('End');
+    // The footer is revealed from under <main>: late content can grow the page after End, so press it until the form is what a click would hit.
+    await expect.poll(async () => {
+      await page.keyboard.press('End');
+      return footerForm(page).evaluate((f) => {
+        const r = f.getBoundingClientRect();
+        return f.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+      });
+    }).toBe(true);
   });
 
   test('the signup is the FluentForms newsletter form, in Dutch @smoke @e2e', async ({ page }) => {
