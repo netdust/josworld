@@ -83,8 +83,9 @@ test.describe('design fixes (desktop) @smoke @e2e', () => {
     await expect(link.locator('.el-title')).toHaveCount(1);
 
     const y = async (s: string) => (await row.locator(s).first().boundingBox())!.y;
-    const titleY = await y('.el-title');
-    expect(Math.abs(titleY - (await y('.el-meta')))).toBeLessThan(30);
+    // Web fonts swap in after load and the reveal animation moves title and meta separately, so read the gap once both have settled.
+    await page.evaluate(() => document.fonts.ready);
+    await expect.poll(async () => Math.abs((await y('.el-title')) - (await y('.el-meta')))).toBeLessThan(30);
     expect((await row.boundingBox())!.height).toBeLessThan(120);
   });
 
