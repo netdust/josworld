@@ -46,6 +46,10 @@ if command -v ddev >/dev/null 2>&1; then
     --role=author --user_pass="$E2E_PASS" >/dev/null 2>&1 \
     || ddev exec wp user update e2e-author --user_pass="$E2E_PASS" >/dev/null
 
+  # Every run's logins pile up in one usermeta row per user; start from none so that row stays small.
+  ddev exec wp user session destroy e2e-admin --all >/dev/null 2>&1 || true
+  ddev exec wp user session destroy e2e-author --all >/dev/null 2>&1 || true
+
   # Block-editor preferences, seeded so the welcome guide never covers the editor, the sidebar and the meta box drawer are open and fullscreen
   # mode never hides the admin bar. The editor writes them on first use, so a fresh user has none.
   for actor in e2e-admin e2e-author; do

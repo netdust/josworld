@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { logIn } from './support/login';
 
 /**
  * The acceptance matrix for specs/josworld-admin-app, driven through a real
@@ -13,24 +14,6 @@ import { test, expect, Page } from '@playwright/test';
  */
 
 const POST_TYPES = ['case', 'team', 'vacature', 'tool'] as const;
-
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is not set — run the suite via bin/e2e.sh, which seeds and exports it.`);
-  }
-  return value;
-}
-
-async function logIn(page: Page, user: string): Promise<void> {
-  await page.goto('/wp/wp-login.php');
-  // wp-login's autofocus runs after load and moves focus to the username field; fill() types into whichever field has focus, so wait for it first.
-  await expect(page.locator('#user_login')).toBeFocused();
-  await page.locator('#user_login').fill(user);
-  await page.locator('#user_pass').fill(requiredEnv('E2E_PASS'));
-  await page.locator('#wp-submit').click();
-  await page.waitForURL(/\/wp\/wp-admin\//);
-}
 
 test.describe('Josworld admin app', () => {
   test('flow 1: one Josworld menu, and no CPT left at top level', async ({ page }) => {

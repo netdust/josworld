@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { ddevWp } from './support/mail';
+import { logIn, requiredEnv } from './support/login';
 
 /**
  * specs/translation: Polylang's "+" opens a DeepL draft flagged "Unchecked"; "+" on a dienst opens
@@ -33,34 +34,6 @@ let pageCopy: number;
 test.describe.configure({ mode: 'serial' });
 test.setTimeout(300_000);
 test.use({ actionTimeout: 30_000 });
-
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is not set — run the suite via bin/e2e.sh, which seeds and exports it.`);
-  }
-  return value;
-}
-
-async function logIn(page: Page, user: string): Promise<void> {
-  // Now and then the click sends no POST at all (nginx's access log shows none); a second try goes through.
-  for (let attempt = 1; ; attempt++) {
-    await page.goto('/wp/wp-login.php', { waitUntil: 'load' });
-    // wp-login's autofocus runs after load and moves focus to the username field; fill() types into whichever field has focus, so wait for it first.
-    await expect(page.locator('#user_login')).toBeFocused();
-    await page.locator('#user_login').fill(user);
-    await page.locator('#user_pass').fill(requiredEnv('E2E_PASS'));
-    await page.locator('#wp-submit').click();
-    try {
-      await page.waitForURL(/\/wp\/wp-admin\//, { timeout: 40_000, waitUntil: 'commit' });
-      return;
-    } catch (error) {
-      if (attempt === 3) {
-        throw error;
-      }
-    }
-  }
-}
 
 function json<T>(php: string): T {
   return JSON.parse(ddevWp(php)) as T;

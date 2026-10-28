@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext, type APIResponse, type Locator, type Page } from '@playwright/test';
 import { ddevWp, expectJosLayout, mailbox, openMail, phpString, waitForMail } from './support/mail';
+import { logIn } from './support/login';
 
 /**
  * specs/tool-grants: a tool's file or app opens only at a visitor's personal link, which the download
@@ -43,24 +44,6 @@ async function showGrantsPanel(page: Page): Promise<Locator> {
 async function openGrantsPanel(page: Page): Promise<Locator> {
   await page.goto('/wp/wp-admin/post.php?post=161&action=edit');
   return showGrantsPanel(page);
-}
-
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is not set — run the suite via bin/e2e.sh, which seeds and exports it.`);
-  }
-  return value;
-}
-
-async function logIn(page: Page, user: string): Promise<void> {
-  await page.goto('/wp/wp-login.php');
-  // wp-login's autofocus runs after load and moves focus to the username field; fill() types into whichever field has focus, so wait for it first.
-  await expect(page.locator('#user_login')).toBeFocused();
-  await page.locator('#user_login').fill(user);
-  await page.locator('#user_pass').fill(requiredEnv('E2E_PASS'));
-  await page.locator('#wp-submit').click();
-  await page.waitForURL(/\/wp\/wp-admin\//);
 }
 
 /** Fills in the download form on a tool page and answers where the browser landed. */
