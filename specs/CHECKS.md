@@ -12,6 +12,9 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
 | The tool's personal link: form → link, download, mail, repeat, dead link, app at the link, revoke | e2e | /tools/contentkalender/ | tests/E2E/tool-grants.spec.ts | tool-grants | fb1c557 2026-10-27 local |
 | The personal link's dead page and its headers (no-referrer, no-store, noindex) | smoke | /toegang/<64 zeros>/ | tests/E2E/smoke/tool-grants.spec.ts | tool-grants | fb1c557 2026-10-27 local |
 | Personal links panel on a tool's edit screen, and the gated file in the media library | auth | /wp/wp-admin/post.php (tool) | | tool-grants | fb1c557 2026-10-27 local |
+| `wp ntdst polylang setup` (ntdst-baseline): dry run, refusals, template copies' language and order, FR links in the copies, one post's FR translation keeping its hero attributes | e2e | wp ntdst polylang setup | tests/E2E/polylang-setup.spec.ts | polylang-setup | baseline e939fed 2026-10-30 local, intercepted DeepL |
+| /fr/ with no server error, and `setup --help` where WP-CLI reaches | smoke | /fr/ | tests/E2E/smoke/polylang-setup.spec.ts | polylang-setup | baseline e939fed 2026-10-30 local |
+| Setup's drafts and its menu, widget and template copies in the admin and the YOOtheme customizer | auth | /wp/wp-admin/ | | polylang-setup | baseline e939fed 2026-10-30 local |
 
 ## Notes
 
@@ -45,3 +48,10 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
   `PRIVATE_FILES_DIR` and `wp ntdst grants gate-files` on staging first. The REST media, panel time and PDF preview tests (rows 16, 20 and 21 of
   specs/tool-grants/shakeout.md) need baseline 2.21.3 and pass on it. Re-running the spec on one
   machine more than five times a day needs the per-address mail cap cleared; the spec's cleanup does it.
+
+- **polylang-setup, staging.** Every test in `tests/E2E/polylang-setup.spec.ts` needs WP-CLI
+  through DDEV and skips on a deployed site, since `commands.e2e` gives no remote WP-CLI. The full
+  `wp ntdst polylang setup` run spends DeepL on every post, so it is never a test; it was a local
+  shake-out flow (ntdst-baseline `specs/polylang-setup/shakeout.md`). The single-post test sends
+  about three strings to DeepL and deletes the two posts it made. The template and link tests read
+  the copies a full run left and skip when there are none.

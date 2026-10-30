@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { ddevWp } from './support/mail';
 import { logIn, requiredEnv } from './support/login';
+import { noTranslator, translatorAnswers } from './support/deepl';
 
 /**
  * specs/translation: Polylang's "+" opens a DeepL draft flagged "Unchecked"; "+" on a dienst opens
@@ -164,7 +165,9 @@ test.afterAll(() => {
 });
 
 test.describe('translation, local only', () => {
+
   test('flow 1: "+" on Waarom Jos? opens an English draft that reads Unchecked once saved', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await plus(page, '/wp/wp-admin/edit.php?post_type=page&lang=all', `#post-${PAGE_ID}`, 'en');
     await editorReady(page);
@@ -198,6 +201,7 @@ test.describe('translation, local only', () => {
   });
 
   test('flow 1, edge 8: the draft\'s preview renders the layout in English', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await page.goto(`/?page_id=${pageCopy}&preview=true`);
 
@@ -211,6 +215,7 @@ test.describe('translation, local only', () => {
   });
 
   test('flow 1: ticking "I have checked this translation" and saving clears Unchecked', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await page.goto(`/wp/wp-admin/post.php?post=${pageCopy}&action=edit`);
     await editorReady(page);
@@ -241,6 +246,7 @@ test.describe('translation, local only', () => {
   });
 
   test('flow 2, edge 5: "+" on a team member translates role and bio; name and phone stay byte for byte', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await plus(page, '/wp/wp-admin/edit.php?post_type=team&lang=all', `#post-${team}`, 'en');
     await editorReady(page);
@@ -266,6 +272,7 @@ test.describe('translation, local only', () => {
   });
 
   test('flow 2: the copy keeps its own phone after the Dutch record is saved', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await page.goto(`/wp/wp-admin/post.php?post=${teamCopy}&action=edit`);
     await editorReady(page);
@@ -296,6 +303,7 @@ test.describe('translation, local only', () => {
   });
 
   test('flow 4: unpublishing the Dutch team member drafts its published English copy; publishing brings it back', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await quickStatus(page, 'team', teamCopy, 'publish');
     expect(post(teamCopy).status).toBe('publish');
@@ -313,6 +321,7 @@ test.describe('translation, local only', () => {
   });
 
   test('flow 3: "+" on a case for French carries the dienst with a French term, no Dutch ones, and the client', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await plus(page, '/wp/wp-admin/edit.php?post_type=case&lang=all', `#post-${caseBoth}`, 'fr');
     await editorReady(page);
@@ -329,6 +338,7 @@ test.describe('translation, local only', () => {
   });
 
   test('flow 3, edge 1: a case whose diensten have no French term yet gets none', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await plus(page, '/wp/wp-admin/edit.php?post_type=case&lang=all', `#post-${caseUntranslated}`, 'fr');
     await editorReady(page);
@@ -344,6 +354,7 @@ test.describe('translation, local only', () => {
   });
 
   test('flow 5: "+" on a Dutch dienst opens the add form in English, linked to it; saving makes the English dienst', async ({ page }) => {
+    test.skip(!translatorAnswers(), noTranslator);
     await logIn(page, 'e2e-admin');
     await page.goto('/wp/wp-admin/edit-tags.php?taxonomy=dienst&post_type=case');
     await page.locator(`#tag-${DIENST_TRANSLATED} td.column-language_en a`).click();

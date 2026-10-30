@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c18b46cea25f6be8485c0a7d4d61e5cd",
+    "content-hash": "c64116a3844d7b706f8cc2ae33689361",
     "packages": [
         {
             "name": "composer/installers",
@@ -216,16 +216,16 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.21.3",
+            "version": "v2.23.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:netdust/ntdst-baseline.git",
-                "reference": "c96f22a633c52603c6a1d6ddfd2a513a7b850589"
+                "reference": "f2e056f569e392396fb3971f957dcc3538d61b6d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/c96f22a633c52603c6a1d6ddfd2a513a7b850589",
-                "reference": "c96f22a633c52603c6a1d6ddfd2a513a7b850589",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/f2e056f569e392396fb3971f957dcc3538d61b6d",
+                "reference": "f2e056f569e392396fb3971f957dcc3538d61b6d",
                 "shasum": ""
             },
             "require": {
@@ -234,7 +234,8 @@
             },
             "require-dev": {
                 "brain/monkey": "^2.6",
-                "phpunit/phpunit": "^10.5"
+                "phpunit/phpunit": "^10.5",
+                "roots/wordpress-no-content": "7.1"
             },
             "type": "wordpress-muplugin",
             "scripts": {
@@ -245,7 +246,14 @@
                     "bash bin/guard.sh"
                 ],
                 "test": [
+                    "@test:unit",
+                    "@test:kses"
+                ],
+                "test:unit": [
                     "phpunit"
+                ],
+                "test:kses": [
+                    "phpunit -c phpunit.kses.xml"
                 ],
                 "gate": [
                     "@composer show 'netdust/*'",
@@ -266,10 +274,10 @@
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
             "support": {
-                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.21.3",
+                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.23.0",
                 "issues": "https://github.com/netdust/ntdst-baseline/issues"
             },
-            "time": "2026-10-27T08:26:40+00:00"
+            "time": "2026-10-30T15:30:25+00:00"
         },
         {
             "name": "netdust/ntdst-core",
@@ -766,5 +774,5 @@
         "php": ">=8.1"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
