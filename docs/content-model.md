@@ -262,14 +262,16 @@ hard way — this is the single most valuable page in this doc.
    ddev wp ntdst polylang languages --add=nl:nl_BE,en:en_US,fr:fr_BE \
      --default=nl --post-types=case,team,vacature,tool --taxonomies=dienst,domain,doelgroep
    ```
-   Every taxonomy on `case` belongs in that list. `domain` and `doelgroep` were
-   added to the model after this runbook named only `dienst`, so production
-   translated neither until 2026-11-02. Since baseline 2.26, `wp ntdst polylang
-   setup <lang>` makes every public type and taxonomy translatable on its own and
-   gives existing translations their own language's terms. Add `--dry-run` first to see what it would change. Verify with
+   Add `--dry-run` first to see what it would change. Verify with
    `wp term list language --fields=slug,name` and by reading `post_types` /
    `taxonomies` out of `get_option('polylang')` — an empty `post_types` there
    means every content type silently lost its language switcher.
+
+   Every taxonomy on `case` belongs in that list. `domain` and `doelgroep` were
+   added to the model after this runbook named only `dienst`, so an environment
+   converged before baseline 2.26 translates neither. Since 2.26, `wp ntdst
+   polylang setup <lang>` makes every public type and taxonomy translatable on its
+   own and gives existing translations their own language's terms.
 
    The command needs the module ON; `wp ntdst polylang` reporting "not a
    registered wp command" means the `ntdst/baseline/modules` filter is not
