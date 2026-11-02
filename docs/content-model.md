@@ -260,9 +260,13 @@ hard way — this is the single most valuable page in this doc.
    idempotent command, and the step that used to be implicit in code:
    ```
    ddev wp ntdst polylang languages --add=nl:nl_BE,en:en_US,fr:fr_BE \
-     --default=nl --post-types=case,team,vacature,tool --taxonomies=dienst
+     --default=nl --post-types=case,team,vacature,tool --taxonomies=dienst,domain,doelgroep
    ```
-   Add `--dry-run` first to see what it would change. Verify with
+   Every taxonomy on `case` belongs in that list. `domain` and `doelgroep` were
+   added to the model after this runbook named only `dienst`, so production
+   translated neither until 2026-11-02. Since baseline 2.26, `wp ntdst polylang
+   setup <lang>` makes every public type and taxonomy translatable on its own and
+   gives existing translations their own language's terms. Add `--dry-run` first to see what it would change. Verify with
    `wp term list language --fields=slug,name` and by reading `post_types` /
    `taxonomies` out of `get_option('polylang')` — an empty `post_types` there
    means every content type silently lost its language switcher.
