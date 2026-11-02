@@ -105,6 +105,31 @@ trusted, so only what a session must not re-derive lands here.
 - **After a database copy between environments** (refresh, pull): run `wp ntdst grants gate-files`
   on the target, then check a tool's old uploads URL answers 404 (flow old-url-404).
 
+## Chat (2026-11-02)
+
+- **Chat is ntdst-baseline's** (`chat` module, baseline 2.25.0: four abilities on
+  `ntdst-baseline/v1`, read and write through the polylang seam, a marked pre-chat revision).
+  josworld configures it in `josworld-core.php`: chat granted only to the `chat` role, and
+  `application_passwords_capability` set to `ntdst_chat`.
+- **One machine user** (VIP's pattern; Stefan, 2026-11-02): Jos's team shares one Claude
+  account, so one `chat` account connects. The connector's key is a full application password
+  for that account — it reaches all of `/wp/v2` the role can — so the role is the boundary.
+- **`ChatAccess`** owns that boundary: the `chat` role is reset to `ChatAccess::CAPS` (read and
+  edit posts and pages, others' and published included; no publish, delete, private, upload,
+  `unfiltered_html`) on `init` wherever it drifts, and only an account whose sole role is `chat`
+  may hold an application password. `ChatAccessTest` pins both.
+- **Per environment, once** (the role creates itself on the first request):
+  1. `wp user create chat <address> --role=chat` — Jos's team signs in with it at the consent.
+  2. `wp user application-password list <admin>` for each administrator: delete what is there;
+     the setting blocks those keys but a revert would wake them.
+  3. Install and activate MCP Adapter and Enable Abilities for MCP (outside `deploy.payload`).
+     In Settings → WP Abilities switch off everything except the four `ntdst-baseline-v1/*`
+     (it activates all 112 of its own plus FluentCRM's 29). Leave ChatGPT connectors off.
+- **Rollback of a chat edit**: the page's revisions in wp-admin; the marked pre-chat revision
+  survives the revision limit and the maintenance purge.
+- **After a database copy** (refresh, pull): the chat account's keys travel with it — delete
+  them on the target (`wp user application-password list chat`).
+
 ## Boundaries
 
 - `app/content/mu-plugins/josworld-core/` is the business logic (services, one per CPT,
