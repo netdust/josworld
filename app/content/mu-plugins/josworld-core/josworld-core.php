@@ -31,9 +31,19 @@ add_filter('ntdst/baseline/modules', static function (array $modules): array {
     $modules['polylang'] = true;
     $modules['duplicate'] = true;
     $modules['grants'] = true;
+    $modules['chat'] = true;
 
     return $modules;
 });
+
+// Chat runs as one machine user: only the `chat` role holds ntdst_chat, and only ntdst_chat may hold an
+// application password, so the connector's key reaches what that role can and no admin or editor gets one.
+// The role itself is created per environment with WP-CLI (edit pages and posts, nothing else).
+add_filter('ntdst/baseline/chat/config', static fn (array $config): array => [...$config, 'roles' => ['chat']]);
+add_filter('ntdst/baseline/security/config', static fn (array $config): array => [
+    ...$config,
+    'application_passwords_capability' => 'ntdst_chat',
+]);
 
 // Each ntdst route answers per language (the grant link: /toegang/, /en/access/, /fr/acces/).
 add_filter('ntdst/baseline/polylang/config', static function (array $config): array {
