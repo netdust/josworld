@@ -216,16 +216,16 @@
         },
         {
             "name": "netdust/ntdst-baseline",
-            "version": "v2.23.0",
+            "version": "v2.24.1",
             "source": {
                 "type": "git",
                 "url": "git@github.com:netdust/ntdst-baseline.git",
-                "reference": "f2e056f569e392396fb3971f957dcc3538d61b6d"
+                "reference": "df6d2c1e10db590c74c07ccbd6c845237d449f32"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/f2e056f569e392396fb3971f957dcc3538d61b6d",
-                "reference": "f2e056f569e392396fb3971f957dcc3538d61b6d",
+                "url": "https://api.github.com/repos/netdust/ntdst-baseline/zipball/df6d2c1e10db590c74c07ccbd6c845237d449f32",
+                "reference": "df6d2c1e10db590c74c07ccbd6c845237d449f32",
                 "shasum": ""
             },
             "require": {
@@ -234,13 +234,37 @@
             },
             "require-dev": {
                 "brain/monkey": "^2.6",
-                "phpunit/phpunit": "^10.5",
-                "roots/wordpress-no-content": "7.1"
+                "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+                "php-stubs/wp-cli-stubs": "^2.12",
+                "phpcompatibility/phpcompatibility-wp": "^2.1",
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^9.6",
+                "roots/wordpress": "*",
+                "roots/wp-config": "*",
+                "szepeviktor/phpstan-wordpress": "^2.0",
+                "wp-coding-standards/wpcs": "^3.4",
+                "wp-phpunit/wp-phpunit": "*",
+                "wpackagist-theme/twentytwentyfive": "*",
+                "yoast/phpunit-polyfills": "^4.0"
             },
             "type": "wordpress-muplugin",
+            "extra": {
+                "installer-paths": {
+                    "web/app/mu-plugins/{$name}/": [
+                        "type:wordpress-muplugin"
+                    ],
+                    "web/app/plugins/{$name}/": [
+                        "type:wordpress-plugin"
+                    ],
+                    "web/app/themes/{$name}/": [
+                        "type:wordpress-theme"
+                    ]
+                },
+                "wordpress-install-dir": "web/wp"
+            },
             "scripts": {
-                "lint": [
-                    "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l"
+                "syntax": [
+                    "find . -name '*.php' -not -path './vendor/*' -not -path './web/*' -not -path './node_modules/*' -not -path './.phpstan-cache/*' -not -path './.ddev/*' -print0 | xargs -0 -n1 php -l"
                 ],
                 "guard": [
                     "bash bin/guard.sh"
@@ -250,17 +274,48 @@
                     "@test:kses"
                 ],
                 "test:unit": [
-                    "phpunit"
+                    "vendor/bin/phpunit -c phpunit.unit.xml"
                 ],
                 "test:kses": [
                     "phpunit -c phpunit.kses.xml"
                 ],
                 "gate": [
+                    "sh bin/gate.sh"
+                ],
+                "gate:package": [
                     "@composer show 'netdust/*'",
-                    "@lint",
-                    "@test",
+                    "@syntax",
+                    "@test:kses",
                     "@guard",
                     "bash bin/check-invariants.sh"
+                ],
+                "lint": [
+                    "phpcs"
+                ],
+                "analyse": [
+                    "phpstan analyse --no-progress"
+                ],
+                "audit:deps": [
+                    "@composer audit",
+                    "@audit:js"
+                ],
+                "audit:js": [
+                    "sh bin/js-gate.sh audit:js 'audit --audit-level=high'"
+                ],
+                "lint:js": [
+                    "sh bin/js-gate.sh lint:js 'run lint' 'run lint:css'"
+                ],
+                "test:js": [
+                    "sh bin/js-gate.sh test:js 'run test'"
+                ],
+                "build:check": [
+                    "sh bin/js-gate.sh build:check 'run build'"
+                ],
+                "test:int": [
+                    "vendor/bin/phpunit -c phpunit.integration.xml"
+                ],
+                "test:e2e": [
+                    "sh bin/e2e.sh"
                 ]
             },
             "license": [
@@ -274,10 +329,10 @@
             ],
             "description": "NTDST Baseline — generic WordPress-hardening and housekeeping layer for Netdust sites: security headers/login-throttling, head cleanup, SEO meta/robots, JSON-LD schema, scheduled maintenance, cache headers/purge. Zero site-specific values; everything is injected via ntdst/baseline/* filters.",
             "support": {
-                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.23.0",
+                "source": "https://github.com/netdust/ntdst-baseline/tree/v2.24.1",
                 "issues": "https://github.com/netdust/ntdst-baseline/issues"
             },
-            "time": "2026-10-30T15:30:25+00:00"
+            "time": "2026-11-02T10:31:59+00:00"
         },
         {
             "name": "netdust/ntdst-core",
