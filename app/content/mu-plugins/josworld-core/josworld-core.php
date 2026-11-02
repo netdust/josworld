@@ -38,6 +38,13 @@ add_filter('ntdst/baseline/modules', static function (array $modules): array {
 // Each ntdst route answers per language (the grant link: /toegang/, /en/access/, /fr/acces/).
 add_filter('ntdst/baseline/polylang/config', static function (array $config): array {
     $config['route_languages'] = true;
+    // Every language needs a word. The tool's word is its archive's: its singles stay /tools/ in each language.
+    $config['post_type_bases'] = [
+        'case'     => ['nl' => 'ons-werk', 'en' => 'our-work', 'fr' => 'nos-realisations'],
+        'team'     => ['nl' => 'team', 'en' => 'team', 'fr' => 'equipe'],
+        'vacature' => ['nl' => 'jobs-stages', 'en' => 'jobs-internships', 'fr' => 'emplois-stages'],
+        'tool'     => ['nl' => 'gratis-aanbod', 'en' => 'free-offer', 'fr' => 'offre-gratuite'],
+    ];
 
     return $config;
 });

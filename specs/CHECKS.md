@@ -15,6 +15,7 @@ test (it writes, so never production); `make smoke env=<env>` runs every `@smoke
 | `wp ntdst polylang setup` (ntdst-baseline): dry run, refusals, template copies' language and order, FR links in the copies, one post's FR translation keeping its hero attributes | e2e | wp ntdst polylang setup | tests/E2E/polylang-setup.spec.ts | polylang-setup | baseline e939fed 2026-10-30 local, intercepted DeepL |
 | /fr/ with no server error, and `setup --help` where WP-CLI reaches | smoke | /fr/ | tests/E2E/smoke/polylang-setup.spec.ts | polylang-setup | baseline e939fed 2026-10-30 local |
 | Setup's drafts and its menu, widget and template copies in the admin and the YOOtheme customizer | auth | /wp/wp-admin/ | | polylang-setup | baseline e939fed 2026-10-30 local |
+| Case, team, job and tool archives on each language's word (/en/our-work/, /en/free-offer/ …), English case links under /en/our-work/ | smoke | /en/our-work/ | tests/E2E/smoke/translated-archives.spec.ts | polylang-en-archives | 2026-11-02 local |
 
 ## Notes
 
