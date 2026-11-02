@@ -107,7 +107,7 @@ trusted, so only what a session must not re-derive lands here.
 
 ## Chat (2026-11-02)
 
-- **Chat is ntdst-baseline's** (`chat` module, baseline 2.25.0: four abilities on
+- **Chat is ntdst-baseline's** (`chat` module, baseline 2.25.0 and up: four abilities on
   `ntdst-baseline/v1`, read and write through the polylang seam, a marked pre-chat revision).
   josworld configures it in `josworld-core.php`: chat granted only to the `chat` role, and
   `application_passwords_capability` set to `ntdst_chat`.
@@ -117,14 +117,29 @@ trusted, so only what a session must not re-derive lands here.
 - **`ChatAccess`** owns that boundary: the `chat` role is reset to `ChatAccess::CAPS` (read and
   edit posts and pages, others' and published included; no publish, delete, private, upload,
   `unfiltered_html`) on `init` wherever it drifts, and only an account whose sole role is `chat`
-  may hold an application password. `ChatAccessTest` pins both.
+  may hold an application password. A key minted past that check is deleted the moment it is
+  created: the OAuth plugin makes its session key directly, so whoever is logged in at the
+  consent would otherwise connect — an administrator included. `ChatAccessTest` pins all three.
+- **Connect from a private window** and sign in as `chat`: a browser still logged in to wp-admin
+  consents as that user, and the connection then dies on its first request.
 - **Per environment, once** (the role creates itself on the first request):
   1. `wp user create chat <address> --role=chat` — Jos's team signs in with it at the consent.
   2. `wp user application-password list <admin>` for each administrator: delete what is there;
      the setting blocks those keys but a revert would wake them.
   3. Install and activate MCP Adapter and Enable Abilities for MCP (outside `deploy.payload`).
-     In Settings → WP Abilities switch off everything except the four `ntdst-baseline-v1/*`
-     (it activates all 112 of its own plus FluentCRM's 29). Leave ChatGPT connectors off.
+     It activates all 112 of its own abilities plus every third-party one. Writes go only
+     through the four `ntdst-baseline-v1/*` (they know YOOtheme layouts; the plugin's own
+     `update-post` overwrites them). Of its own, switch on only the content reads, so the model
+     can find a page: `get-posts`, `get-post`, `get-pages`, `get-page`, `get-categories`,
+     `get-tags`, `list-post-types`, `get-cpt-items`, `get-cpt-item`, `get-cpt-taxonomies`,
+     `list-languages`, `get-post-translations`, `get-term-translations`, `list-menus`,
+     `get-menu` (not users, comments, meta, SEO, plugins, snippets, nor `search-replace`, which
+     writes). Switch off every third-party ability; leave the OAuth server on, ChatGPT
+     connectors and the bearer token off. The MCP URL is `<site>/wp-json/mcp/mcp-oauth-server`.
+  4. FluentCRM → Settings → MCP off (`mcp_enabled = no`): with MCP Adapter present it opens its
+     own server at `/wp-json/fluent-crm/mcp`, beside contact data.
+- **After an update of Enable Abilities for MCP**, check the switches: its upgrade routines add
+  new abilities as enabled.
 - **Rollback of a chat edit**: the page's revisions in wp-admin; the marked pre-chat revision
   survives the revision limit and the maintenance purge.
 - **After a database copy** (refresh, pull): the chat account's keys travel with it — delete

@@ -85,4 +85,23 @@ final class ChatAccessTest extends WP_UnitTestCase
 
         ntdst_get(ChatAccess::class)->ensureRole();
     }
+
+    // The OAuth plugin mints its session key directly, past the availability check above.
+    public function testAKeyMintedDirectlyForAnAdministratorDoesNotSurvive(): void
+    {
+        $admin = self::factory()->user->create(['role' => 'administrator']);
+
+        \WP_Application_Passwords::create_new_application_password($admin, ['name' => 'MCP OAuth – Claude']);
+
+        $this->assertSame([], \WP_Application_Passwords::get_user_application_passwords($admin));
+    }
+
+    public function testAKeyMintedDirectlyForTheChatUserStays(): void
+    {
+        $chat = self::factory()->user->create(['role' => ChatAccess::ROLE]);
+
+        \WP_Application_Passwords::create_new_application_password($chat, ['name' => 'MCP OAuth – Claude']);
+
+        $this->assertCount(1, \WP_Application_Passwords::get_user_application_passwords($chat));
+    }
 }
