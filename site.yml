@@ -91,6 +91,9 @@ deploy:
     # Without this line every deploy silently deletes it and staging starts
     # sending real mail again. Excluded files are protected from --delete.
     - "00-block-outgoing-mail.php"
+    # YOOtheme writes hashed font files on production (josworld/fonts/<name>-<8 hex>.woff2|css)
+    # and its compiled CSS points at them; a deploy deleted them. The tracked fonts carry no hash.
+    - "fonts/*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].*"
 
   # git-push only. A push alone does NOT deploy: Ploi may have no repository
   # connected, and PHP-FPM often runs opcache.validate_timestamps=0, so the
