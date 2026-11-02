@@ -14,7 +14,7 @@ import { logIn } from './support/login';
  * about three strings to DeepL and deletes the two posts it made.
  */
 
-const STEPS = ['languages', 'language_packs', 'terms', 'content', 'menus', 'widgets', 'templates', 'strings', 'links'];
+const STEPS = ['languages', 'language_packs', 'terms', 'content', 'post_terms', 'menus', 'widgets', 'templates', 'strings', 'links'];
 const HERO = `<p class="uk-text-large" x-data="typewriter({ words: ['Overheid,', 'Social profit,'] })">Wij brengen je dichter bij de mensen. <mark x-text="text"></mark></p>`;
 const localOnly = 'needs WP-CLI through DDEV';
 
