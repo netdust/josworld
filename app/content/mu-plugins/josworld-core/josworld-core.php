@@ -38,12 +38,17 @@ add_filter('ntdst/baseline/modules', static function (array $modules): array {
 
 // Chat runs as one machine user: only the `chat` role holds ntdst_chat, and only ntdst_chat may hold an
 // application password, so the connector's key reaches what that role can and no admin or editor gets one.
-// The role itself is created per environment with WP-CLI (edit pages and posts, nothing else).
-add_filter('ntdst/baseline/chat/config', static fn (array $config): array => [...$config, 'roles' => ['chat']]);
-add_filter('ntdst/baseline/security/config', static fn (array $config): array => [
-    ...$config,
-    'application_passwords_capability' => 'ntdst_chat',
-]);
+// ChatAccess owns the role's capabilities (docs/architecture/CODE-MAP.md, "Chat").
+add_filter('ntdst/baseline/chat/config', static function (array $config): array {
+    $config['roles'] = ['chat'];
+
+    return $config;
+});
+add_filter('ntdst/baseline/security/config', static function (array $config): array {
+    $config['application_passwords_capability'] = 'ntdst_chat';
+
+    return $config;
+});
 
 // Each ntdst route answers per language (the grant link: /toegang/, /en/access/, /fr/acces/).
 add_filter('ntdst/baseline/polylang/config', static function (array $config): array {
@@ -212,6 +217,7 @@ add_action('plugins_loaded', function (): void {
     require_once $dir . '/site/HeroImageService.php';
     require_once $dir . '/site/MailLayoutService.php';
     require_once $dir . '/site/ToolGrantsMatomo.php';
+    require_once $dir . '/site/ChatAccess.php';
 
     // Forms: the tool download confirmation.
     require_once $dir . '/forms/DownloadFormService.php';
@@ -252,6 +258,9 @@ add_action('plugins_loaded', function (): void {
 
         // No analytics on a personal link: its URL carries the token.
         ntdst_get(\josworld\services\site\ToolGrantsMatomo::class);
+
+        // The chat machine user's role and its sole-role key rule.
+        ntdst_get(\josworld\services\site\ChatAccess::class);
 
         // A personal link's page wears the tool page's header section.
         ntdst_get(\josworld\services\content\ToolLinkPage::class);
