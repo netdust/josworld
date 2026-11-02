@@ -23,10 +23,8 @@ for (const { type, nl, en } of archives) {
   });
 }
 
-test('an English case links under /en/our-work/ @smoke', async ({ request }) => {
+test('no English case links under the Dutch word @smoke', async ({ request }) => {
   const html = await (await request.get('/en/our-work/')).text();
-  const links = [...html.matchAll(/href="[^"]*\/en\/(our-work|ons-werk)\/[a-z0-9-]+\/"/g)].map((m) => m[1]);
 
-  expect(links.length).toBeGreaterThan(0);
-  expect(links.every((word) => word === 'our-work')).toBe(true);
+  expect(html).not.toMatch(/href="[^"]*\/en\/ons-werk\//);
 });
